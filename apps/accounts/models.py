@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from .managers import TenantUserManager, UnfilteredManager
+
 
 class Tenant(models.Model):
     name = models.CharField(max_length=200)
@@ -32,6 +34,9 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.MEDICAL_AFFAIRS,
     )
+
+    objects = TenantUserManager()
+    all_objects = UnfilteredManager()
 
     def __str__(self):
         return self.email or self.username
