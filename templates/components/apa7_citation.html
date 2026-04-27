@@ -1,0 +1,15 @@
+{% if citation %}
+<div class="apa7"
+     x-data="{ copied: false }"
+     @click="
+       navigator.clipboard.writeText('{{ citation|escapejs }}').then(() => {
+         copied = true;
+         setTimeout(() => copied = false, 2000);
+       })
+     "
+     title="Click to copy citation">
+  {{ citation }}
+  <span class="copy-hint" x-show="!copied">Click to copy</span>
+  <span class="copy-hint" x-show="copied" x-cloak style="color:var(--euc)">Copied!</span>
+</div>
+{% endif %}
