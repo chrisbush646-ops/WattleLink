@@ -10,6 +10,7 @@ urlpatterns = [
     path("", include("apps.dashboard.urls")),
     path("literature/", include("apps.literature.urls")),
     path("assessment/", include("apps.assessment.urls")),
+    path("summaries/", include("apps.summaries.urls")),
 ]
 
 if settings.DEBUG:

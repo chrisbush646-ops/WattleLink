@@ -1,0 +1,13 @@
+<div id="summary-panel-{{ paper.pk }}"
+     style="margin-top:20px;padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px solid var(--line)"
+     hx-get="{% url 'summaries:panel' paper.pk %}"
+     hx-trigger="load delay:4s"
+     hx-target="this"
+     hx-swap="outerHTML">
+  <div style="font-size:13px;color:var(--ink)">Running AI summary…</div>
+  <div style="font-size:11.5px;color:var(--muted);margin-top:4px">
+    Claude is reading the paper and generating findings, executive paragraph, and safety data. This takes 15–45 seconds.
+  </div>
+  <div style="margin-top:12px;display:inline-block;width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--euc);border-radius:50%;animation:spin .7s linear infinite"></div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>

@@ -1,0 +1,215 @@
+<div id="summary-panel-{{ paper.pk }}" x-data="summaryPanel()" style="margin-top:20px">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500">
+      Summary
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      {% if summary and summary.status == 'CONFIRMED' %}
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500">Confirmed</span>
+      {% elif summary %}
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI Draft</span>
+      {% endif %}
+      {% if not summary or summary.status != 'CONFIRMED' %}
+      <button class="btn btn-g btn-sm"
+              hx-post="{% url 'summaries:run_ai' paper.pk %}"
+              hx-target="#summary-panel-{{ paper.pk }}"
+              hx-swap="outerHTML"
+              :disabled="running"
+              @click="running=true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span x-text="running ? 'Running…' : 'Run AI Summary'"></span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not summary %}
+  <!-- Empty state -->
+  <div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+    <div style="font-size:13px;color:var(--muted)">No summary yet.</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Run AI Summary to generate a structured findings table and executive paragraph, then review and confirm.</div>
+  </div>
+
+  {% else %}
+
+  <!-- Methodology -->
+  <div style="margin-bottom:14px" x-data="{ editing: false }">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Methodology</div>
+      <button @click="editing=!editing" style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer" x-text="editing ? 'Done' : 'Edit'"></button>
+    </div>
+    <template x-if="!editing">
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;font-family:var(--mono);background:var(--paper-warm);padding:10px 12px;border-radius:var(--r);border:1px solid var(--line-soft)">
+        {{ summary.methodology|default:"—" }}
+      </div>
+    </template>
+    <template x-if="editing">
+      <textarea id="methodology-{{ paper.pk }}"
+                style="width:100%;font:inherit;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:70px;background:var(--surface)">{{ summary.methodology }}</textarea>
+    </template>
+  </div>
+
+  <!-- Findings table -->
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Findings</div>
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--paper-warm)">
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:12%">Type</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:28%">Finding</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:18%">Result</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:10%">Ref</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Clinical Significance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in findings %}
+          <tr style="border-top:1px solid var(--line-soft)" x-data="{ editing: false }">
+            <td style="padding:8px 12px">
+              <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+                {% if row.category == 'Primary' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+                {% elif row.category == 'Secondary' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+                {% elif row.category == 'Safety' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+                {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+                {{ row.category }}
+              </span>
+            </td>
+            <td style="padding:8px 12px;color:var(--ink);line-height:1.4;font-family:var(--serif);font-size:13px">
+              <template x-if="!editing"><span>{{ row.finding }}</span></template>
+              <template x-if="editing">
+                <textarea style="width:100%;font:inherit;font-family:var(--serif);font-size:12.5px;border:1px solid var(--line);border-radius:4px;padding:4px;resize:vertical;min-height:60px">{{ row.finding }}</textarea>
+              </template>
+            </td>
+            <td style="padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--ink-soft)">
+              <template x-if="!editing"><span>{{ row.quantitative_result|default:"—" }}</span></template>
+              <template x-if="editing">
+                <input value="{{ row.quantitative_result }}" style="width:100%;font:inherit;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:4px;padding:3px 5px">
+              </template>
+            </td>
+            <td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">
+              <template x-if="!editing"><span>{{ row.page_ref|default:"—" }}</span></template>
+              <template x-if="editing">
+                <input value="{{ row.page_ref }}" style="width:100%;font:inherit;font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:3px 5px">
+              </template>
+            </td>
+            <td style="padding:8px 12px;color:var(--ink-soft);font-size:11.5px;line-height:1.4">
+              <template x-if="!editing">
+                <span>{{ row.clinical_significance|default:"—" }}</span>
+              </template>
+              <template x-if="editing">
+                <textarea style="width:100%;font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:4px;resize:vertical;min-height:54px">{{ row.clinical_significance }}</textarea>
+              </template>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No findings rows yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Executive paragraph -->
+  <div style="margin-bottom:14px" x-data="{ editing: false }">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Executive Paragraph</div>
+      <button @click="editing=!editing" style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer" x-text="editing ? 'Done' : 'Edit'"></button>
+    </div>
+    <template x-if="!editing">
+      <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.65;padding:14px 16px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--euc)">
+        {{ summary.executive_paragraph|default:"—" }}
+      </div>
+    </template>
+    <template x-if="editing">
+      <textarea id="exec-para-{{ paper.pk }}"
+                style="width:100%;font:inherit;font-family:var(--serif);font-size:13.5px;line-height:1.65;border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;resize:vertical;min-height:160px;background:var(--surface);color:var(--ink)">{{ summary.executive_paragraph }}</textarea>
+    </template>
+  </div>
+
+  <!-- Safety summary -->
+  {% if summary.safety_summary %}
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:5px">Safety Summary</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;padding:10px 12px;background:var(--coral-soft);border-radius:var(--r);border-left:3px solid var(--coral)">
+      {{ summary.safety_summary }}
+    </div>
+    {% if summary.adverse_events %}
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+      {% for ae in summary.adverse_events %}
+      <div style="font-size:11px;padding:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:20px;color:var(--ink-soft)">
+        <span style="color:var(--coral);font-weight:500">{{ ae.event }}</span>
+        <span style="color:var(--muted);margin-left:4px">{{ ae.incidence }}</span>
+        {% if ae.page_ref %}<span style="font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-left:4px">{{ ae.page_ref }}</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Limitations -->
+  {% if summary.limitations %}
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:5px">Limitations</div>
+    <ul style="margin:0;padding-left:16px">
+      {% for lim in summary.limitations %}
+      <li style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:4px">
+        {{ lim.limitation }}
+        {% if lim.page_ref %}<span style="font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-left:6px">{{ lim.page_ref }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Confirm button -->
+  {% if summary.status != 'CONFIRMED' %}
+  <div style="margin-top:12px">
+    <button class="btn btn-p btn-sm" @click="confirmSummary({{ paper.pk }})">
+      Confirm Summary
+    </button>
+  </div>
+  {% endif %}
+
+  {% endif %}{# end if summary #}
+</div>
+
+{% if confirmed %}
+<div style="margin-top:6px;font-size:12px;color:var(--euc)">
+  ✓ Summary confirmed — paper advanced to Summarised.
+</div>
+{% endif %}
+
+<script>
+function summaryPanel() {
+  return {
+    running: false,
+    confirmSummary(paperPk) {
+      const methodology = document.getElementById(`methodology-${paperPk}`)?.value;
+      const execPara = document.getElementById(`exec-para-${paperPk}`)?.value;
+
+      const payload = {};
+      if (methodology !== undefined) payload.methodology = methodology;
+      if (execPara !== undefined) payload.executive_paragraph = execPara;
+
+      fetch(`/summaries/${paperPk}/confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify(payload),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`summary-panel-${paperPk}`).outerHTML = html;
+        });
+    },
+  };
+}
+</script>

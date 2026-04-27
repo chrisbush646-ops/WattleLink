@@ -99,6 +99,15 @@
           Loading assessment…
         </div>
       </div>
+
+      <!-- Summary panel (lazy-loaded) -->
+      <div hx-get="{% url 'summaries:panel' paper.pk %}"
+           hx-trigger="intersect once"
+           hx-swap="outerHTML">
+        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
+          Loading summary…
+        </div>
+      </div>
     </div>
 
     <!-- Footer actions -->
