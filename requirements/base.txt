@@ -13,3 +13,4 @@ python-dotenv~=1.0
 django-htmx~=1.21
 whitenoise~=6.8
 python-json-logger~=2.0
+requests~=2.32
