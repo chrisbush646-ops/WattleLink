@@ -108,6 +108,15 @@
           Loading summary…
         </div>
       </div>
+
+      <!-- Claims panel (lazy-loaded) -->
+      <div hx-get="{% url 'claims:panel' paper.pk %}"
+           hx-trigger="intersect once"
+           hx-swap="outerHTML">
+        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
+          Loading claims…
+        </div>
+      </div>
     </div>
 
     <!-- Footer actions -->

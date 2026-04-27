@@ -1,0 +1,287 @@
+{% load claims_tags %}
+<div id="claim-{{ claim.pk }}"
+     x-data="claimCard({{ claim.pk }}, {{ claim.fidelity_checklist|tojson }})"
+     style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:10px">
+
+  <!-- Card header -->
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--paper-warm);border-bottom:1px solid var(--line-soft)">
+
+    <!-- Endpoint type badge -->
+    <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;flex-shrink:0;
+      {% if claim.endpoint_type == 'PRIMARY' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+      {% elif claim.endpoint_type == 'SECONDARY' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+      {% elif claim.endpoint_type == 'SAFETY' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+      {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+      {{ claim.get_endpoint_type_display }}
+    </span>
+
+    <!-- Status badge -->
+    <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;flex-shrink:0;
+      {% if claim.status == 'APPROVED' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+      {% elif claim.status == 'REJECTED' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+      {% elif claim.status == 'IN_REVIEW' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+      {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+      {{ claim.get_status_display }}
+    </span>
+
+    {% if claim.version > 1 %}
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">v{{ claim.version }}</span>
+    {% endif %}
+
+    <div style="flex:1"></div>
+
+    {% if claim.status != 'APPROVED' %}
+    <button @click="editing = !editing"
+            style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer"
+            x-text="editing ? 'Cancel' : 'Edit'"></button>
+    {% endif %}
+
+    <button @click="showSource = !showSource"
+            style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer"
+            x-text="showSource ? 'Hide source' : 'Show source'"></button>
+  </div>
+
+  <!-- Error banner -->
+  {% if error %}
+  <div style="padding:8px 14px;background:var(--coral-soft);border-bottom:1px solid #E9CBB9;font-size:11.5px;color:var(--coral)">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Claim body -->
+  <div style="padding:12px 14px">
+
+    <!-- Claim text -->
+    <template x-if="!editing">
+      <div style="font-family:var(--serif);font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:10px">
+        {{ claim.claim_text }}
+      </div>
+    </template>
+    <template x-if="editing">
+      <textarea x-model="editData.claim_text"
+                style="width:100%;font:inherit;font-family:var(--serif);font-size:13.5px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:80px;background:var(--surface);color:var(--ink);margin-bottom:10px"></textarea>
+    </template>
+
+    <!-- Source passage (collapsible) -->
+    <div x-show="showSource" x-transition style="margin-bottom:10px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Source passage</div>
+      <template x-if="!editing">
+        <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);line-height:1.5;padding:8px 12px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--line)">
+          {{ claim.source_passage|default:"—" }}
+          {% if claim.source_reference %}
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">{{ claim.source_reference }}</div>
+          {% endif %}
+        </div>
+      </template>
+      <template x-if="editing">
+        <div>
+          <textarea x-model="editData.source_passage"
+                    placeholder="Verbatim excerpt from the paper…"
+                    style="width:100%;font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;resize:vertical;min-height:70px;background:var(--surface);color:var(--ink-soft)"></textarea>
+          <input x-model="editData.source_reference"
+                 placeholder="e.g. p.4, Table 2"
+                 style="width:100%;margin-top:4px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:5px 10px;background:var(--surface);color:var(--muted)">
+        </div>
+      </template>
+    </div>
+
+    <!-- Fair balance -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Fair balance</div>
+      <template x-if="!editing">
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;padding:8px 12px;background:var(--coral-soft);border-radius:var(--r);border-left:3px solid var(--coral)">
+          {% if claim.fair_balance %}
+            {{ claim.fair_balance }}
+            {% if claim.fair_balance_reference %}
+            <span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px">{{ claim.fair_balance_reference }}</span>
+            {% endif %}
+          {% else %}
+            <span style="color:var(--coral);font-weight:500">No fair balance — required before approval.</span>
+          {% endif %}
+        </div>
+      </template>
+      <template x-if="editing">
+        <div>
+          <textarea x-model="editData.fair_balance"
+                    placeholder="Balancing statement of risks, limitations, or caveats…"
+                    style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;resize:vertical;min-height:60px;background:var(--surface);color:var(--ink-soft)"></textarea>
+          <input x-model="editData.fair_balance_reference"
+                 placeholder="e.g. p.8, Limitations"
+                 style="width:100%;margin-top:4px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:5px 10px;background:var(--surface);color:var(--muted)">
+        </div>
+      </template>
+    </div>
+
+    <!-- Fidelity checklist -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Fidelity checklist</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <template x-for="(label, key) in fidelityLabels" :key="key">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);cursor:pointer">
+            <input type="checkbox"
+                   :checked="fidelity[key]"
+                   @change="fidelity[key] = $event.target.checked"
+                   {% if claim.status == 'APPROVED' %}disabled{% endif %}
+                   style="accent-color:var(--euc)">
+            <span x-text="label"></span>
+          </label>
+        </template>
+      </div>
+      <div style="margin-top:6px">
+        <span x-show="allFidelityChecked"
+              style="font-size:10px;color:var(--euc);font-weight:500">✓ Fidelity complete</span>
+        <span x-show="!allFidelityChecked"
+              style="font-size:10px;color:var(--muted)">
+          <span x-text="checkedCount"></span>/5 items checked
+        </span>
+      </div>
+    </div>
+
+    <!-- Rejection reason (if rejected) -->
+    {% if claim.status == 'REJECTED' and claim.rejection_reason %}
+    <div style="margin-bottom:10px;padding:8px 12px;background:var(--coral-soft);border-radius:var(--r);border-left:3px solid var(--coral)">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:2px">Rejection reason</div>
+      <div style="font-size:12px;color:var(--ink-soft)">{{ claim.rejection_reason }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Edit mode save button -->
+    <template x-if="editing">
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <select x-model="editData.endpoint_type"
+                style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface);color:var(--ink)">
+          <option value="PRIMARY">Primary</option>
+          <option value="SECONDARY">Secondary</option>
+          <option value="SAFETY">Safety</option>
+          <option value="OTHER">Other</option>
+        </select>
+        <button @click="saveEdit()"
+                class="btn btn-p btn-sm">Save changes</button>
+      </div>
+    </template>
+
+    <!-- Action buttons -->
+    <template x-if="!editing">
+      <div style="display:flex;gap:6px;align-items:center">
+        {% if claim.status == 'AI_DRAFT' or claim.status == 'IN_REVIEW' %}
+        <button hx-post="{% url 'claims:approve' claim.pk %}"
+                hx-target="#claim-{{ claim.pk }}"
+                hx-swap="outerHTML"
+                :disabled="!allFidelityChecked"
+                :style="!allFidelityChecked ? 'opacity:.5;cursor:not-allowed' : ''"
+                class="btn btn-p btn-sm"
+                @click="saveFidelity()">
+          Approve
+        </button>
+        <button @click="showRejectModal = true" class="btn btn-g btn-sm"
+                style="color:var(--coral);border-color:var(--coral)">
+          Reject
+        </button>
+        {% endif %}
+        {% if claim.status == 'APPROVED' %}
+        <span style="font-size:11px;color:var(--euc)">
+          ✓ Approved{% if claim.reviewed_by %} by {{ claim.reviewed_by.get_full_name|default:claim.reviewed_by.email }}{% endif %}
+        </span>
+        {% endif %}
+      </div>
+    </template>
+  </div>
+
+  <!-- Reject modal -->
+  <div x-show="showRejectModal"
+       style="padding:12px 14px;background:var(--coral-soft);border-top:1px solid #E9CBB9"
+       x-transition>
+    <div style="font-size:11px;font-weight:500;color:var(--coral);margin-bottom:6px">Rejection reason (required)</div>
+    <textarea x-model="rejectReason"
+              placeholder="Explain why this claim is being rejected…"
+              style="width:100%;font-size:12px;border:1px solid #E9CBB9;border-radius:var(--r);padding:7px 10px;resize:vertical;min-height:54px;background:var(--surface)"></textarea>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button @click="submitReject()"
+              class="btn btn-sm"
+              style="background:var(--coral);color:#fff;border:none">
+        Confirm rejection
+      </button>
+      <button @click="showRejectModal = false; rejectReason = ''"
+              class="btn btn-g btn-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function claimCard(claimPk, initialFidelity) {
+  return {
+    editing: false,
+    showSource: false,
+    showRejectModal: false,
+    rejectReason: '',
+    fidelity: {
+      verbatim_data: false,
+      population_match: false,
+      endpoint_match: false,
+      no_extrapolation: false,
+      fair_balance_present: false,
+      ...initialFidelity,
+    },
+    fidelityLabels: {
+      verbatim_data: 'Verbatim data',
+      population_match: 'Population match',
+      endpoint_match: 'Endpoint match',
+      no_extrapolation: 'No extrapolation',
+      fair_balance_present: 'Fair balance present',
+    },
+    editData: {
+      claim_text: {{ claim.claim_text|tojson }},
+      endpoint_type: {{ claim.endpoint_type|tojson }},
+      source_passage: {{ claim.source_passage|tojson }},
+      source_reference: {{ claim.source_reference|tojson }},
+      fair_balance: {{ claim.fair_balance|tojson }},
+      fair_balance_reference: {{ claim.fair_balance_reference|tojson }},
+    },
+    get allFidelityChecked() {
+      return Object.values(this.fidelity).every(Boolean);
+    },
+    get checkedCount() {
+      return Object.values(this.fidelity).filter(Boolean).length;
+    },
+    saveFidelity() {
+      fetch(`/claims/${claimPk}/fidelity/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({ fidelity_checklist: this.fidelity }),
+      });
+    },
+    saveEdit() {
+      fetch(`/claims/${claimPk}/edit/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({ ...this.editData, fidelity_checklist: this.fidelity }),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`claim-${claimPk}`).outerHTML = html;
+        });
+    },
+    submitReject() {
+      if (!this.rejectReason.trim()) return;
+      fetch(`/claims/${claimPk}/reject/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({ reason: this.rejectReason }),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`claim-${claimPk}`).outerHTML = html;
+        });
+    },
+  };
+}
+</script>

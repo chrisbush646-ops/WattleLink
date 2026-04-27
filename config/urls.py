@@ -11,6 +11,7 @@ urlpatterns = [
     path("literature/", include("apps.literature.urls")),
     path("assessment/", include("apps.assessment.urls")),
     path("summaries/", include("apps.summaries.urls")),
+    path("claims/", include("apps.claims.urls")),
 ]
 
 if settings.DEBUG:
