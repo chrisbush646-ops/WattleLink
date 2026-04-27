@@ -1,0 +1,9 @@
+{% load claims_tags %}
+{% for signal in signals %}
+  {% include "safety/partials/signal_card.html" with signal=signal %}
+{% empty %}
+<div style="padding:32px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No safety signals yet.</div>
+  <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Add a signal to start tracking adverse events across the literature.</div>
+</div>
+{% endfor %}

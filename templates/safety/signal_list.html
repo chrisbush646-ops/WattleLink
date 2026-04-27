@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load claims_tags %}
+{% block nav_safety %}ni-active{% endblock %}
+{% block title %}Safety Signals{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto">
+
+  <!-- Page header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div>
+      <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Safety Signals</h1>
+      <div style="font-size:12px;color:var(--muted)">Adverse event tracking across all literature. Active signals require monitoring.</div>
+    </div>
+    <button @click="showCreate = true"
+            x-data="{ showCreate: false }"
+            class="btn btn-p"
+            style="display:none"  {# replaced by Alpine below #}
+    ></button>
+  </div>
+
+  <!-- Create + list wrapper -->
+  <div x-data="signalListPage()">
+
+    <!-- Stats row -->
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      {% with active=signals|length %}
+      <div style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Total signals</div>
+        <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ signals|length }}</div>
+      </div>
+      {% endwith %}
+      <div style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Active</div>
+        <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">
+          {% with count=0 %}
+            {% for s in signals %}{% if s.status == 'ACTIVE' %}{{ forloop.counter }}{% endif %}{% endfor %}
+          {% endwith %}
+          {# Simpler: just count in view #}
+          {{ active_count|default:"—" }}
+        </div>
+      </div>
+      <div style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Monitoring</div>
+        <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ monitoring_count|default:"—" }}</div>
+      </div>
+    </div>
+
+    <!-- Add signal button -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">
+        + Add Signal
+      </button>
+    </div>
+
+    <!-- Create form (collapsible) -->
+    <div x-show="showCreate" x-transition
+         style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px">New Safety Signal</div>
+      <div style="display:flex;gap:10px;margin-bottom:8px">
+        <input x-model="newSignal.event_name"
+               placeholder="Adverse event name (e.g. Hepatotoxicity)"
+               style="flex:2;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 12px;background:var(--surface)">
+        <select x-model="newSignal.severity"
+                style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+          <option value="CRITICAL">Critical</option>
+          <option value="SERIOUS">Serious</option>
+          <option value="MODERATE" selected>Moderate</option>
+          <option value="MILD">Mild</option>
+        </select>
+      </div>
+      <textarea x-model="newSignal.description"
+                placeholder="Brief description of the signal…"
+                style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;resize:vertical;min-height:54px;background:var(--surface);margin-bottom:8px"></textarea>
+      <textarea x-model="newSignal.prepared_response"
+                placeholder="MSL-ready prepared response (optional)…"
+                style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;resize:vertical;min-height:60px;background:var(--surface);margin-bottom:10px"></textarea>
+      <div style="display:flex;gap:6px">
+        <button @click="createSignal()" class="btn btn-p btn-sm">Create Signal</button>
+        <button @click="showCreate = false" class="btn btn-g btn-sm">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Signal list -->
+    <div id="signal-list-inner">
+      {% include "safety/partials/signal_list_inner.html" with signals=signals %}
+    </div>
+  </div>
+</div>
+
+<script>
+function signalListPage() {
+  return {
+    showCreate: false,
+    newSignal: { event_name: '', severity: 'MODERATE', description: '', prepared_response: '' },
+    createSignal() {
+      if (!this.newSignal.event_name.trim()) return;
+      fetch('/safety/create/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify(this.newSignal),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById('signal-list-inner').innerHTML = html;
+          this.showCreate = false;
+          this.newSignal = { event_name: '', severity: 'MODERATE', description: '', prepared_response: '' };
+        });
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% load claims_tags %}
+<div id="signal-{{ signal.pk }}"
+     x-data="{ editing: false }"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:10px">
+
+  <div style="display:flex;align-items:flex-start;gap:10px">
+
+    <!-- Severity indicator -->
+    <div style="width:4px;border-radius:2px;align-self:stretch;flex-shrink:0;
+      {% if signal.severity == 'CRITICAL' %}background:var(--coral)
+      {% elif signal.severity == 'SERIOUS' %}background:#D97706
+      {% elif signal.severity == 'MODERATE' %}background:var(--wattle)
+      {% else %}background:var(--sky){% endif %}">
+    </div>
+
+    <div style="flex:1;min-width:0">
+      <!-- Header row -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <a href="{% url 'safety:detail' signal.pk %}"
+           style="font-size:14px;font-weight:600;color:var(--ink);font-family:var(--serif);text-decoration:none">
+          {{ signal.event_name }}
+        </a>
+
+        <!-- Severity badge -->
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+          {% if signal.severity == 'CRITICAL' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+          {% elif signal.severity == 'SERIOUS' %}background:#FEF3C7;color:#92400E;border:1px solid #F59E0B
+          {% elif signal.severity == 'MODERATE' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+          {% else %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB{% endif %}">
+          {{ signal.get_severity_display }}
+        </span>
+
+        <!-- Status badge -->
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+          {% if signal.status == 'ACTIVE' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+          {% elif signal.status == 'MONITORING' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+          {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+          {{ signal.get_status_display }}
+        </span>
+
+        <div style="flex:1"></div>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">
+          {{ signal.mention_count }} paper{{ signal.mention_count|pluralize }}
+        </span>
+        <button @click="editing = !editing"
+                style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer"
+                x-text="editing ? 'Done' : 'Edit'"></button>
+      </div>
+
+      <!-- Description -->
+      <template x-if="!editing">
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:{% if signal.prepared_response %}8{% else %}0{% endif %}px">
+          {{ signal.description|default:"No description." }}
+        </div>
+      </template>
+
+      <!-- Edit form -->
+      <template x-if="editing">
+        <div x-data="signalEdit({{ signal.pk }})" style="margin-top:6px">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <select x-model="severity"
+                    style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+              <option value="CRITICAL">Critical</option>
+              <option value="SERIOUS">Serious</option>
+              <option value="MODERATE">Moderate</option>
+              <option value="MILD">Mild</option>
+            </select>
+            <select x-model="status"
+                    style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+              <option value="ACTIVE">Active</option>
+              <option value="MONITORING">Monitoring</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
+          <textarea x-model="description"
+                    placeholder="Description…"
+                    style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;resize:vertical;min-height:54px;background:var(--surface);margin-bottom:6px"></textarea>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Prepared response</div>
+          <textarea x-model="preparedResponse"
+                    placeholder="MSL-ready talking point…"
+                    style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;resize:vertical;min-height:70px;background:var(--surface);margin-bottom:8px"></textarea>
+          <button @click="save()"
+                  class="btn btn-p btn-sm">Save</button>
+        </div>
+      </template>
+
+      <!-- Prepared response (read mode) -->
+      {% if signal.prepared_response %}
+      <template x-if="!editing">
+        <div style="margin-top:8px;padding:8px 12px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--euc)">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:3px">Prepared response</div>
+          <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">{{ signal.prepared_response }}</div>
+        </div>
+      </template>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function signalEdit(signalPk) {
+  return {
+    severity: '{{ signal.severity }}',
+    status: '{{ signal.status }}',
+    description: {{ signal.description|tojson }},
+    preparedResponse: {{ signal.prepared_response|tojson }},
+    save() {
+      fetch(`/safety/${signalPk}/update/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({
+          severity: this.severity,
+          status: this.status,
+          description: this.description,
+          prepared_response: this.preparedResponse,
+        }),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`signal-{{ signal.pk }}`).outerHTML = html;
+        });
+    },
+  };
+}
+</script>

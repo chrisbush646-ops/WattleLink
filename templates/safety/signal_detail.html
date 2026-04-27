@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load claims_tags %}
+{% block nav_safety %}ni-active{% endblock %}
+{% block title %}{{ signal.event_name }} — Safety Signal{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto">
+
+  <!-- Breadcrumb -->
+  <div style="font-size:11.5px;color:var(--muted);margin-bottom:16px">
+    <a href="{% url 'safety:list' %}" style="color:var(--euc);text-decoration:none">Safety Signals</a>
+    <span style="margin:0 6px">›</span>
+    {{ signal.event_name }}
+  </div>
+
+  <!-- Signal card (editable) -->
+  {% include "safety/partials/signal_card.html" with signal=signal %}
+
+  <!-- Papers / Mentions -->
+  <div style="margin-top:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500">
+        Literature mentions
+      </div>
+      <button @click="showAdd = !showAdd"
+              x-data="{ showAdd: false }"
+              class="btn btn-g btn-sm"
+              style="display:none"></button>{# replaced below #}
+    </div>
+
+    <div x-data="mentionForm({{ signal.pk }})">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button @click="showAdd = !showAdd" class="btn btn-g btn-sm">+ Link paper</button>
+      </div>
+
+      <!-- Add mention form -->
+      <div x-show="showAdd" x-transition
+           style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Link a paper to this signal</div>
+        <select x-model="paperPk"
+                style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface);margin-bottom:8px">
+          <option value="">— Select paper —</option>
+          {% for p in papers_without_mention %}
+          <option value="{{ p.pk }}">{{ p.title|truncatechars:80 }} ({{ p.published_date.year }})</option>
+          {% endfor %}
+        </select>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Incidence (treatment)</div>
+            <input x-model="incidenceTx" placeholder="e.g. 3.1%" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Incidence (control)</div>
+            <input x-model="incidenceCtrl" placeholder="e.g. 1.8%" style="width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Page ref</div>
+            <input x-model="pageRef" placeholder="e.g. p.7, Table 3" style="width:100%;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+          </div>
+        </div>
+        <textarea x-model="passage"
+                  placeholder="Verbatim passage from paper (optional)…"
+                  style="width:100%;font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;resize:vertical;min-height:54px;background:var(--surface);margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:6px">
+          <button @click="save()" class="btn btn-p btn-sm">Link paper</button>
+          <button @click="showAdd = false" class="btn btn-g btn-sm">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Mentions table -->
+      <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+        {% include "safety/partials/mentions_table.html" with signal=signal mentions=mentions %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function mentionForm(signalPk) {
+  return {
+    showAdd: false,
+    paperPk: '',
+    incidenceTx: '',
+    incidenceCtrl: '',
+    pageRef: '',
+    passage: '',
+    save() {
+      if (!this.paperPk) return;
+      fetch(`/safety/${signalPk}/mention/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({
+          paper_pk: this.paperPk,
+          incidence_treatment: this.incidenceTx,
+          incidence_control: this.incidenceCtrl,
+          page_ref: this.pageRef,
+          passage: this.passage,
+        }),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`mentions-table-${signalPk}`).outerHTML = html;
+          this.showAdd = false;
+          this.paperPk = '';
+          this.incidenceTx = '';
+          this.incidenceCtrl = '';
+          this.pageRef = '';
+          this.passage = '';
+        });
+    },
+  };
+}
+</script>
+{% endblock %}
