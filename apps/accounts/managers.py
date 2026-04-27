@@ -19,13 +19,16 @@ class TenantQuerySet(models.QuerySet):
 
 class TenantManager(models.Manager):
     """
-    Auto-scopes querysets to the current request's tenant.
+    Auto-scopes querysets to the current request's tenant, and excludes
+    soft-deleted records for models that have a `deleted_at` field.
     Falls back to unscoped if no tenant is set (e.g. management commands).
-    Assign as `objects` on any model that has a `tenant` ForeignKey.
     """
 
     def get_queryset(self):
         qs = TenantQuerySet(self.model, using=self._db)
+        # Exclude soft-deleted records when the model supports it
+        if any(f.name == "deleted_at" for f in self.model._meta.fields):
+            qs = qs.filter(deleted_at__isnull=True)
         tenant = get_current_tenant()
         if tenant is not None:
             return qs.filter(tenant=tenant)
