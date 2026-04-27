@@ -1,0 +1,19 @@
+{% load citations %}
+{% if papers %}
+  {% for paper in papers %}
+  {% include "literature/partials/paper_row.html" %}
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="7" style="padding:40px;text-align:center;color:var(--muted);font-size:13px">
+      {% if search_query %}
+        No papers match "{{ search_query }}".
+      {% elif status_filter %}
+        No papers with this status yet.
+      {% else %}
+        No papers in the database yet.
+        <a href="{% url 'literature:search' %}" style="color:var(--euc);text-decoration:underline;margin-left:4px">Search &amp; ingest your first paper →</a>
+      {% endif %}
+    </td>
+  </tr>
+{% endif %}

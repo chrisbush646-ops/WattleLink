@@ -1,0 +1,109 @@
+{% if error %}
+<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">
+  {{ error }}
+</div>
+{% elif articles %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+  <div style="font-family:var(--serif);font-size:16px;font-weight:400;color:var(--ink)">
+    Search Results
+    <span style="font-family:var(--mono);font-size:13px;color:var(--muted);margin-left:6px">{{ total }} result{{ total|pluralize }}</span>
+  </div>
+  <button class="btn btn-p btn-sm"
+          onclick="ingestAllOA()"
+          id="ingest-all-btn">
+    Ingest all open access
+  </button>
+</div>
+<div class="tw">
+  <table class="dt">
+    <thead>
+      <tr>
+        <th style="width:44%">Paper</th>
+        <th>Journal</th>
+        <th>Date</th>
+        <th>Access</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for article in articles %}
+      <tr id="result-row-{{ article.pubmed_id }}">
+        <td>
+          <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.3">{{ article.title }}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">
+            {{ article.authors|join:", "|truncatechars:80 }}
+          </div>
+          {% if article.doi %}
+          <div style="font-family:var(--mono);font-size:10px;color:var(--euc);margin-top:2px">{{ article.doi }}</div>
+          {% endif %}
+        </td>
+        <td style="font-style:italic;color:var(--euc);font-family:var(--serif);font-size:12.5px">
+          {{ article.journal_short|default:article.journal|truncatechars:30 }}
+        </td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">
+          {% if article.published_date %}{{ article.published_date|date:"M Y" }}{% endif %}
+        </td>
+        <td>
+          {% if article.is_open_access %}
+          <span class="tag green">Open Access</span>
+          {% else %}
+          <span class="tag">Paywalled</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if article.already_ingested %}
+          <span class="tag green">In database</span>
+          {% elif article.is_open_access %}
+          <button class="btn btn-g btn-sm"
+                  onclick="ingestPaper('{{ article.pubmed_id }}', this)">
+            Ingest
+          </button>
+          {% else %}
+          <button class="btn btn-g btn-sm"
+                  onclick="flagForUpload('{{ article.pubmed_id }}', this)">
+            Flag for upload
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+const _oaPmids = [{% for a in articles %}{% if a.is_open_access and not a.already_ingested %}'{{ a.pubmed_id }}',{% endif %}{% endfor %}];
+
+async function ingestPaper(pmid, btn) {
+  btn.disabled = true; btn.textContent = 'Ingesting…';
+  const res = await fetch('{% url "literature:ingest_paper" %}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+    body: JSON.stringify({ pubmed_id: pmid }),
+  });
+  const html = await res.text();
+  document.getElementById('result-row-' + pmid).outerHTML = html;
+}
+
+async function flagForUpload(pmid, btn) {
+  btn.disabled = true; btn.textContent = 'Flagged';
+  btn.className = 'tag gold';
+}
+
+async function ingestAllOA() {
+  const btn = document.getElementById('ingest-all-btn');
+  btn.disabled = true; btn.textContent = 'Ingesting…';
+  const res = await fetch('{% url "literature:ingest_all_oa" %}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+    body: JSON.stringify({ pmids: _oaPmids }),
+  });
+  const data = await res.json();
+  btn.textContent = `Ingested ${data.ingested} papers`;
+}
+</script>
+{% else %}
+<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">
+  No results found. Try broadening your query.
+</div>
+{% endif %}

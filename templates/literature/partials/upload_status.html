@@ -1,0 +1,13 @@
+{% if error %}
+<div style="padding:10px 14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:6px;color:var(--coral);font-size:12.5px">
+  {{ error }}
+</div>
+{% elif paper %}
+<div style="padding:10px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:6px;color:var(--euc);font-size:12.5px;display:flex;align-items:center;gap:8px">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+  <div>
+    <strong>{{ paper.title }}</strong> — {{ message }}
+    <span style="font-family:var(--mono);font-size:10px;margin-left:6px;color:var(--euc-l)">ID {{ paper.id }}</span>
+  </div>
+</div>
+{% endif %}

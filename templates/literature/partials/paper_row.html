@@ -1,0 +1,42 @@
+{% load citations %}
+<tr>
+  <td>
+    <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.3;margin-bottom:4px">
+      {{ paper.title|truncatechars:100 }}
+    </div>
+    {% apa7_block paper %}
+  </td>
+  <td style="font-style:italic;color:var(--euc);font-family:var(--serif);font-size:12.5px;white-space:nowrap">
+    {{ paper.journal_short|default:paper.journal|truncatechars:28 }}
+  </td>
+  <td style="font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap">
+    {% if paper.published_date %}{{ paper.published_date|date:"M Y" }}{% else %}—{% endif %}
+  </td>
+  <td>
+    {% if paper.grade_rating == "High" %}<span class="tag green">High</span>
+    {% elif paper.grade_rating == "Moderate" %}<span class="tag amber">Moderate</span>
+    {% elif paper.grade_rating == "Low" %}<span class="tag red">Low</span>
+    {% elif paper.grade_rating == "Very Low" %}<span class="tag red">Very Low</span>
+    {% else %}<span style="color:var(--muted);font-size:11px">—</span>{% endif %}
+  </td>
+  <td>
+    {% if paper.status == "AWAITING_UPLOAD" %}<span class="tag">Awaiting upload</span>
+    {% elif paper.status == "INGESTED" %}<span class="tag gold">Ingested</span>
+    {% elif paper.status == "ASSESSED" %}<span class="tag sky">Assessed</span>
+    {% elif paper.status == "SUMMARISED" %}<span class="tag green">Summarised</span>
+    {% elif paper.status == "CLAIMS_GENERATED" %}<span class="tag green">Claims generated</span>
+    {% elif paper.status == "APPROVED" %}<span class="tag green">Approved</span>
+    {% else %}<span class="tag">{{ paper.status }}</span>{% endif %}
+  </td>
+  <td style="font-family:var(--mono);font-size:12px;color:var(--euc);text-align:center">
+    {{ paper.coreclaim_set.count|default:"—" }}
+  </td>
+  <td>
+    <button class="btn btn-g btn-sm"
+            hx-get="{% url 'literature:paper_detail' paper.pk %}"
+            hx-target="#modal-container"
+            hx-swap="innerHTML">
+      View
+    </button>
+  </td>
+</tr>

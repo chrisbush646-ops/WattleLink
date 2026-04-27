@@ -1,0 +1,103 @@
+{% load citations %}
+<div style="position:fixed;inset:0;background:rgba(18,22,19,.4);backdrop-filter:blur(3px);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto"
+     x-data
+     @click.self="$el.remove()"
+     @keydown.escape.window="$el.remove()">
+  <div style="background:var(--surface);border-radius:14px;box-shadow:0 20px 60px -20px rgba(0,0,0,.3);width:100%;max-width:700px;animation:modalIn .22s ease">
+
+    <!-- Header -->
+    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px">
+      <div style="flex:1">
+        <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">
+          {{ paper.journal_short|default:paper.journal }}
+          {% if paper.published_date %} · {{ paper.published_date|date:"Y" }}{% endif %}
+        </div>
+        <h2 style="font-family:var(--serif);font-weight:300;font-size:22px;color:var(--ink);line-height:1.3;margin:0 0 6px">{{ paper.title }}</h2>
+        <div style="font-size:12px;color:var(--muted)">{{ paper.authors_display }}</div>
+      </div>
+      <button style="width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--muted);cursor:pointer;background:none;border:none;flex-shrink:0"
+              @click="$el.closest('div[style*=fixed]').remove()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+      </button>
+    </div>
+
+    <div style="padding:20px 24px;overflow-y:auto;max-height:70vh">
+
+      <!-- APA7 citation -->
+      {% apa7_block paper %}
+
+      <!-- Pipeline progress -->
+      <div style="margin:18px 0 6px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:500">Pipeline Progress</div>
+        <div style="display:flex;gap:2px">
+          {% for label, stage_status in pipeline_stages %}
+          <div style="flex:1;padding:8px 10px;text-align:center;font-size:11px;font-weight:500;
+            {% if paper.status == stage_status %}background:var(--wattle-soft);color:#8A6918;border-radius:6px
+            {% elif paper.pipeline_stage > forloop.counter0 %}background:#E8EFE9;color:var(--euc);border-radius:6px
+            {% else %}background:var(--line-soft);color:var(--muted);border-radius:6px{% endif %}">
+            <span style="font-family:var(--mono);font-size:9.5px;display:block;margin-bottom:1px">{{ forloop.counter }}</span>
+            {{ label }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Metadata grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;font-size:12.5px">
+        {% if paper.doi %}
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">DOI</div>
+          <a href="https://doi.org/{{ paper.doi }}" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--euc);word-break:break-all">{{ paper.doi }}</a>
+        </div>
+        {% endif %}
+        {% if paper.pubmed_id %}
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">PubMed ID</div>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--euc)">{{ paper.pubmed_id }}</span>
+        </div>
+        {% endif %}
+        {% if paper.study_type %}
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Study Type</div>
+          <span>{{ paper.study_type }}</span>
+        </div>
+        {% endif %}
+        {% if paper.grade_rating %}
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">GRADE Rating</div>
+          <span>{{ paper.grade_rating }}</span>
+        </div>
+        {% endif %}
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Source</div>
+          <span>{{ paper.get_source_display }}</span>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Open Access</div>
+          <span>{% if paper.is_open_access %}Yes{% if paper.pmcid %} (PMC: {{ paper.pmcid }}){% endif %}{% else %}No{% endif %}</span>
+        </div>
+      </div>
+
+      <!-- Linked claims -->
+      {% if claims %}
+      <div style="margin-top:16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Linked Claims ({{ claims|length }})</div>
+        {% for claim in claims %}
+        <div style="padding:10px 14px;background:var(--paper-warm);border-left:2px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %};border-radius:0 6px 6px 0;margin-bottom:6px;font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.4">
+          {{ claim.claim_text }}
+          <div style="font-family:var(--sans);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px">{{ claim.get_status_display }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Footer actions -->
+    <div style="padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:6px;justify-content:flex-end;background:var(--paper-warm);border-radius:0 0 14px 14px">
+      <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Draft talking points</button>
+      <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Literature review</button>
+      <button class="btn btn-p" @click="$el.closest('div[style*=fixed]').remove()">Close</button>
+    </div>
+  </div>
+</div>
+<style>@keyframes modalIn{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}</style>

@@ -1,0 +1,45 @@
+<div style="position:fixed;inset:0;background:rgba(18,22,19,.4);backdrop-filter:blur(3px);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:50px 20px"
+     x-data
+     @click.self="$el.remove()">
+  <div style="background:var(--surface);border-radius:14px;box-shadow:0 20px 60px -20px rgba(0,0,0,.3);width:100%;max-width:520px;animation:modalIn .22s ease">
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:var(--serif);font-size:20px;color:var(--ink)">Saved <em style="font-style:italic;color:var(--euc)">Searches</em></div>
+      <button style="width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--muted);cursor:pointer;background:none;border:none"
+              @click="$el.closest('div[style*=fixed]').remove()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+      </button>
+    </div>
+    <div style="padding:18px 22px;max-height:400px;overflow-y:auto">
+      {% if searches %}
+        {% for s in searches %}
+        <div style="padding:10px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div>
+            <div style="font-size:13.5px;font-weight:500;color:var(--ink)">{{ s.name }}</div>
+            <div style="font-family:var(--mono);font-size:10.5px;color:var(--euc);margin-top:2px;word-break:break-all">{{ s.query|truncatechars:80 }}</div>
+            {% if s.last_run %}
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Last run {{ s.last_run|date:"d M Y" }} · {{ s.result_count }} result{{ s.result_count|pluralize }}</div>
+            {% endif %}
+          </div>
+          <button class="btn btn-g btn-sm"
+                  style="flex-shrink:0"
+                  onclick="loadSearch('{{ s.query|escapejs }}'); this.closest('div[style*=fixed]').remove()">
+            Load
+          </button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:var(--muted);font-size:13px;padding:12px 0">No saved searches yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+function loadSearch(query) {
+  const builder = document.querySelector('[x-data]').__x.$data;
+  if (builder && builder.rows) {
+    builder.rows = [{ operator: 'AND', field: 'all', term: query }];
+    builder.preview = query;
+  }
+}
+</script>
+<style>@keyframes modalIn{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}</style>

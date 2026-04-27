@@ -75,11 +75,11 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
         Dashboard
       </a>
-      <a href="#" class="ni {% block nav_search %}{% endblock %}">
+      <a href="{% url 'literature:search' %}" class="ni {% block nav_search %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/><path d="M11 8v6M8 11h6"/></svg>
         Search &amp; Ingest
       </a>
-      <a href="#" class="ni {% block nav_library %}{% endblock %}">
+      <a href="{% url 'literature:library' %}" class="ni {% block nav_library %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h12a3 3 0 013 3v13H7a3 3 0 01-3-3V4z"/><path d="M4 17a3 3 0 013-3h12"/><path d="M8 8h7M8 11h5"/></svg>
         Literature Database
       </a>
