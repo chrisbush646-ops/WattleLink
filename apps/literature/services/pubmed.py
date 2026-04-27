@@ -47,6 +47,8 @@ class PubMedClient:
         max_results: int = 200,
         open_access_only: bool = False,
         study_type: str = "",
+        year_from: str = "",
+        year_to: str = "",
     ) -> list[str]:
         """Return a list of PubMed IDs matching the query."""
         full_query = query
@@ -63,6 +65,13 @@ class PubMedClient:
             "retmode": "json",
             "usehistory": "n",
         }
+
+        if year_from or year_to:
+            params["datetype"] = "pdat"
+            if year_from:
+                params["mindate"] = f"{year_from}/01/01"
+            if year_to:
+                params["maxdate"] = f"{year_to}/12/31"
 
         self._throttle()
         try:

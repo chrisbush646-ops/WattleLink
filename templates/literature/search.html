@@ -130,10 +130,10 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
   <!-- Filters + actions -->
   <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
     <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px">
-      <input type="checkbox" x-model="openAccessOnly" @change="updatePreview()" style="accent-color:var(--euc)">
+      <input type="checkbox" x-model="openAccessOnly" style="accent-color:var(--euc)">
       Open access only
     </label>
-    <select x-model="studyType" @change="updatePreview()"
+    <select x-model="studyType"
             style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);background:var(--surface)">
       <option value="">All study types</option>
       <option value="rct">RCT</option>
@@ -141,6 +141,17 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
       <option value="sr">Systematic review</option>
       <option value="obs">Observational</option>
     </select>
+    <!-- Year range -->
+    <div style="display:flex;align-items:center;gap:4px">
+      <span style="font-size:12px;color:var(--muted)">Year</span>
+      <input type="number" x-model="yearFrom" placeholder="From"
+             min="1950" max="2030"
+             style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
+      <span style="font-size:12px;color:var(--muted)">–</span>
+      <input type="number" x-model="yearTo" placeholder="To"
+             min="1950" max="2030"
+             style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
+    </div>
     <div style="flex:1"></div>
     <button class="btn btn-g" @click="saveSearch()">Save search</button>
     <button class="btn btn-p"
@@ -185,6 +196,8 @@ function queryBuilder() {
     rows: [{ operator: 'AND', field: 'tiab', term: '' }],
     openAccessOnly: true,
     studyType: '',
+    yearFrom: '',
+    yearTo: '',
     preview: '',
     showAiPanel: false,
     aiDescription: '',
@@ -226,8 +239,15 @@ function queryBuilder() {
         if (data.query) {
           this.rows = [{ operator: 'AND', field: 'all', term: data.query }];
           this.preview = data.query;
+        } else if (data.error) {
+          document.getElementById('search-results').innerHTML =
+            `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest failed: ${data.error}</div>`;
         }
-      } catch(e) { console.error(e); }
+      } catch(e) {
+        console.error(e);
+        document.getElementById('search-results').innerHTML =
+          '<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest is unavailable. Check that ANTHROPIC_API_KEY is set.</div>';
+      }
       finally { this.aiThinking = false; }
     },
 
@@ -237,6 +257,8 @@ function queryBuilder() {
       form.append('query', this.preview);
       form.append('open_access_only', this.openAccessOnly ? 'true' : 'false');
       form.append('study_type', this.studyType);
+      if (this.yearFrom) form.append('year_from', this.yearFrom);
+      if (this.yearTo) form.append('year_to', this.yearTo);
       const target = document.getElementById('search-results');
       target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Searching PubMed…</div>';
       const res = await fetch('{% url "literature:run_search" %}', {

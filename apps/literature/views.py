@@ -40,11 +40,16 @@ def run_search(request):
             "error": "Please enter a search query.",
         })
 
+    year_from = request.POST.get("year_from", "").strip()
+    year_to = request.POST.get("year_to", "").strip()
+
     client = PubMedClient()
     pmids = client.esearch(
         query=query,
         open_access_only=open_access_only,
         study_type=study_type,
+        year_from=year_from,
+        year_to=year_to,
     )
     articles = client.efetch(pmids)
 
@@ -54,9 +59,6 @@ def run_search(request):
     )
     for a in articles:
         a["already_ingested"] = a.get("pubmed_id") in existing_pmids
-
-    log_action(request, SavedSearch(tenant=request.tenant), AuditLog.Action.CREATE,
-               after={"query": query, "results": len(articles)})
 
     return render(request, "literature/partials/search_results.html", {
         "articles": articles,
@@ -237,9 +239,13 @@ def ai_suggest(request):
     if not description:
         return JsonResponse({"error": "description required"}, status=400)
 
-    from .services.ai_suggest import suggest_pubmed_query
-    query = suggest_pubmed_query(description)
-    return JsonResponse({"query": query})
+    try:
+        from .services.ai_suggest import suggest_pubmed_query
+        query = suggest_pubmed_query(description)
+        return JsonResponse({"query": query})
+    except Exception as e:
+        logger.error("AI suggest failed: %s", e)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # ── Literature Database ───────────────────────────────────────────────────────
