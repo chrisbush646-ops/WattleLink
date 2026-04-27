@@ -1,0 +1,260 @@
+{% load citations %}
+<div id="assessment-panel-{{ paper.pk }}" x-data="assessmentPanel()" style="margin-top:20px">
+
+  <!-- Header row -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500">
+      Quality Assessment
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      {% if grade and grade.status == 'CONFIRMED' %}
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500">Confirmed</span>
+      {% elif grade %}
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI Draft</span>
+      {% endif %}
+      {% if not grade or grade.status != 'CONFIRMED' %}
+      <button class="btn btn-g btn-sm"
+              hx-post="{% url 'assessment:run_ai' paper.pk %}"
+              hx-target="#assessment-panel-{{ paper.pk }}"
+              hx-swap="outerHTML"
+              :disabled="running"
+              @click="running=true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
+        <span x-text="running ? 'Running…' : 'Run AI Assessment'"></span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not grade and not rob %}
+  <!-- Empty state -->
+  <div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+    <div style="font-size:13px;color:var(--muted)">No assessment yet.</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Run AI Assessment to pre-fill GRADE and RoB 2, then review and confirm.</div>
+  </div>
+
+  {% else %}
+  <!-- GRADE section -->
+  {% if grade %}
+  <div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">GRADE</div>
+      {% if grade.overall_rating %}
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+        {% if grade.overall_rating == 'High' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+        {% elif grade.overall_rating == 'Moderate' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+        {% else %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9{% endif %}">
+        {{ grade.overall_rating }}
+      </span>
+      {% endif %}
+    </div>
+
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--paper-warm)">
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:22%">Domain</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:20%">Rating</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Rationale</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:12%">Ref</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for label, rating, rationale, page_ref in grade.domains %}
+          <tr style="border-top:1px solid var(--line-soft)" x-data="{ editing: false }">
+            <td style="padding:8px 12px;color:var(--ink-soft);font-weight:500">{{ label }}</td>
+            <td style="padding:8px 12px">
+              <template x-if="!editing">
+                <span style="font-size:11px;
+                  {% if rating == 'Not serious' or rating == 'Undetected' %}color:var(--euc)
+                  {% elif rating == 'Serious' or rating == 'Suspected' %}color:#8A6918
+                  {% elif rating == 'Very serious' %}color:var(--coral)
+                  {% else %}color:var(--muted){% endif %}">
+                  {{ rating|default:"—" }}
+                </span>
+              </template>
+              <template x-if="editing">
+                <select name="grade_{{ forloop.counter0 }}_rating"
+                        style="font:inherit;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:2px 4px;background:var(--surface)">
+                  {% for val, lbl in grade_domain_rating_choices %}
+                  <option value="{{ val }}" {% if val == rating %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </template>
+            </td>
+            <td style="padding:8px 12px;color:var(--ink-soft);line-height:1.4">
+              <template x-if="!editing">
+                <span>{{ rationale|default:"—" }}</span>
+              </template>
+              <template x-if="editing">
+                <textarea name="grade_{{ forloop.counter0 }}_rationale"
+                          style="width:100%;font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:4px;resize:vertical;min-height:54px">{{ rationale }}</textarea>
+              </template>
+            </td>
+            <td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">
+              <template x-if="!editing">
+                <span>{{ page_ref|default:"—" }}</span>
+              </template>
+              <template x-if="editing">
+                <input name="grade_{{ forloop.counter0 }}_page_ref"
+                       value="{{ page_ref }}"
+                       style="width:100%;font:inherit;font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:3px 5px">
+              </template>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- RoB 2 section -->
+  {% if rob %}
+  <div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">RoB 2</div>
+      {% if rob.overall_judgment %}
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+        {% if rob.overall_judgment == 'Low' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+        {% elif rob.overall_judgment == 'Some concerns' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+        {% else %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9{% endif %}">
+        {{ rob.overall_judgment }}
+      </span>
+      {% endif %}
+    </div>
+
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--paper-warm)">
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:30%">Domain</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:18%">Judgment</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Rationale</th>
+            <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:12%">Ref</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for prefix, label, judgment, rationale, page_ref in rob.domains %}
+          <tr style="border-top:1px solid var(--line-soft)" x-data="{ editing: false }">
+            <td style="padding:8px 12px;color:var(--ink-soft);font-weight:500;font-size:11.5px">{{ label }}</td>
+            <td style="padding:8px 12px">
+              <template x-if="!editing">
+                <span style="font-size:11px;
+                  {% if judgment == 'Low' %}color:var(--euc)
+                  {% elif judgment == 'Some concerns' %}color:#8A6918
+                  {% elif judgment == 'High' %}color:var(--coral)
+                  {% else %}color:var(--muted){% endif %}">
+                  {{ judgment|default:"—" }}
+                </span>
+              </template>
+              <template x-if="editing">
+                <select name="rob_{{ prefix }}_judgment"
+                        style="font:inherit;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:2px 4px;background:var(--surface)">
+                  {% for val, lbl in rob_judgment_choices %}
+                  <option value="{{ val }}" {% if val == judgment %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </template>
+            </td>
+            <td style="padding:8px 12px;color:var(--ink-soft);line-height:1.4">
+              <template x-if="!editing">
+                <span>{{ rationale|default:"—" }}</span>
+              </template>
+              <template x-if="editing">
+                <textarea name="rob_{{ prefix }}_rationale"
+                          style="width:100%;font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:4px;resize:vertical;min-height:54px">{{ rationale }}</textarea>
+              </template>
+            </td>
+            <td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">
+              <template x-if="!editing">
+                <span>{{ page_ref|default:"—" }}</span>
+              </template>
+              <template x-if="editing">
+                <input name="rob_{{ prefix }}_page_ref"
+                       value="{{ page_ref }}"
+                       style="width:100%;font:inherit;font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:3px 5px">
+              </template>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Overall rating selectors + confirm button -->
+  {% if grade or rob %}
+  {% if not grade.status == 'CONFIRMED' or not rob.status == 'CONFIRMED' %}
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+    {% if grade %}
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:11px;color:var(--muted)">GRADE overall</label>
+      <select id="grade-overall-{{ paper.pk }}"
+              style="font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;background:var(--surface)">
+        <option value="">— select —</option>
+        {% for val, lbl in grade_overall_choices %}
+        <option value="{{ val }}" {% if val == grade.overall_rating %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if rob %}
+    <div style="display:flex;align-items:center;gap:6px">
+      <label style="font-size:11px;color:var(--muted)">RoB 2 overall</label>
+      <select id="rob-overall-{{ paper.pk }}"
+              style="font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;background:var(--surface)">
+        <option value="">— select —</option>
+        {% for val, lbl in rob_judgment_choices %}
+        <option value="{{ val }}" {% if val == rob.overall_judgment %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <button class="btn btn-p btn-sm"
+            @click="confirmAssessment({{ paper.pk }})">
+      Confirm Assessment
+    </button>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% endif %}{# end if not grade and not rob #}
+</div>
+
+{% if confirmed %}
+<div style="margin-top:6px;font-size:12px;color:var(--euc)">
+  ✓ Assessment confirmed — paper advanced to Assessed.
+</div>
+{% endif %}
+
+<script>
+function assessmentPanel() {
+  return {
+    running: false,
+    confirmAssessment(paperPk) {
+      const gradeOverall = document.getElementById(`grade-overall-${paperPk}`)?.value || '';
+      const robOverall = document.getElementById(`rob-overall-${paperPk}`)?.value || '';
+
+      const payload = {
+        grade: { overall_rating: gradeOverall },
+        rob:   { overall_judgment: robOverall },
+      };
+
+      fetch(`/assessment/${paperPk}/confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify(payload),
+      })
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById(`assessment-panel-${paperPk}`).outerHTML = html;
+        });
+    },
+  };
+}
+</script>

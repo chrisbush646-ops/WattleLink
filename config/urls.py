@@ -9,6 +9,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("", include("apps.dashboard.urls")),
     path("literature/", include("apps.literature.urls")),
+    path("assessment/", include("apps.assessment.urls")),
 ]
 
 if settings.DEBUG:
