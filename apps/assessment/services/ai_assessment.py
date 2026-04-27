@@ -6,7 +6,7 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
-PROMPT_PATH = Path(__file__).resolve().parents[4] / "prompts"
+PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
 
 
 def _load_prompt(filename: str) -> str:
