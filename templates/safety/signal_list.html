@@ -12,11 +12,6 @@
       <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Safety Signals</h1>
       <div style="font-size:12px;color:var(--muted)">Adverse event tracking across all literature. Active signals require monitoring.</div>
     </div>
-    <button @click="showCreate = true"
-            x-data="{ showCreate: false }"
-            class="btn btn-p"
-            style="display:none"  {# replaced by Alpine below #}
-    ></button>
   </div>
 
   <!-- Create + list wrapper -->
@@ -24,33 +19,49 @@
 
     <!-- Stats row -->
     <div style="display:flex;gap:12px;margin-bottom:20px">
-      {% with active=signals|length %}
       <div style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
         <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Total signals</div>
         <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ signals|length }}</div>
       </div>
-      {% endwith %}
       <div style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
         <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Active</div>
-        <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">
-          {% with count=0 %}
-            {% for s in signals %}{% if s.status == 'ACTIVE' %}{{ forloop.counter }}{% endif %}{% endfor %}
-          {% endwith %}
-          {# Simpler: just count in view #}
-          {{ active_count|default:"—" }}
-        </div>
+        <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">{{ active_count|default:"—" }}</div>
       </div>
       <div style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
         <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Monitoring</div>
         <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ monitoring_count|default:"—" }}</div>
       </div>
+      <div style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Papers scanned</div>
+        <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ scanned_count }}</div>
+        {% if unscanned_count > 0 %}
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">{{ unscanned_count }} unscanned</div>
+        {% endif %}
+      </div>
     </div>
 
-    <!-- Add signal button -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">
-        + Add Signal
+    <!-- Scan result banner -->
+    <div x-show="scanResult" x-transition style="display:none;margin-bottom:14px">
+      <div style="padding:10px 14px;border-radius:var(--r);font-size:12px;line-height:1.5"
+           :style="scanResult && scanResult.errors && scanResult.errors.length
+             ? 'background:var(--wattle-soft);border:1px solid #E7D59A;color:#6B4F0A'
+             : 'background:#E8EFE9;border:1px solid #CFDAD0;color:var(--euc)'">
+        <span x-text="scanResult ? scanResult.summary : ''"></span>
+        <template x-if="scanResult && scanResult.has_more">
+          <span style="margin-left:8px;opacity:.7"> — <button @click="scanLibrary()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:inherit;text-decoration:underline;padding:0">Scan next batch</button></span>
+        </template>
+      </div>
+    </div>
+
+    <!-- Action row -->
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;align-items:center">
+      <button @click="scanLibrary()" :disabled="scanning"
+              style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px"
+              :style="scanning ? 'opacity:.6;cursor:not-allowed' : ''">
+        <span x-show="scanning" style="display:inline-block;width:10px;height:10px;border:2px solid var(--euc);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span>
+        <span x-text="scanning ? 'Scanning…' : 'Scan Library for AEs'">Scan Library for AEs</span>
       </button>
+      <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Add Signal</button>
     </div>
 
     <!-- Create form (collapsible) -->
@@ -88,11 +99,21 @@
   </div>
 </div>
 
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
 <script>
 function signalListPage() {
   return {
     showCreate: false,
+    scanning: false,
+    scanResult: null,
     newSignal: { event_name: '', severity: 'MODERATE', description: '', prepared_response: '' },
+
     createSignal() {
       if (!this.newSignal.event_name.trim()) return;
       fetch('/safety/create/', {
@@ -109,6 +130,45 @@ function signalListPage() {
           this.showCreate = false;
           this.newSignal = { event_name: '', severity: 'MODERATE', description: '', prepared_response: '' };
         });
+    },
+
+    scanLibrary() {
+      if (this.scanning) return;
+      this.scanning = true;
+      this.scanResult = null;
+      fetch('/safety/scan/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+      })
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('signal-list-inner').innerHTML = data.html;
+          if (window.Alpine) Alpine.initTree(document.getElementById('signal-list-inner'));
+
+          let summary = '';
+          if (data.papers_scanned === 0) {
+            summary = 'No unscanned papers with full text found.';
+          } else {
+            summary = `Scanned ${data.papers_scanned} paper${data.papers_scanned !== 1 ? 's' : ''} · `
+              + `${data.new_signals} new signal${data.new_signals !== 1 ? 's' : ''} · `
+              + `${data.new_mentions} mention${data.new_mentions !== 1 ? 's' : ''} added`;
+            if (data.has_more) {
+              summary += ` · ${data.unscanned_remaining} papers still unscanned`;
+            }
+          }
+          if (data.errors && data.errors.length) {
+            summary += ` · ${data.errors.length} error${data.errors.length !== 1 ? 's' : ''} (see console)`;
+            console.warn('Safety scan errors:', data.errors);
+          }
+          this.scanResult = { summary, has_more: data.has_more, errors: data.errors || [] };
+        })
+        .catch(err => {
+          this.scanResult = { summary: 'Scan failed — check the Django console.', has_more: false, errors: [err.toString()] };
+        })
+        .finally(() => { this.scanning = false; });
     },
   };
 }

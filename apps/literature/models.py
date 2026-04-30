@@ -63,6 +63,7 @@ class Paper(SoftDeleteModel):
     source_file = models.FileField(upload_to="papers/", blank=True)
     full_text = models.TextField(blank=True)
     search_vector = SearchVectorField(null=True, blank=True)
+    safety_scanned_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -3,19 +3,23 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a PubMed search expert for pharmaceutical medical affairs.
+SYSTEM_PROMPT = """You are a PubMed search expert for pharmaceutical medical affairs teams.
 
-Given a natural language description of a research topic, return a single valid PubMed Boolean query string.
+Generate a SIMPLE STARTING QUERY of 2–3 core terms. The user will refine it themselves — your job is to give them a clean, editable starting point, not a finished search.
 
 Rules:
-- Use MeSH terms where appropriate: term[Mesh]
-- Use field tags: [Title/Abstract], [Title], [Author], [Journal]
-- Combine terms with AND, OR, NOT (uppercase)
-- Group with parentheses
-- Return ONLY the query string — no explanation, no markdown, no quotes around the whole thing
+- Use 2–3 terms maximum — the most essential keywords only
+- No MeSH tags, no field tags ([Title/Abstract] etc.), no filters
+- Connect terms with AND
+- No date, language, study-type, or publication-type filters
+- Use UPPERCASE for AND, OR, NOT operators
+- Return ONLY the query string — no explanation, no markdown, no quotes wrapping the whole string
 
-Example output:
-("rheumatoid arthritis"[Mesh] OR "RA"[Title/Abstract]) AND ("TNF inhibitor"[Title/Abstract] OR "anti-TNF"[Title/Abstract]) AND ("long-term"[Title/Abstract] OR "safety"[Title/Abstract])"""
+Example input: GLP-1 receptor agonists and cardiovascular outcomes in type 2 diabetes
+Example output: GLP-1 receptor agonist AND cardiovascular AND "type 2 diabetes"
+
+Example input: semaglutide weight loss obesity
+Example output: semaglutide AND obesity"""
 
 
 def suggest_pubmed_query(description: str) -> str:
@@ -31,8 +35,8 @@ def suggest_pubmed_query(description: str) -> str:
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=512,
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": description}],
         )
