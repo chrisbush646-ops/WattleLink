@@ -222,6 +222,18 @@ def reject_claim(request, claim_pk):
 
 @login_required
 @require_POST
+def delete_claim(request, claim_pk):
+    """Permanently soft-delete a claim."""
+    claim = get_object_or_404(CoreClaim.all_objects, pk=claim_pk, tenant=request.tenant)
+    claim.deleted_at = timezone.now()
+    claim.save(update_fields=["deleted_at", "updated_at"])
+    log_action(request, claim, AuditLog.Action.REJECT,
+               before={"status": claim.status}, after={"deleted": True})
+    return HttpResponse("")
+
+
+@login_required
+@require_POST
 def edit_claim(request, claim_pk):
     """Save inline edits to a claim and bump version."""
     claim = get_object_or_404(CoreClaim.all_objects, pk=claim_pk, tenant=request.tenant)

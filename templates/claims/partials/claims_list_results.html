@@ -73,8 +73,12 @@
       <button hx-get="{% url 'literature:paper_detail' claim.paper.pk %}"
               hx-target="body"
               hx-swap="beforeend"
-              style="font-size:11px;color:var(--euc);background:none;border:none;cursor:pointer;padding:0">
+              style="font-size:11px;color:var(--euc);background:none;border:none;cursor:pointer;padding:0;margin-right:12px">
         View paper →
+      </button>
+      <button onclick="deleteClaim({{ claim.pk }}, this)"
+              style="font-size:11px;color:var(--coral);background:none;border:none;cursor:pointer;padding:0">
+        Delete
       </button>
     </div>
 
@@ -107,3 +111,12 @@
   <div style="font-size:12px">Try adjusting your search or filter</div>
 </div>
 {% endif %}
+
+<script>
+function deleteClaim(pk, btn) {
+  if (!confirm('Delete this claim? This cannot be undone.')) return;
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch(`/claims/${pk}/delete/`, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+    .then(() => btn.closest('.claim-card-wrap').remove());
+}
+</script>
