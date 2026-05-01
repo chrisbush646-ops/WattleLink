@@ -45,6 +45,8 @@ class Tenant(models.Model):
 
 
 class User(AbstractUser):
+    password = models.CharField(max_length=256)  # passlib pbkdf2_sha512 hashes exceed Django's default 128
+
     class Role(models.TextChoices):
         MEDICAL_LEAD = "MEDICAL_LEAD", "Medical Lead"       # MD/PharmD — certifies claims (MA Code §8)
         MEDICAL_AFFAIRS = "MEDICAL_AFFAIRS", "Medical Affairs"
