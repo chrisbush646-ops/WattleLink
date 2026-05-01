@@ -167,10 +167,7 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l2 2 4-4"/><path d="M20 7v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h10a3 3 0 013 3z"/></svg>
         Core Claims
       </a>
-      <a href="{% url 'export:list' %}" class="ni {% block nav_export %}{% endblock %}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-        PDF Markup &amp; Export
-      </a>
+
       <a href="{% url 'safety:list' %}" class="ni {% block nav_safety %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>
         Safety Signals
@@ -357,7 +354,7 @@ function shell() {
     { prefix: '/summaries/',        url: '/summaries/',          placeholder: 'Search papers…' },
     { prefix: '/claims/',           url: '/claims/',             placeholder: 'Search claims…' },
     { prefix: '/safety/',           url: '/safety/',             placeholder: 'Search safety signals…' },
-    { prefix: '/export/',           url: '/literature/library/', placeholder: 'Search papers…' },
+
     { prefix: '/kol/directory',     url: '/kol/directory/',      placeholder: 'Search KOLs…' },
     { prefix: '/kol/',              url: '/kol/',                placeholder: 'Search KOLs…' },
     { prefix: '/medinfo/',          url: '/medinfo/',            placeholder: 'Search enquiries…' },

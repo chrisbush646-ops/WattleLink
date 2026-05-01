@@ -13,7 +13,6 @@ urlpatterns = [
     path("summaries/", include("apps.summaries.urls")),
     path("claims/", include("apps.claims.urls")),
     path("safety/", include("apps.safety.urls")),
-    path("export/", include("apps.export.urls")),
     path("kol/", include("apps.kol.urls")),
     path("medinfo/", include("apps.medinfo.urls")),
     path("engagement/", include("apps.engagement.urls")),

@@ -193,27 +193,6 @@
         </div>
       </div>
 
-      <!-- Export -->
-      <div x-data="{ open: false }" style="margin-top:24px">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:2px">
-          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Export</span>
-          <button @click="open=!open"
-                  style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
-            <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
-        </div>
-        <div x-show="open" x-transition>
-          <div hx-get="{% url 'export:panel' paper.pk %}"
-               hx-trigger="revealed"
-               hx-swap="outerHTML">
-            <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Loading export…</div>
-          </div>
-        </div>
-      </div>
 
       <!-- Activity -->
       <div x-data="{ open: false }" style="margin-top:24px">

@@ -11,7 +11,6 @@ PLATFORM_MODULES = [
     ("assessment",    "Quality Assessment"),
     ("summaries",     "Summaries"),
     ("claims",        "Core Claims"),
-    ("export",        "PDF Markup & Export"),
     ("safety",        "Safety Signals"),
     ("kol_discovery", "KOL Discovery"),
     ("kol_directory", "Accepted KOLs"),
