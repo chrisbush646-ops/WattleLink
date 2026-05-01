@@ -12,6 +12,9 @@ fi
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
 # Railway sets PORT; fall back to 8000 for Docker/local
 PORT="${PORT:-8000}"
 
