@@ -2,7 +2,7 @@
 {% if claims %}
 <div style="display:flex;flex-direction:column;gap:10px">
   {% for claim in claims %}
-  <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px;border-left:3px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %}">
+  <div class="claim-card-wrap" style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px;border-left:3px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %}">
 
     <!-- Claim text -->
     <div style="font-family:var(--serif);font-size:15px;color:var(--ink);line-height:1.6;margin-bottom:10px">{{ claim.claim_text }}</div>
@@ -56,8 +56,14 @@
       </div>
       {% endif %}
 
-      <!-- View paper link -->
+      <!-- View paper + source text -->
       <span style="flex:1"></span>
+      {% if claim.source_passage %}
+      <button onclick="this.closest('.claim-card-wrap').querySelector('.claim-source').classList.toggle('hidden')"
+              style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;margin-right:12px">
+        Quote from source text
+      </button>
+      {% endif %}
       <button hx-get="{% url 'literature:paper_detail' claim.paper.pk %}"
               hx-target="body"
               hx-swap="beforeend"
@@ -65,6 +71,13 @@
         View paper →
       </button>
     </div>
+
+    {% if claim.source_passage %}
+    <div class="claim-source hidden" style="margin-top:12px;background:#F6F2E7;border-left:3px solid var(--wattle);border-radius:0 6px 6px 0;padding:10px 14px">
+      <div style="font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Source passage · {{ claim.source_reference }}</div>
+      <div style="font-size:12.5px;font-family:var(--mono);color:var(--ink);line-height:1.6;white-space:pre-wrap">"{{ claim.source_passage }}"</div>
+    </div>
+    {% endif %}
 
     <!-- MLR red flags -->
     {% if claim.mlr_red_flags %}
