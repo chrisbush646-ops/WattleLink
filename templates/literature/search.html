@@ -279,10 +279,10 @@ async function runAiSuggest() {
       results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Server error (status ${res.status}). Response: ${text.slice(0,200)}</div>`;
       return;
     }
-    if (data.query) {
-      qRows = [{ operator:'AND', field:'all', term: data.query }];
+    if (data.rows && data.rows.length) {
+      qRows = data.rows;
       renderRows();
-      results.innerHTML = '<div style="padding:10px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:8px;color:var(--euc);font-size:12.5px">Query generated. Edit it above then click Run search.</div>';
+      results.innerHTML = `<div style="padding:10px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:8px;color:var(--euc);font-size:12.5px">${data.rows.length} query rows generated. Edit above then click Run search.</div>`;
     } else if (data.error) {
       results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest failed: ${data.error}</div>`;
     }

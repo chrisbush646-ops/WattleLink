@@ -334,8 +334,10 @@ def ai_suggest(request):
 
     try:
         from .services.ai_suggest import suggest_pubmed_query
-        query = suggest_pubmed_query(description)
-        return JsonResponse({"query": query})
+        rows = suggest_pubmed_query(description)
+        if not rows:
+            return JsonResponse({"error": "No query could be generated"}, status=500)
+        return JsonResponse({"rows": rows})
     except Exception as e:
         logger.error("AI suggest failed: %s", e)
         return JsonResponse({"error": str(e)}, status=500)
