@@ -145,36 +145,115 @@
 
 <hr class="divider">
 
-<!-- Literature Reviews section -->
+<!-- Results Section Generator -->
 <div class="section-head">
-  <h2 class="section-title">Literature <em>Reviews</em></h2>
-  <span style="font-size:12px;color:var(--muted)">Clinician-ready documents drawn from confirmed summaries</span>
+  <h2 class="section-title">Results <em>Section Generator</em></h2>
+  <span style="font-size:12px;color:var(--muted)">Generate a systematic review–style results table and discussion from your ingested papers</span>
 </div>
 
-{% if lit_reviews %}
-<div class="lr-grid">
-  {% for lr in lit_reviews %}
-  <div class="lr-card">
-    <div class="lr-title">{{ lr.title }}</div>
-    <div class="lr-meta">
-      {% if lr.created_by %}{{ lr.created_by.get_full_name|default:lr.created_by.email }} · {% endif %}{{ lr.created_at|date:"d M Y" }}
-      · {{ lr.papers.count }} paper{{ lr.papers.count|pluralize }}
+<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px 28px;margin-bottom:24px">
+  <div style="display:flex;gap:10px;align-items:flex-end">
+    <div style="flex:1">
+      <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Keywords</label>
+      <input type="text" id="results-keywords"
+             placeholder="e.g. medicinal cannabis chronic pain, terpenes neuropathic"
+             style="width:100%;font-size:13.5px;border:1px solid var(--line);border-radius:var(--r);padding:9px 14px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box">
     </div>
-    {% if lr.content %}
-    <div class="lr-body">{{ lr.content|truncatechars:300 }}</div>
-    {% else %}
-    <div class="lr-body" style="color:var(--muted);font-style:italic">No content generated yet.</div>
-    {% endif %}
-    <div class="lr-footer">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
-      Literature review
+    <button onclick="generateResults()"
+            style="flex-shrink:0;font-size:13px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:9px 22px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:7px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Generate
+    </button>
+  </div>
+  <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Searches all ingested papers for matching titles and full text. Only papers in your library are used.</div>
+</div>
+
+<!-- Results output -->
+<div id="results-output" style="display:none">
+  <div id="results-loading" style="display:none;padding:32px;text-align:center;color:var(--muted)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 10px;display:block;animation:spin .8s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    Searching papers and generating results section…
+  </div>
+  <div id="results-error" style="display:none;padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);color:var(--coral);font-size:13px;margin-bottom:16px"></div>
+  <div id="results-content" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div id="results-meta" style="font-size:12px;color:var(--muted)"></div>
+      <button onclick="copyResults()" style="font-size:11.5px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Copy all</button>
+    </div>
+    <!-- Table -->
+    <div style="overflow-x:auto;margin-bottom:24px">
+      <div id="results-table" style="font-size:13px"></div>
+    </div>
+    <!-- Discussion -->
+    <div style="background:var(--paper-warm);border-left:3px solid var(--euc);border-radius:0 var(--r) var(--r) 0;padding:16px 20px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--euc);margin-bottom:8px">Discussion</div>
+      <div id="results-discussion" style="font-family:var(--serif);font-size:14px;line-height:1.75;color:var(--ink)"></div>
     </div>
   </div>
-  {% endfor %}
 </div>
-{% else %}
-<div class="empty" style="padding:32px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)">
-  No literature reviews yet. Generate one from the Talking Points section once summaries are confirmed.
-</div>
-{% endif %}
+
+<style>
+#results-table table{width:100%;border-collapse:collapse;font-size:12.5px}
+#results-table th{background:var(--euc);color:#fff;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+#results-table td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.5}
+#results-table tr:last-child td{border-bottom:none}
+#results-table tr:nth-child(even) td{background:var(--paper-warm)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+
+<script>
+async function generateResults() {
+  const keywords = document.getElementById('results-keywords').value.trim();
+  if (!keywords) { alert('Please enter keywords first.'); return; }
+  const output = document.getElementById('results-output');
+  const loading = document.getElementById('results-loading');
+  const error = document.getElementById('results-error');
+  const content = document.getElementById('results-content');
+  output.style.display = 'block';
+  loading.style.display = 'block';
+  error.style.display = 'none';
+  content.style.display = 'none';
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const form = new FormData();
+  form.append('keywords', keywords);
+  try {
+    const res = await fetch('{% url "summaries:generate_results" %}', {
+      method: 'POST', headers: { 'X-CSRFToken': csrf }, body: form,
+    });
+    const data = await res.json();
+    loading.style.display = 'none';
+    if (data.error) {
+      error.textContent = data.error;
+      error.style.display = 'block';
+      return;
+    }
+    document.getElementById('results-meta').textContent =
+      `${data.paper_count} paper${data.paper_count !== 1 ? 's' : ''} matched · Generated from your literature library`;
+    document.getElementById('results-table').innerHTML = markdownTableToHtml(data.table_markdown);
+    document.getElementById('results-discussion').textContent = data.discussion;
+    content.style.display = 'block';
+  } catch(e) {
+    loading.style.display = 'none';
+    error.textContent = 'An error occurred: ' + e.message;
+    error.style.display = 'block';
+  }
+}
+
+function markdownTableToHtml(md) {
+  const lines = md.trim().split('\n').filter(l => l.trim() && !l.match(/^\|[\s\-|]+\|$/));
+  if (!lines.length) return '<p style="color:var(--muted)">No table data returned.</p>';
+  const rows = lines.map(l => l.split('|').map(c => c.trim()).filter((c, i, a) => i > 0 && i < a.length - 1));
+  const [header, ...body] = rows;
+  const ths = header.map(h => `<th>${h}</th>`).join('');
+  const trs = body.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function copyResults() {
+  const table = document.getElementById('results-table').innerText;
+  const disc = document.getElementById('results-discussion').textContent;
+  navigator.clipboard.writeText('RESULTS\n\n' + table + '\n\nDISCUSSION\n\n' + disc);
+}
+</script>
+
 {% endblock %}
