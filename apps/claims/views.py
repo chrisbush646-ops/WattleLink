@@ -75,6 +75,8 @@ def create_claim(request, paper_pk):
 
     claim_text = request.POST.get("claim_text", "").strip()
     endpoint_type = request.POST.get("endpoint_type", CoreClaim.EndpointType.PRIMARY)
+    source_passage = request.POST.get("source_passage", "").strip()
+    source_reference = request.POST.get("source_reference", "").strip()
 
     def _panel(error=None):
         claims = list(CoreClaim.all_objects.filter(paper=paper, deleted_at__isnull=True))
@@ -97,6 +99,8 @@ def create_claim(request, paper_pk):
         paper=paper,
         claim_text=claim_text,
         endpoint_type=endpoint_type,
+        source_passage=source_passage,
+        source_reference=source_reference,
         status=CoreClaim.Status.IN_REVIEW,
         ai_generated=False,
     )
@@ -218,6 +222,53 @@ def reject_claim(request, claim_pk):
     log_action(request, claim, AuditLog.Action.REJECT,
                before=before, after={"status": claim.status})
     return HttpResponse("")
+
+
+@login_required
+@require_POST
+def match_source_passage(request):
+    """Given a claim text and paper pk, return the best matching source passage."""
+    from django.http import JsonResponse
+    import anthropic
+    from django.conf import settings
+
+    data = json.loads(request.body)
+    claim_text = data.get("claim_text", "").strip()
+    paper_pk = data.get("paper_pk")
+
+    if not claim_text or not paper_pk:
+        return JsonResponse({"error": "claim_text and paper_pk required"}, status=400)
+
+    paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    full_text = paper.full_text or ""
+    if not full_text.strip():
+        return JsonResponse({"passage": "", "reference": "Full text not available"})
+
+    api_key = getattr(settings, "ANTHROPIC_API_KEY", "") or None
+    if not api_key:
+        return JsonResponse({"error": "AI not configured"}, status=500)
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=(
+                "You are a medical literature assistant. Given a claim and a paper's full text, "
+                "find the single best passage (1–3 sentences) that directly supports the claim. "
+                "Return a JSON object with two keys: "
+                "\"passage\" (the exact verbatim text from the paper) and "
+                "\"reference\" (page, section, or table reference if identifiable, otherwise empty string). "
+                "Return ONLY valid JSON, no prose."
+            ),
+            messages=[{"role": "user", "content": f"CLAIM: {claim_text}\n\nPAPER TEXT:\n{full_text[:12000]}"}],
+        )
+        import json as _json
+        result = _json.loads(response.content[0].text.strip())
+        return JsonResponse({"passage": result.get("passage", ""), "reference": result.get("reference", "")})
+    except Exception as e:
+        logger.error("match_source_passage error: %s", e)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required

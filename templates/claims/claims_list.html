@@ -69,6 +69,18 @@
             </select>
           </div>
 
+          <!-- Source passage (auto-matched) -->
+          <div id="source-match-wrap" style="display:none">
+            <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px">Matched source passage</label>
+            <div id="source-match-loading" style="display:none;font-size:12px;color:var(--muted);padding:8px 0">Finding best matching passage…</div>
+            <div id="source-match-result" style="display:none;background:#F6F2E7;border-left:3px solid var(--wattle);border-radius:0 6px 6px 0;padding:10px 14px">
+              <div id="source-match-ref" style="font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px"></div>
+              <div id="source-match-text" style="font-size:12px;font-family:var(--mono);color:var(--ink);line-height:1.6"></div>
+            </div>
+            <input type="hidden" id="manual-source-passage">
+            <input type="hidden" id="manual-source-reference">
+          </div>
+
           <div id="write-claim-error" style="display:none;font-size:12px;color:var(--coral);padding:6px 10px;background:var(--coral-soft);border-radius:var(--r)"></div>
 
           <div style="display:flex;gap:8px;padding-top:4px">
@@ -116,11 +128,48 @@
     document.getElementById('selected-paper-label').textContent = '✓ ' + title.substring(0, 70);
     document.getElementById('selected-paper-label').style.display = 'block';
     document.getElementById('paper-search-results').style.display = 'none';
+    triggerSourceMatch();
   }
+
+  let _matchTimer;
+  document.getElementById('manual-claim-text').addEventListener('input', () => {
+    clearTimeout(_matchTimer);
+    _matchTimer = setTimeout(triggerSourceMatch, 800);
+  });
+
+  function triggerSourceMatch() {
+    const pk = document.getElementById('selected-paper-pk').value;
+    const text = document.getElementById('manual-claim-text').value.trim();
+    if (!pk || text.length < 10) return;
+    const wrap = document.getElementById('source-match-wrap');
+    const loading = document.getElementById('source-match-loading');
+    const result = document.getElementById('source-match-result');
+    wrap.style.display = 'block';
+    loading.style.display = 'block';
+    result.style.display = 'none';
+    const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    fetch('{% url "claims:match_source" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify({ claim_text: text, paper_pk: pk }),
+    }).then(r => r.json()).then(data => {
+      loading.style.display = 'none';
+      if (data.passage) {
+        document.getElementById('source-match-ref').textContent = data.reference || 'Source passage';
+        document.getElementById('source-match-text').textContent = '"' + data.passage + '"';
+        document.getElementById('manual-source-passage').value = data.passage;
+        document.getElementById('manual-source-reference').value = data.reference || '';
+        result.style.display = 'block';
+      }
+    }).catch(() => { loading.style.display = 'none'; });
+  }
+
   function submitManualClaim() {
     const pk = document.getElementById('selected-paper-pk').value;
     const text = document.getElementById('manual-claim-text').value.trim();
     const endpoint = document.getElementById('manual-endpoint-type').value;
+    const passage = document.getElementById('manual-source-passage').value;
+    const reference = document.getElementById('manual-source-reference').value;
     const errEl = document.getElementById('write-claim-error');
     errEl.style.display = 'none';
     if (!pk) { errEl.textContent = 'Please select a paper.'; errEl.style.display = 'block'; return; }
@@ -129,6 +178,8 @@
     const body = new FormData();
     body.append('claim_text', text);
     body.append('endpoint_type', endpoint);
+    body.append('source_passage', passage);
+    body.append('source_reference', reference);
     fetch(`/claims/${pk}/create/`, { method:'POST', headers:{'X-CSRFToken':csrf}, body })
       .then(() => {
         document.getElementById('write-claim-modal').style.display = 'none';

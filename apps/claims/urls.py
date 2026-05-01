@@ -15,4 +15,5 @@ urlpatterns = [
     path("<int:claim_pk>/fidelity/", views.update_fidelity, name="fidelity"),
     path("<int:claim_pk>/validate-mlr/", views.run_mlr_validation, name="validate_mlr"),
     path("<int:paper_pk>/suggest/", views.suggest_claims, name="suggest"),
+    path("match-source/", views.match_source_passage, name="match_source"),
 ]
