@@ -53,8 +53,18 @@
       </div>
     </div>
 
-    <!-- Action row -->
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;align-items:center">
+    <!-- Search + action row -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <div style="position:relative;flex:1;max-width:360px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted)"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search signals…"
+               hx-get="{% url 'safety:list' %}"
+               hx-trigger="keyup changed delay:400ms"
+               hx-target="#signal-list-inner"
+               hx-push-url="true"
+               style="width:100%;padding:7px 10px 7px 30px;border:1px solid var(--line);border-radius:var(--r);font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)">
+      </div>
+      <div style="flex:1"></div>
       <button @click="scanLibrary()" :disabled="scanning"
               style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px"
               :style="scanning ? 'opacity:.6;cursor:not-allowed' : ''">

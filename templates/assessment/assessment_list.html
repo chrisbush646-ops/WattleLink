@@ -120,6 +120,21 @@ table.dt tbody tr:hover td{background:var(--paper-warm);cursor:pointer}
   </div>
 </div>
 
+<!-- Search + filter row -->
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+  <div style="position:relative;flex:1;max-width:360px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted)"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search papers…"
+           hx-get="{% url 'assessment:list' %}"
+           hx-trigger="keyup changed delay:400ms"
+           hx-target="#assessment-results"
+           hx-include="[name='grade']"
+           hx-push-url="true"
+           style="width:100%;padding:7px 10px 7px 30px;border:1px solid var(--line);border-radius:var(--r);font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)">
+    <input type="hidden" name="grade" value="{{ rating_filter }}">
+  </div>
+</div>
+
 <!-- Filter chips -->
 <div class="filter-chips">
   <a href="{% url 'assessment:list' %}" class="chip {% if not rating_filter %}active{% endif %}">All</a>
@@ -131,6 +146,7 @@ table.dt tbody tr:hover td{background:var(--paper-warm);cursor:pointer}
 </div>
 
 <!-- Papers table -->
+<div id="assessment-results">
 <div class="tw">
   <table class="dt">
     <thead>
@@ -184,5 +200,6 @@ table.dt tbody tr:hover td{background:var(--paper-warm);cursor:pointer}
       {% endfor %}
     </tbody>
   </table>
+</div>
 </div>
 {% endblock %}

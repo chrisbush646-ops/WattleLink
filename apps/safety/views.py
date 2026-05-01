@@ -41,6 +41,7 @@ def signal_list(request):
         "unscanned_count": unscanned_count,
         "severity_choices": SafetySignal.Severity.choices,
         "status_choices": SafetySignal.Status.choices,
+        "q": q,
     })
 
 

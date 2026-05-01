@@ -79,6 +79,7 @@ def assessment_list(request):
         "rating_filter": rating_filter,
         "grade_choices": GradeAssessment.OverallRating.choices,
         "total": len(paper_rows),
+        "q": q,
     })
 
 

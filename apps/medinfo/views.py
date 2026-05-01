@@ -93,6 +93,7 @@ def enquiry_list(request):
         "top_topics": top_topics,
         "trending": trending,
         "max_topic_count": max_topic_count,
+        "q": q,
     })
 
 

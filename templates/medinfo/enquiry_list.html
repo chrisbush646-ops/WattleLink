@@ -76,6 +76,19 @@
   </div>
   {% endif %}
 
+  <!-- Search bar -->
+  <div style="position:relative;max-width:360px;margin-bottom:12px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted)"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search enquiries…"
+           hx-get="{% url 'medinfo:list' %}"
+           hx-trigger="keyup changed delay:400ms"
+           hx-target="#enquiry-list-inner"
+           hx-include="[name='status']"
+           hx-push-url="true"
+           style="width:100%;padding:7px 10px 7px 30px;border:1px solid var(--line);border-radius:var(--r);font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)">
+    <input type="hidden" name="status" value="{{ status_filter }}">
+  </div>
+
   <!-- Filter + action row -->
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
     {% for val, label in status_choices %}
