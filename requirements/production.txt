@@ -1,3 +1,4 @@
 -r base.txt
 
 gunicorn~=23.0
+dj-database-url~=2.3
