@@ -76,10 +76,19 @@
               style="font-size:11px;color:var(--euc);background:none;border:none;cursor:pointer;padding:0;margin-right:12px">
         View paper →
       </button>
-      <button onclick="deleteClaim({{ claim.pk }}, this)"
-              style="font-size:11px;color:var(--coral);background:none;border:none;cursor:pointer;padding:0">
-        Delete
-      </button>
+      <span id="delete-wrap-{{ claim.pk }}" style="display:inline-flex;align-items:center;gap:6px">
+        <button onclick="showDeleteConfirm({{ claim.pk }})"
+                style="font-size:11px;color:var(--coral);background:none;border:none;cursor:pointer;padding:0">
+          Delete
+        </button>
+        <span id="delete-confirm-{{ claim.pk }}" style="display:none;align-items:center;gap:6px;font-size:11px">
+          <span style="color:var(--ink)">Are you sure?</span>
+          <button onclick="confirmDelete({{ claim.pk }})"
+                  style="font-size:11px;background:var(--coral);color:#fff;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-weight:500">Yes</button>
+          <button onclick="cancelDelete({{ claim.pk }})"
+                  style="font-size:11px;background:none;border:1px solid var(--line);border-radius:4px;padding:2px 10px;cursor:pointer;color:var(--ink)">No</button>
+        </span>
+      </span>
     </div>
 
     {% if claim.source_passage %}
@@ -113,10 +122,17 @@
 {% endif %}
 
 <script>
-function deleteClaim(pk, btn) {
-  if (!confirm('Delete this claim? This cannot be undone.')) return;
+function showDeleteConfirm(pk) {
+  document.querySelector(`#delete-confirm-${pk}`).style.display = 'inline-flex';
+  document.querySelector(`#delete-wrap-${pk} > button`).style.display = 'none';
+}
+function cancelDelete(pk) {
+  document.querySelector(`#delete-confirm-${pk}`).style.display = 'none';
+  document.querySelector(`#delete-wrap-${pk} > button`).style.display = '';
+}
+function confirmDelete(pk) {
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
   fetch(`/claims/${pk}/delete/`, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
-    .then(() => btn.closest('.claim-card-wrap').remove());
+    .then(() => document.querySelector(`#delete-wrap-${pk}`).closest('.claim-card-wrap').remove());
 }
 </script>
