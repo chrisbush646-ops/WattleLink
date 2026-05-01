@@ -6,22 +6,27 @@ A core claims document contains short, declarative, evidence-graded statements. 
 
 ## Claim style
 
-**commercial_headline** — one sentence. Short, active, general. Names the compound/class and the finding. Does not need to quote every statistic — it states the finding clearly and lets the claim_text carry the data.
+**commercial_headline** — one short sentence. A plain-language statement of the finding with NO statistics, percentages, or p-values. General enough to apply across materials. The data lives in source_passage, not here.
 
 Good examples:
-- "Medicinal cannabis was well tolerated in patients with chronic non-cancer pain."
-- "Terpenes have demonstrated analgesic efficacy in preclinical models of neuropathic pain."
-- "[Drug] significantly reduced HbA1c versus placebo in patients with type 2 diabetes."
-- "Cannabidiol reduced seizure frequency in patients with treatment-resistant epilepsy."
-- "The combination of THC and CBD showed greater efficacy than either component alone in preclinical pain models."
-- "[Drug] demonstrated a favourable safety profile consistent with prior studies."
+- "Medicinal cannabis is well tolerated in patients with chronic non-cancer pain."
+- "Terpenes demonstrate analgesic efficacy in preclinical models of neuropathic pain."
+- "[Drug] reduces HbA1c in patients with type 2 diabetes."
+- "Cannabidiol reduces seizure frequency in patients with treatment-resistant epilepsy."
+- "THC and CBD demonstrate synergistic efficacy in preclinical pain models."
+- "[Drug] has a favourable safety profile."
+- "Medicinal cannabis demonstrates efficacy in reducing chronic pain."
 
-**claim_text** — one to two sentences. Adds the key supporting statistic, population or model, and evidence level. Still concise — not a paragraph.
+Bad examples (too much data):
+- "Terpenes reduced pain scores by 38% versus vehicle (p<0.01)." — no statistics in the headline
+- "68% of patients achieved ACR20 vs 27% with placebo." — that belongs in claim_text only
+
+**claim_text** — one to two sentences. States the finding in technical language with the study context (population/model, study type). May include ONE key statistic if essential. Still concise — not a paragraph.
 
 Good examples:
-- "In a randomised controlled trial of 120 patients with chronic non-cancer pain, medicinal cannabis was well tolerated with a low rate of serious adverse events (3.3%); no patients discontinued due to AEs."
-- "In a murine model of neuropathic pain, myrcene and linalool reduced mechanical allodynia by 41% and 35% respectively versus vehicle control (preclinical data)."
-- "In a Phase 3 RCT (n=387), [Drug] reduced HbA1c by 1.2% from baseline versus 0.3% with placebo (p<0.001) at 24 weeks."
+- "In a randomised controlled trial of patients with chronic non-cancer pain, medicinal cannabis was well tolerated with a low rate of serious adverse events and no treatment discontinuations due to AEs."
+- "In a murine model of neuropathic pain, myrcene and linalool demonstrated significant anti-nociceptive activity versus vehicle control (preclinical data)."
+- "In a Phase 3 RCT, [Drug] significantly reduced HbA1c versus placebo at 24 weeks (p<0.001)."
 
 ---
 
@@ -79,7 +84,7 @@ Return ONLY a valid JSON object. No markdown fences, no prose outside the JSON.
 ## Rules
 
 1. Extract only what is directly supported by the paper. Do not infer or fabricate data.
-2. commercial_headline: one sentence, general, no excessive statistics. The data goes in claim_text.
+2. commercial_headline: one sentence, NO statistics, percentages, p-values, or specific numbers. It is a plain-language statement of the finding only. All data goes in claim_text and source_passage.
 3. claim_text: one to two sentences maximum. Include the key number and population/model. No paragraphs.
 4. Every claim must have a fair_balance citing a specific AE rate, limitation, or design caveat from this paper — not a generic disclaimer.
 5. For RCT PRIMARY claims: include p-value in claim_text.
