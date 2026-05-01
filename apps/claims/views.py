@@ -3,6 +3,7 @@ import logging
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -206,27 +207,17 @@ def approve_claim(request, claim_pk):
 @login_required
 @require_POST
 def reject_claim(request, claim_pk):
-    """Reject a claim with a required reason."""
+    """Soft-delete a claim immediately — no reason required."""
     claim = get_object_or_404(CoreClaim.all_objects, pk=claim_pk, tenant=request.tenant)
-    linked = request.GET.get("linked")
-    tmpl = "claims/partials/linked_claim_row.html" if linked else "claims/partials/claim_card.html"
-    data = json.loads(request.body)
-    reason = data.get("reason", "").strip()
-
-    if not reason:
-        return render(request, tmpl, {"claim": claim, "error": "A rejection reason is required."})
-
     before = {"status": claim.status}
+    claim.deleted_at = timezone.now()
     claim.status = CoreClaim.Status.REJECTED
-    claim.rejection_reason = reason
     claim.reviewed_by = request.user
     claim.reviewed_at = timezone.now()
-    claim.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at", "updated_at"])
-
+    claim.save(update_fields=["deleted_at", "status", "reviewed_by", "reviewed_at", "updated_at"])
     log_action(request, claim, AuditLog.Action.REJECT,
                before=before, after={"status": claim.status})
-
-    return render(request, tmpl, {"claim": claim})
+    return HttpResponse("")
 
 
 @login_required

@@ -63,7 +63,7 @@
                 style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Accept</button>
         <button onclick="lcStartEdit({{ claim.pk }})"
                 style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Edit</button>
-        <button onclick="lcStartReject({{ claim.pk }})"
+        <button onclick="lcReject({{ claim.pk }})"
                 style="font-size:12px;background:none;border:1px solid var(--coral);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--coral)">Reject</button>
       </div>
 
@@ -73,20 +73,6 @@
                 style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Save</button>
         <button onclick="lcCancelEdit({{ claim.pk }})"
                 style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Cancel</button>
-      </div>
-
-      <!-- Reject mode (hidden) -->
-      <div id="claim-reject-{{ claim.pk }}" style="display:none">
-        <div style="font-size:10px;font-weight:500;color:var(--coral);margin-bottom:4px">Rejection reason (required)</div>
-        <textarea id="claim-reject-reason-{{ claim.pk }}"
-                  placeholder="Explain why this claim is being rejected…"
-                  style="width:100%;font-size:12px;border:1px solid #E9CBB9;border-radius:var(--r);padding:6px 10px;resize:vertical;min-height:48px;background:var(--surface);margin-bottom:6px;box-sizing:border-box"></textarea>
-        <div style="display:flex;gap:6px">
-          <button onclick="lcSubmitReject({{ claim.pk }})"
-                  style="font-size:12px;background:var(--coral);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Confirm reject</button>
-          <button onclick="lcCancelReject({{ claim.pk }})"
-                  style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Cancel</button>
-        </div>
       </div>
 
     {% endif %}
@@ -126,24 +112,14 @@ function lcSubmitEdit(pk) {
     document.getElementById(`linked-claim-${pk}`).outerHTML = html;
   });
 }
-function lcStartReject(pk) {
-  document.getElementById(`claim-actions-${pk}`).style.display = 'none';
-  document.getElementById(`claim-reject-${pk}`).style.display = 'block';
-}
-function lcCancelReject(pk) {
-  document.getElementById(`claim-actions-${pk}`).style.display = 'flex';
-  document.getElementById(`claim-reject-${pk}`).style.display = 'none';
-}
-function lcSubmitReject(pk) {
+function lcReject(pk) {
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-  const reason = document.getElementById(`claim-reject-reason-${pk}`).value.trim();
-  if (!reason) return;
-  fetch(`/claims/${pk}/reject/?linked=1`, {
+  fetch(`/claims/${pk}/reject/`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-    body: JSON.stringify({ reason }),
-  }).then(r => r.text()).then(html => {
-    document.getElementById(`linked-claim-${pk}`).outerHTML = html;
+    headers: { 'X-CSRFToken': csrf },
+  }).then(() => {
+    const el = document.getElementById(`linked-claim-${pk}`);
+    if (el) el.remove();
   });
 }
 </script>
