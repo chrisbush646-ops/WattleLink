@@ -82,21 +82,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-_DATABASE_URL = os.environ.get("DATABASE_URL", "")
-if _DATABASE_URL:
-    import dj_database_url
-    DATABASES = {"default": dj_database_url.parse(_DATABASE_URL, conn_max_age=600)}
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "wattlelink"),
-            "USER": os.environ.get("POSTGRES_USER", "wattlelink"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
-            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        }
-    }
+import dj_database_url
+_pg_user = os.environ.get("POSTGRES_USER", "wattlelink")
+_pg_pass = os.environ.get("POSTGRES_PASSWORD", "")
+_pg_host = os.environ.get("POSTGRES_HOST", "localhost")
+_pg_port = os.environ.get("POSTGRES_PORT", "5432")
+_pg_name = os.environ.get("POSTGRES_DB", "wattlelink")
+DATABASES = {
+    "default": dj_database_url.config(
+        default=f"postgresql://{_pg_user}:{_pg_pass}@{_pg_host}:{_pg_port}/{_pg_name}",
+        conn_max_age=600,
+    )
+}
 
 PASSWORD_HASHERS = [
     "apps.accounts.hashers.PasslibPBKDF2Hasher",
