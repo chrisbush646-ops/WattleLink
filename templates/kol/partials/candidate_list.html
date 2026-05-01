@@ -1,0 +1,136 @@
+<!-- Tab bar -->
+<div style="display:flex;gap:4px;margin-bottom:12px">
+  <button type="button" onclick="kolTabSwitch('pending')"
+          style="font-size:11px;padding:4px 12px;border-radius:20px;border:none;cursor:pointer;font-weight:500;
+          {% if tab == 'pending' %}background:#8A6918;color:#fff{% else %}background:rgba(138,105,24,.12);color:#8A6918{% endif %}">
+    Pending
+    {% if counts.pending > 0 %}<span style="font-size:10px;margin-left:4px;opacity:.8">({{ counts.pending }})</span>{% endif %}
+  </button>
+  <button type="button" onclick="kolTabSwitch('accepted')"
+          style="font-size:11px;padding:4px 12px;border-radius:20px;border:none;cursor:pointer;font-weight:500;
+          {% if tab == 'accepted' %}background:var(--euc);color:#fff{% else %}background:rgba(38,64,50,.08);color:var(--euc){% endif %}">
+    Accepted
+    {% if counts.accepted > 0 %}<span style="font-size:10px;margin-left:4px;opacity:.8">({{ counts.accepted }})</span>{% endif %}
+  </button>
+  <button type="button" onclick="kolTabSwitch('rejected')"
+          style="font-size:11px;padding:4px 12px;border-radius:20px;border:none;cursor:pointer;font-weight:500;
+          {% if tab == 'rejected' %}background:var(--coral);color:#fff{% else %}background:rgba(184,92,58,.08);color:var(--coral){% endif %}">
+    Rejected
+    {% if counts.rejected > 0 %}<span style="font-size:10px;margin-left:4px;opacity:.8">({{ counts.rejected }})</span>{% endif %}
+  </button>
+</div>
+
+{% if toast %}
+<div style="padding:8px 14px;background:#E8EFE9;color:var(--euc);border-radius:var(--r);font-size:12px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+  <svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+  {{ toast }}
+</div>
+{% endif %}
+
+<div id="candidate-list-inner">
+
+{% if tab == "pending" %}
+  {% for candidate in candidates %}
+    {% include "kol/partials/candidate_card.html" with candidate=candidate tier_range=tier_range %}
+  {% empty %}
+  <div style="text-align:center;padding:32px 16px;color:var(--muted)">
+    <svg style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">No pending candidates</div>
+    <div style="font-size:12px">Run AI Discovery on a paper from the library to surface KOL suggestions.</div>
+  </div>
+  {% endfor %}
+
+{% elif tab == "accepted" %}
+  {% for candidate in candidates %}
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;border-left:3px solid var(--euc)">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;background:#E8EFE9;color:var(--euc);border:2px solid #CFDAD0">
+        T{{ candidate.tier }}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ candidate.name }}</span>
+          <span style="font-size:9px;padding:1px 7px;border-radius:8px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:600">Accepted</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:5px">
+          {% if candidate.institution %}{{ candidate.institution }}{% endif %}
+          {% if candidate.specialty %} · {{ candidate.specialty }}{% endif %}
+          {% if candidate.location %} · {{ candidate.location }}{% endif %}
+        </div>
+        {% if candidate.kol %}
+        <div style="font-size:11.5px;color:var(--euc);margin-bottom:4px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><path d="M20 6L9 17l-5-5"/></svg>
+          Added to KOL directory —
+          <a href="{% url 'kol:detail' candidate.kol.pk %}" style="color:var(--euc);text-decoration:underline;font-weight:500">{{ candidate.kol.name }}</a>
+        </div>
+        {% endif %}
+        <div style="font-size:11px;color:var(--muted)">
+          {% if candidate.paper %}
+            Source: <em>{{ candidate.paper.title|truncatewords:10 }}</em>
+          {% elif candidate.search_query %}
+            Source: keyword search — <em>"{{ candidate.search_query|truncatechars:50 }}"</em>
+          {% endif %}
+          {% if candidate.reviewed_by %} · Accepted by {{ candidate.reviewed_by.get_full_name|default:candidate.reviewed_by.username }}{% endif %}
+          {% if candidate.reviewed_at %} · {{ candidate.reviewed_at|date:"j M Y" }}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div style="text-align:center;padding:32px 16px;color:var(--muted)">
+    <svg style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">No accepted candidates yet</div>
+    <div style="font-size:12px">Accepted candidates will appear here once you review pending suggestions.</div>
+  </div>
+  {% endfor %}
+
+{% elif tab == "rejected" %}
+  {% for candidate in candidates %}
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;border-left:3px solid var(--coral)">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;background:var(--coral-soft);color:var(--coral);border:2px solid #E9CBB9">
+        T{{ candidate.tier }}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ candidate.name }}</span>
+          <span style="font-size:9px;padding:1px 7px;border-radius:8px;background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9;font-weight:600">Rejected</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:5px">
+          {% if candidate.institution %}{{ candidate.institution }}{% endif %}
+          {% if candidate.specialty %} · {{ candidate.specialty }}{% endif %}
+          {% if candidate.location %} · {{ candidate.location }}{% endif %}
+        </div>
+        {% if candidate.rejection_reason %}
+        <div style="font-size:11.5px;color:var(--muted);background:var(--coral-soft);border-radius:var(--r);padding:5px 9px;margin-bottom:6px;border-left:2px solid var(--coral)">
+          {{ candidate.rejection_reason }}
+        </div>
+        {% endif %}
+        <div style="font-size:11px;color:var(--muted)">
+          {% if candidate.paper %}
+            Source: <em>{{ candidate.paper.title|truncatewords:10 }}</em>
+          {% elif candidate.search_query %}
+            Source: keyword search — <em>"{{ candidate.search_query|truncatechars:50 }}"</em>
+          {% endif %}
+          {% if candidate.reviewed_by %} · Rejected by {{ candidate.reviewed_by.get_full_name|default:candidate.reviewed_by.username }}{% endif %}
+          {% if candidate.reviewed_at %} · {{ candidate.reviewed_at|date:"j M Y" }}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div style="text-align:center;padding:32px 16px;color:var(--muted)">
+    <svg style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">No rejected candidates</div>
+    <div style="font-size:12px">Rejected candidates will appear here for audit purposes.</div>
+  </div>
+  {% endfor %}
+{% endif %}
+
+</div>

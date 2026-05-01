@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us — WattleLink</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --euc: #264032;
+      --euc-dark: #1A2E23;
+      --euc-deep: #0F1C15;
+      --wattle: #C89B2A;
+      --wattle-light: #E5BE5A;
+      --coral: #B85C3A;
+      --paper: #F6F2E7;
+      --paper-dark: #EDE8D8;
+      --ink: #1C2B22;
+      --muted: #6B7F74;
+      --line: #D8D3C6;
+      --surface: #FFFFFF;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Geist', system-ui, sans-serif;
+      --r: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 64px;
+      background: rgba(15, 28, 21, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 1px; text-decoration: none; }
+    .nav-logo-name { font-family: var(--serif); font-size: 20px; font-weight: 400; color: #F4F6F2; letter-spacing: -0.02em; }
+    .nav-logo-name em { font-style: italic; font-weight: 300; color: var(--wattle-light); }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a { font-size: 13px; color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.15s; }
+    .nav-links a:hover { color: #fff; }
+    .nav-links a.active { color: rgba(255,255,255,0.9); }
+    .nav-cta { display: flex; align-items: center; gap: 12px; }
+    .btn-nav-secondary {
+      font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
+      text-decoration: none; padding: 7px 16px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14); transition: all 0.15s;
+    }
+    .btn-nav-secondary:hover { color: #fff; border-color: rgba(255,255,255,0.32); }
+    .btn-nav-primary {
+      font-size: 13px; font-weight: 500; color: var(--euc-deep);
+      background: var(--wattle-light); text-decoration: none;
+      padding: 7px 18px; border-radius: 8px; transition: all 0.15s;
+    }
+    .btn-nav-primary:hover { background: #fff; }
+
+    /* Page header */
+    .page-header {
+      background: var(--euc-deep);
+      padding: 128px 48px 72px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .page-header-inner { max-width: 720px; margin: 0 auto; }
+    .page-eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--wattle-light);
+      margin-bottom: 20px;
+    }
+    .page-h1 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 5vw, 58px);
+      font-weight: 300;
+      line-height: 1.06;
+      letter-spacing: -0.03em;
+      color: #F4F6F2;
+      margin-bottom: 20px;
+    }
+    .page-h1 em { font-style: italic; color: var(--wattle-light); }
+    .page-sub {
+      font-size: 15px; line-height: 1.7;
+      color: rgba(244,246,242,0.5);
+      max-width: 480px;
+    }
+
+    /* Form section */
+    .contact-section {
+      padding: 72px 48px 96px;
+    }
+    .contact-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 64px;
+      align-items: start;
+    }
+
+    /* Form */
+    .contact-form { }
+    .form-row { margin-bottom: 22px; }
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 11px 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      outline: none;
+    }
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--euc);
+      box-shadow: 0 0 0 3px rgba(38,64,50,0.09);
+    }
+    textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7F74' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .btn-submit {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 500;
+      color: var(--surface);
+      background: var(--euc);
+      border: none; cursor: pointer;
+      padding: 13px 28px;
+      border-radius: var(--r);
+      transition: all 0.15s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { background: var(--euc-dark); transform: translateY(-1px); }
+
+    /* Success state */
+    .success-box {
+      background: #E8EFE9;
+      border: 1px solid #CFDAD0;
+      border-radius: 14px;
+      padding: 40px 36px;
+      text-align: center;
+    }
+    .success-icon {
+      width: 52px; height: 52px;
+      background: var(--euc);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .success-box h2 {
+      font-family: var(--serif); font-size: 24px; font-weight: 300;
+      color: var(--ink); margin-bottom: 10px;
+    }
+    .success-box p { font-size: 14px; color: var(--muted); line-height: 1.65; }
+    .success-box a {
+      display: inline-block; margin-top: 24px;
+      font-size: 13px; font-weight: 500; color: var(--euc); text-decoration: none;
+      border-bottom: 1px solid rgba(38,64,50,0.3); padding-bottom: 1px;
+    }
+    .success-box a:hover { border-color: var(--euc); }
+
+    /* Sidebar info */
+    .contact-sidebar { padding-top: 4px; }
+    .sidebar-block {
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 16px;
+    }
+    .sidebar-block:last-child { margin-bottom: 0; }
+    .sidebar-label {
+      font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted); font-weight: 500; margin-bottom: 12px;
+    }
+    .sidebar-block h3 {
+      font-family: var(--serif); font-size: 17px; font-weight: 400;
+      color: var(--ink); margin-bottom: 8px;
+    }
+    .sidebar-block p { font-size: 13px; line-height: 1.65; color: var(--muted); }
+    .sidebar-block a { color: var(--euc); text-decoration: none; font-weight: 500; }
+    .sidebar-block a:hover { text-decoration: underline; }
+
+    /* Footer */
+    footer {
+      background: var(--euc-deep);
+      padding: 48px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { font-family: var(--serif); font-size: 17px; font-weight: 400; color: rgba(244,246,242,0.5); }
+    .footer-logo em { font-style: italic; font-weight: 300; color: var(--wattle-light); }
+    footer p { font-size: 12px; color: rgba(244,246,242,0.25); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: rgba(244,246,242,0.35); text-decoration: none; }
+    .footer-links a:hover { color: rgba(244,246,242,0.65); }
+
+    @media (max-width: 900px) {
+      nav { padding: 0 24px; }
+      .nav-links { display: none; }
+      .page-header { padding: 108px 24px 56px; }
+      .contact-section { padding: 48px 24px 72px; }
+      .contact-inner { grid-template-columns: 1fr; gap: 40px; }
+      .form-row-2 { grid-template-columns: 1fr; }
+      footer { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="64" height="50" viewBox="0 0 200 160" fill="none" style="margin-top:10px">
+      <path d="M55 80 C63 54 81 28 103 16 C115 10 127 14 135 24" stroke="rgba(255,255,255,0.5)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M83 38 C75 28 67 26 61 32" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M103 16 C107 8 115 2 123 6" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round"/>
+      <circle cx="135" cy="24" r="14" fill="#A07820"/><circle cx="135" cy="24" r="9.5" fill="#E5BE5A"/>
+      <circle cx="61" cy="32" r="11" fill="#A07820"/><circle cx="61" cy="32" r="7.5" fill="#E5BE5A"/>
+      <circle cx="123" cy="6" r="8.5" fill="#A07820"/><circle cx="123" cy="6" r="5.5" fill="#E5BE5A"/>
+      <circle cx="83" cy="38" r="6.5" fill="#A07820"/><circle cx="83" cy="38" r="4.2" fill="#E5BE5A"/>
+      <circle cx="103" cy="16" r="5.5" fill="#A07820"/><circle cx="103" cy="16" r="3.5" fill="#E5BE5A"/>
+    </svg>
+    <span class="nav-logo-name">Wattle<em>Link</em></span>
+  </a>
+
+  <div class="nav-links">
+    <a href="/#pipeline">The Pipeline</a>
+    <a href="/#intelligence">Intelligence</a>
+    <a href="/#compliance">Compliance</a>
+    <a href="/contact/" class="active">Contact</a>
+  </div>
+
+  <div class="nav-cta">
+    <a href="/accounts/login/" class="btn-nav-secondary">Sign in</a>
+    <a href="/dashboard/" class="btn-nav-primary">Go to Dashboard &rarr;</a>
+  </div>
+</nav>
+
+<!-- Page header -->
+<div class="page-header">
+  <div class="page-header-inner">
+    <div class="page-eyebrow">Get in touch</div>
+    <h1 class="page-h1">We would love to<br>hear from <em>you.</em></h1>
+    <p class="page-sub">Whether you are interested in a demo, have a question about WattleLink, or want to talk through how it fits your team — send us a message and we will get back to you promptly.</p>
+  </div>
+</div>
+
+<!-- Contact form -->
+<div class="contact-section">
+  <div class="contact-inner">
+
+    {% if sent %}
+    <div class="success-box">
+      <div class="success-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h2>Message sent.</h2>
+      <p>Thanks for getting in touch. Someone from the WattleLink team will be in contact with you shortly.</p>
+      <a href="/contact/">Send another message</a>
+    </div>
+    {% else %}
+    <form method="post" action="/contact/" class="contact-form">
+      {% csrf_token %}
+
+      <div class="form-row-2">
+        <div>
+          <label for="first_name">First name</label>
+          <input type="text" id="first_name" name="first_name" placeholder="Jane" required value="{{ form_data.first_name|default:'' }}">
+        </div>
+        <div>
+          <label for="last_name">Last name</label>
+          <input type="text" id="last_name" name="last_name" placeholder="Smith" required value="{{ form_data.last_name|default:'' }}">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" placeholder="jane.smith@company.com.au" required value="{{ form_data.email|default:'' }}">
+      </div>
+
+      <div class="form-row">
+        <label for="organisation">Organisation</label>
+        <input type="text" id="organisation" name="organisation" placeholder="Your company or institution" value="{{ form_data.organisation|default:'' }}">
+      </div>
+
+      <div class="form-row">
+        <label for="enquiry_type">Type of enquiry</label>
+        <select id="enquiry_type" name="enquiry_type">
+          <option value="" disabled {% if not form_data.enquiry_type %}selected{% endif %}>Select one</option>
+          <option value="demo" {% if form_data.enquiry_type == 'demo' %}selected{% endif %}>Request a demo</option>
+          <option value="pricing" {% if form_data.enquiry_type == 'pricing' %}selected{% endif %}>Pricing and plans</option>
+          <option value="technical" {% if form_data.enquiry_type == 'technical' %}selected{% endif %}>Technical question</option>
+          <option value="partnership" {% if form_data.enquiry_type == 'partnership' %}selected{% endif %}>Partnership or integration</option>
+          <option value="other" {% if form_data.enquiry_type == 'other' %}selected{% endif %}>Something else</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" placeholder="Tell us a bit about your team and what you are looking for…" required>{{ form_data.message|default:'' }}</textarea>
+      </div>
+
+      {% if error %}
+      <div style="margin-bottom:16px;padding:12px 16px;background:#FBF0ED;border:1px solid #E9CBB9;border-radius:8px;font-size:13px;color:#B85C3A">
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <button type="submit" class="btn-submit">
+        Send message
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </form>
+    {% endif %}
+
+    <!-- Sidebar -->
+    <aside class="contact-sidebar">
+      <div class="sidebar-block">
+        <div class="sidebar-label">Email us directly</div>
+        <h3>General enquiries</h3>
+        <p><a href="mailto:hello@wattlelink.com">hello@wattlelink.com</a></p>
+      </div>
+      <div class="sidebar-block">
+        <div class="sidebar-label">Already a customer</div>
+        <h3>Support</h3>
+        <p>If you have a technical issue or need help with your account, email us at <a href="mailto:support@wattlelink.com">support@wattlelink.com</a></p>
+      </div>
+      <div class="sidebar-block">
+        <div class="sidebar-label">Location</div>
+        <h3>Australia</h3>
+        <p>WattleLink is built for and hosted in Australia. All data stays in the AWS Sydney region (ap-southeast-2).</p>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-logo">Wattle<em>Link</em></span>
+    <p>Medical Affairs Intelligence Platform &middot; Australia</p>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/dashboard/">Dashboard</a>
+      <a href="/accounts/login/">Sign in</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

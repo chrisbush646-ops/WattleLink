@@ -39,6 +39,16 @@
     <button @click="showSource = !showSource"
             style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer"
             x-text="showSource ? 'Hide source' : 'Show source'"></button>
+
+    <!-- Collapse / expand -->
+    <button @click="open = !open"
+            style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;color:var(--muted);background:none;border:none;cursor:pointer;flex-shrink:0;margin-left:2px"
+            :title="open ? 'Collapse' : 'Expand'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           :style="open ? 'transition:transform .18s' : 'transform:rotate(-90deg);transition:transform .18s'">
+        <path d="M6 9l6 6 6-6"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Error banner -->
@@ -49,17 +59,35 @@
   {% endif %}
 
   <!-- Claim body -->
-  <div style="padding:12px 14px">
+  <div x-show="open" x-transition style="padding:12px 14px">
 
-    <!-- Claim text -->
+    <!-- Commercial headline -->
+    {% if claim.commercial_headline or claim.status == 'AI_DRAFT' %}
+    <div style="margin-bottom:10px;padding:10px 12px;background:var(--wattle-soft);border-radius:var(--r);border-left:3px solid var(--wattle)">
+      <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8A6918;font-weight:600;margin-bottom:4px">Commercial Headline</div>
+      <template x-if="!editing">
+        <div style="font-size:13px;color:var(--ink);line-height:1.55;font-weight:500">
+          {% if claim.commercial_headline %}{{ claim.commercial_headline }}{% else %}<span style="color:var(--muted);font-style:italic">No commercial headline generated — re-run AI extraction to populate.</span>{% endif %}
+        </div>
+      </template>
+      <template x-if="editing">
+        <textarea x-model="editData.commercial_headline"
+                  placeholder="Plain-language headline for marketing/sales use…"
+                  style="width:100%;font-size:13px;line-height:1.55;font-weight:500;border:1px solid #E7D59A;border-radius:var(--r);padding:8px 10px;resize:vertical;min-height:54px;background:#FFFDF5;color:var(--ink)"></textarea>
+      </template>
+    </div>
+    {% endif %}
+
+    <!-- Full claim text -->
+    <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Technical Claim</div>
     <template x-if="!editing">
-      <div style="font-family:var(--serif);font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:10px">
+      <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.6;margin-bottom:10px">
         {{ claim.claim_text }}
       </div>
     </template>
     <template x-if="editing">
       <textarea x-model="editData.claim_text"
-                style="width:100%;font:inherit;font-family:var(--serif);font-size:13.5px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:80px;background:var(--surface);color:var(--ink);margin-bottom:10px"></textarea>
+                style="width:100%;font:inherit;font-family:var(--serif);font-size:13px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:80px;background:var(--surface);color:var(--ink);margin-bottom:10px"></textarea>
     </template>
 
     <!-- Source passage (collapsible) -->
@@ -137,6 +165,88 @@
       </div>
     </div>
 
+    <!-- MLR Compliance Panel -->
+    <div style="margin-bottom:12px" x-data="{ mlrOpen: {% if claim.mlr_verdict %}true{% else %}false{% endif %} }">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">MLR Check</div>
+          {% if claim.mlr_verdict == 'PASS' %}
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:600">{{ claim.mlr_compliance_score }}/100 — PASS</span>
+          {% elif claim.mlr_verdict == 'WARN' %}
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:600">{{ claim.mlr_compliance_score }}/100 — WARN</span>
+          {% elif claim.mlr_verdict == 'FAIL' %}
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9;font-weight:600">{{ claim.mlr_compliance_score }}/100 — FAIL</span>
+          {% endif %}
+          {% if claim.mlr_checked_at %}
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">{{ claim.mlr_checked_at|date:"d M Y" }}</span>
+          {% endif %}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          {% if claim.mlr_verdict %}
+            <button @click="mlrOpen=!mlrOpen" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer" x-text="mlrOpen ? 'Hide' : 'Details'"></button>
+          {% endif %}
+          <button hx-post="{% url 'claims:validate_mlr' claim.pk %}"
+                  hx-target="#claim-{{ claim.pk }}"
+                  hx-swap="outerHTML"
+                  hx-indicator="#mlr-load-{{ claim.pk }}"
+                  class="btn btn-g btn-sm"
+                  style="font-size:10px">
+            <span id="mlr-load-{{ claim.pk }}" class="htmx-indicator" style="display:inline-flex;align-items:center;margin-right:3px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="animation:aispin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            </span>
+            {% if claim.mlr_verdict %}Re-run{% else %}Run{% endif %} MLR Check
+          </button>
+        </div>
+      </div>
+
+      {% if claim.mlr_verdict %}
+      <div x-show="mlrOpen" x-transition>
+        <!-- Red flags -->
+        {% if claim.mlr_red_flags %}
+        <div style="margin-bottom:8px">
+          {% for flag in claim.mlr_red_flags %}
+          <div style="display:flex;align-items:flex-start;gap:6px;font-size:11.5px;color:var(--coral);padding:3px 0">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            {{ flag }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Per-rule breakdown -->
+        {% if claim.mlr_rule_results %}
+        <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+          {% for rule_key, rule in claim.mlr_rule_results.items %}
+          <div style="padding:7px 12px;border-bottom:1px solid var(--line-soft);display:flex;align-items:flex-start;gap:10px{% if forloop.last %};border-bottom:none{% endif %}">
+            <div style="flex-shrink:0;margin-top:1px">
+              {% if rule.pass %}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              {% else %}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              {% endif %}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:10px;font-weight:600;color:var(--ink);letter-spacing:.02em;margin-bottom:2px">
+                {{ rule_key|title|cut:"_" }}
+                {% if rule.deduction > 0 %}<span style="color:var(--coral);font-weight:500;margin-left:4px">−{{ rule.deduction }}</span>{% endif %}
+              </div>
+              <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5">{{ rule.finding }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Rationale -->
+        {% if claim.mlr_rationale %}
+        <div style="margin-top:8px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;padding:8px 12px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--line)">
+          {{ claim.mlr_rationale }}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
     <!-- Rejection reason (if rejected) -->
     {% if claim.status == 'REJECTED' and claim.rejection_reason %}
     <div style="margin-bottom:10px;padding:8px 12px;background:var(--coral-soft);border-radius:var(--r);border-left:3px solid var(--coral)">
@@ -178,17 +288,23 @@
           Reject
         </button>
         {% endif %}
-        {% if claim.status == 'APPROVED' %}
-        <span style="font-size:11px;color:var(--euc)">
-          ✓ Approved{% if claim.reviewed_by %} by {{ claim.reviewed_by.get_full_name|default:claim.reviewed_by.email }}{% endif %}
-        </span>
+        {% if claim.status == 'APPROVED' and claim.reviewed_by %}
+        <div style="display:flex;align-items:center;gap:3px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:10px;color:var(--muted)">Approved by <span style="color:var(--euc);font-weight:500">{{ claim.reviewed_by.get_full_name|default:claim.reviewed_by.email }}</span>{% if claim.reviewed_at %} · {{ claim.reviewed_at|date:"j M Y, g:i a" }}{% endif %}</span>
+        </div>
+        {% elif claim.status == 'APPROVED' %}
+        <div style="display:flex;align-items:center;gap:3px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:10px;color:var(--euc);font-weight:500">Approved</span>
+        </div>
         {% endif %}
       </div>
     </template>
   </div>
 
   <!-- Reject modal -->
-  <div x-show="showRejectModal"
+  <div x-show="open && showRejectModal"
        style="padding:12px 14px;background:var(--coral-soft);border-top:1px solid #E9CBB9"
        x-transition>
     <div style="font-size:11px;font-weight:500;color:var(--coral);margin-bottom:6px">Rejection reason (required)</div>
@@ -210,6 +326,7 @@
 <script>
 function claimCard(claimPk, initialFidelity) {
   return {
+    open: true,
     editing: false,
     showSource: false,
     showRejectModal: false,
@@ -230,6 +347,7 @@ function claimCard(claimPk, initialFidelity) {
       fair_balance_present: 'Fair balance present',
     },
     editData: {
+      commercial_headline: {{ claim.commercial_headline|tojson }},
       claim_text: {{ claim.claim_text|tojson }},
       endpoint_type: {{ claim.endpoint_type|tojson }},
       source_passage: {{ claim.source_passage|tojson }},

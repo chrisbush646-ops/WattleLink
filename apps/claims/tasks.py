@@ -41,6 +41,11 @@ def extract_claims_task(self, paper_id: int, tenant_id: int):
             for c in claims_data
         ])
 
+        from apps.audit.helpers import log_task_action
+        from apps.audit.models import AuditLog
+        log_task_action(tenant, paper, AuditLog.Action.AI_DRAFT,
+                        after={"claims_extracted": len(claims_data)})
+
         logger.info("Claim extraction complete for paper %s (%d claims)", paper_id, len(claims_data))
 
     except Exception as exc:

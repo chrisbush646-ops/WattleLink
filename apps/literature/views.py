@@ -285,6 +285,47 @@ def saved_searches(request):
 
 @login_required
 @require_POST
+def run_saved_search(request, pk):
+    search = get_object_or_404(SavedSearch, pk=pk, tenant=request.tenant)
+
+    open_access_only = search.filters.get("open_access_only", False)
+    study_type = search.filters.get("study_type", "")
+
+    client = PubMedClient()
+    pmids = client.esearch(
+        query=search.query,
+        open_access_only=open_access_only,
+        study_type=study_type,
+    )
+    articles = client.efetch(pmids)
+
+    current_pmids = [a["pubmed_id"] for a in articles if a.get("pubmed_id")]
+    last_pmids = set(search.last_result_pmids or [])
+    new_pmids = set(current_pmids) - last_pmids if last_pmids else set()
+
+    existing_pmids = set(
+        Paper.objects.filter(pubmed_id__in=current_pmids).values_list("pubmed_id", flat=True)
+    )
+    for a in articles:
+        a["already_ingested"] = a.get("pubmed_id") in existing_pmids
+        a["is_new"] = a.get("pubmed_id") in new_pmids
+
+    search.last_run = timezone.now()
+    search.result_count = len(articles)
+    search.last_result_pmids = current_pmids
+    search.save(update_fields=["last_run", "result_count", "last_result_pmids"])
+
+    return render(request, "literature/partials/search_results.html", {
+        "articles": articles,
+        "query": search.query,
+        "total": len(articles),
+        "new_count": len(new_pmids),
+        "search_name": search.name,
+    })
+
+
+@login_required
+@require_POST
 def ai_suggest(request):
     data = json.loads(request.body)
     description = data.get("description", "").strip()

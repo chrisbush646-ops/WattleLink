@@ -1,6 +1,6 @@
 {% load citations %}
 <div style="position:fixed;inset:0;background:rgba(18,22,19,.4);backdrop-filter:blur(3px);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto"
-     x-data
+     x-data="{ confirmRemove: false }"
      @click.self="$el.remove()"
      @keydown.escape.window="$el.remove()">
   <div style="background:var(--surface);border-radius:14px;box-shadow:0 20px 60px -20px rgba(0,0,0,.3);width:100%;max-width:700px;animation:modalIn .22s ease">
@@ -78,58 +78,187 @@
         </div>
       </div>
 
-      <!-- Linked claims -->
-      {% if claims %}
-      <div style="margin-top:16px">
-        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Linked Claims ({{ claims|length }})</div>
-        {% for claim in claims %}
-        <div style="padding:10px 14px;background:var(--paper-warm);border-left:2px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %};border-radius:0 6px 6px 0;margin-bottom:6px;font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.4">
-          {{ claim.claim_text }}
-          <div style="font-family:var(--sans);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px">{{ claim.get_status_display }}</div>
+      <!-- Quality Assessment -->
+      <div x-data="{ open: false }" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:2px">
+          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Quality Assessment</span>
+          <button @click="open=!open"
+                  style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
         </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <!-- Assessment panel (lazy-loaded) -->
-      <div hx-get="{% url 'assessment:panel' paper.pk %}"
-           hx-trigger="intersect once"
-           hx-swap="outerHTML">
-        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
-          Loading assessment…
-        </div>
-      </div>
-
-      <!-- Summary panel (lazy-loaded) -->
-      <div hx-get="{% url 'summaries:panel' paper.pk %}"
-           hx-trigger="intersect once"
-           hx-swap="outerHTML">
-        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
-          Loading summary…
+        <div x-show="open" x-transition>
+          <div hx-get="{% url 'assessment:panel' paper.pk %}"
+               hx-trigger="revealed"
+               hx-swap="outerHTML">
+            <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Loading assessment…</div>
+          </div>
         </div>
       </div>
 
-      <!-- Claims panel (lazy-loaded) -->
-      <div hx-get="{% url 'claims:panel' paper.pk %}"
-           hx-trigger="intersect once"
-           hx-swap="outerHTML">
-        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
-          Loading claims…
+      <!-- Summary -->
+      <div x-data="{ open: false }" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:2px">
+          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Summary</span>
+          <button @click="open=!open"
+                  style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div x-show="open" x-transition>
+          <div hx-get="{% url 'summaries:panel' paper.pk %}"
+               hx-trigger="revealed"
+               hx-swap="outerHTML">
+            <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Loading summary…</div>
+          </div>
         </div>
       </div>
 
-      <!-- Export panel (lazy-loaded) -->
-      <div hx-get="{% url 'export:panel' paper.pk %}"
-           hx-trigger="intersect once"
-           hx-swap="outerHTML">
-        <div style="margin-top:20px;padding:16px;text-align:center;color:var(--muted);font-size:12px">
-          Loading export…
+      <!-- Core Claims -->
+      <div x-data="{ open: false }" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:8px">
+          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Core Claims <span style="font-family:var(--mono);font-weight:400" id="paper-claims-count-{{ paper.pk }}">({{ claims|length }})</span></span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <!-- Suggest Claims (AI) -->
+            <button hx-post="{% url 'claims:suggest' paper.pk %}"
+                    hx-target="#paper-detail-claims-{{ paper.pk }}"
+                    hx-swap="outerHTML"
+                    hx-indicator="#paper-claim-spinner-{{ paper.pk }}"
+                    @click="open=true"
+                    style="font-size:10px;color:var(--euc);background:#E8EFE9;border:1px solid #CFDAD0;border-radius:var(--r);padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:4px">
+              <span id="paper-claim-spinner-{{ paper.pk }}" class="htmx-indicator"
+                    style="display:inline-block;width:9px;height:9px;border:1.5px solid rgba(38,64,50,.2);border-top-color:var(--euc);border-radius:50%;animation:aispin .65s linear infinite"></span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Suggest
+            </button>
+            <!-- Add manually -->
+            <button onclick="togglePaperClaimForm('{{ paper.pk }}')"
+                    style="font-size:10px;color:var(--euc);background:none;border:1px solid var(--euc);border-radius:var(--r);padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:4px">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+            </button>
+            <button @click="open=!open"
+                    style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+              <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Inline add-claim form -->
+        <div id="paper-claim-form-{{ paper.pk }}" style="display:none;margin-bottom:10px">
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);margin-bottom:10px">Write a claim</div>
+            <textarea id="paper-claim-text-{{ paper.pk }}"
+                      placeholder="e.g. In adults with type 2 diabetes, Drug X reduced HbA1c by 1.2% (95% CI 0.9–1.5, p<0.001) vs placebo over 52 weeks"
+                      style="width:100%;font-family:var(--serif);font-size:13px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;resize:vertical;min-height:80px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box;margin-bottom:8px"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="paper-claim-endpoint-{{ paper.pk }}"
+                      style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 10px;background:var(--paper-warm);color:var(--ink)">
+                <option value="PRIMARY">Primary</option>
+                <option value="SECONDARY">Secondary</option>
+                <option value="SAFETY">Safety</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <button onclick="submitPaperClaim('{{ paper.pk }}')"
+                      style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Add claim</button>
+              <button onclick="togglePaperClaimForm('{{ paper.pk }}')"
+                      style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 12px;cursor:pointer;color:var(--muted)">Cancel</button>
+              <span id="paper-claim-err-{{ paper.pk }}" style="font-size:11px;color:var(--coral);display:none"></span>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="open" x-transition>
+          <div id="paper-detail-claims-{{ paper.pk }}">
+            {% if claims %}
+              {% for claim in claims %}
+                {% include "claims/partials/linked_claim_row.html" with claim=claim %}
+              {% endfor %}
+            {% else %}
+              <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No claims yet. Click <strong>Suggest</strong> to generate AI-drafted claims from this paper.</div>
+            {% endif %}
+          </div>
         </div>
       </div>
+
+      <!-- Export -->
+      <div x-data="{ open: false }" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:2px">
+          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Export</span>
+          <button @click="open=!open"
+                  style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div x-show="open" x-transition>
+          <div hx-get="{% url 'export:panel' paper.pk %}"
+               hx-trigger="revealed"
+               hx-swap="outerHTML">
+            <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Loading export…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity -->
+      <div x-data="{ open: false }" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:2px">
+          <span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Activity</span>
+          <button @click="open=!open"
+                  style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <span x-text="open ? 'Minimise' : 'Details'">Minimise</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 :style="open ? 'transition:transform .15s' : 'transform:rotate(-90deg);transition:transform .15s'">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+        <div x-show="open" x-transition>
+          <div hx-get="{% url 'literature:paper_history' paper.pk %}"
+               hx-trigger="revealed"
+               hx-swap="outerHTML">
+            <div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Loading activity…</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Footer actions -->
-    <div style="padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:6px;justify-content:flex-end;background:var(--paper-warm);border-radius:0 0 14px 14px">
+    <div style="padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:6px;align-items:center;background:var(--paper-warm);border-radius:0 0 14px 14px">
+      <!-- Remove confirmation -->
+      <div x-show="!confirmRemove">
+        <button @click="confirmRemove = true"
+                style="font-size:12px;color:var(--coral);background:none;border:1px solid var(--coral);border-radius:var(--r);padding:5px 11px;cursor:pointer;transition:all .12s"
+                onmouseover="this.style.background='var(--coral-soft)'" onmouseout="this.style.background='none'">
+          Remove paper
+        </button>
+      </div>
+      <div x-show="confirmRemove" style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--coral);font-weight:500">Remove this paper and all linked data?</span>
+        <button hx-post="{% url 'literature:remove' paper.pk %}"
+                hx-target="body"
+                style="font-size:12px;background:var(--coral);color:#fff;border:none;border-radius:var(--r);padding:5px 11px;cursor:pointer">
+          Yes, remove
+        </button>
+        <button @click="confirmRemove = false" class="btn btn-g btn-sm">Cancel</button>
+      </div>
+      <div style="flex:1"></div>
       <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Draft talking points</button>
       <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Literature review</button>
       <button class="btn btn-p" @click="$el.closest('div[style*=fixed]').remove()">Close</button>
@@ -137,3 +266,32 @@
   </div>
 </div>
 <style>@keyframes modalIn{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}</style>
+<script>
+function togglePaperClaimForm(pk) {
+  const el = document.getElementById('paper-claim-form-' + pk);
+  if (el) {
+    const showing = el.style.display !== 'none';
+    el.style.display = showing ? 'none' : 'block';
+    if (!showing) document.getElementById('paper-claim-text-' + pk).focus();
+  }
+}
+function submitPaperClaim(pk) {
+  const text = document.getElementById('paper-claim-text-' + pk).value.trim();
+  const endpoint = document.getElementById('paper-claim-endpoint-' + pk).value;
+  const errEl = document.getElementById('paper-claim-err-' + pk);
+  errEl.style.display = 'none';
+  if (!text) { errEl.textContent = 'Claim text is required.'; errEl.style.display = 'inline'; return; }
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const body = new FormData();
+  body.append('claim_text', text);
+  body.append('endpoint_type', endpoint);
+  fetch('/claims/' + pk + '/create/', { method: 'POST', headers: { 'X-CSRFToken': csrf }, body })
+    .then(() => {
+      // Reload the full paper detail modal in-place
+      const modal = document.querySelector('div[style*="position:fixed"][style*="z-index:900"]');
+      fetch('/literature/library/' + pk + '/')
+        .then(r => r.text())
+        .then(html => { if (modal) modal.outerHTML = html; });
+    });
+}
+</script>

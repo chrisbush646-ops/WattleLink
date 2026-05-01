@@ -136,6 +136,7 @@ class SavedSearch(models.Model):
     filters = models.JSONField(default=dict)
     last_run = models.DateTimeField(null=True, blank=True)
     result_count = models.IntegerField(default=0)
+    last_result_pmids = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = TenantManager()

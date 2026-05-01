@@ -1,0 +1,8 @@
+{% for enquiry in enquiries %}
+  {% include "medinfo/partials/enquiry_card.html" with enquiry=enquiry %}
+{% empty %}
+<div style="padding:32px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No enquiries yet.</div>
+  <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Log a medical information request to start building your enquiry record.</div>
+</div>
+{% endfor %}

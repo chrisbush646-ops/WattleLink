@@ -12,6 +12,9 @@ class TenantMiddleware:
         request.tenant = tenant
         set_current_tenant(tenant)
 
+        # Flag inactive tenants so views can respond appropriately
+        request.tenant_inactive = bool(tenant and not tenant.is_active)
+
         response = self.get_response(request)
 
         set_current_tenant(None)

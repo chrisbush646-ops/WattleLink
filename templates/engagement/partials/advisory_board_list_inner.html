@@ -1,0 +1,7 @@
+{% for ab in advisory_boards %}
+  {% include "engagement/partials/advisory_board_card.html" with ab=ab kol_choices=kol_choices %}
+{% empty %}
+<div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No advisory boards yet.</div>
+</div>
+{% endfor %}

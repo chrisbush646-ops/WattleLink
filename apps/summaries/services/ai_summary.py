@@ -8,6 +8,11 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
 
+# Extended thinking budget — gives Claude room to reason through clinical data
+# before committing to output. max_tokens must exceed budget_tokens.
+_THINKING_BUDGET = 8000
+_MAX_TOKENS = 16000
+
 
 def _load_prompt(filename: str) -> str:
     return (PROMPT_PATH / filename).read_text()
@@ -15,7 +20,7 @@ def _load_prompt(filename: str) -> str:
 
 def run_ai_summary(paper) -> dict:
     """
-    Call Claude to produce a structured summary of the given paper.
+    Call Claude with extended thinking to produce a structured MSL briefing note.
     Returns the parsed dict on success, raises on unrecoverable error.
     """
     content = paper.full_text or paper.title
@@ -26,14 +31,30 @@ def run_ai_summary(paper) -> dict:
     client = anthropic.Anthropic()
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        model="claude-sonnet-4-6",
+        max_tokens=_MAX_TOKENS,
+        thinking={"type": "enabled", "budget_tokens": _THINKING_BUDGET},
         system=system_prompt,
-        messages=[{"role": "user", "content": content}],
+        messages=[{
+            "role": "user",
+            "content": (
+                "Please analyse the following clinical paper and produce an MSL Briefing Note "
+                "according to the framework provided:\n\n"
+                + content
+            ),
+        }],
+        timeout=180,
     )
 
-    raw = response.content[0].text.strip()
+    # With thinking enabled the response contains ThinkingBlock(s) followed by
+    # a TextBlock. Find the text block explicitly.
+    text_block = next((b for b in response.content if b.type == "text"), None)
+    if not text_block:
+        raise ValueError("AI response contained no text block — only thinking output was returned.")
 
+    raw = text_block.text.strip()
+
+    # Strip any accidental markdown fences
     if raw.startswith("```"):
         lines = raw.splitlines()
         raw = "\n".join(line for line in lines if not line.startswith("```"))
@@ -45,7 +66,7 @@ def run_ai_summary(paper) -> dict:
         raise
 
 
-def apply_summary_result(paper_summary, findings_data: list, data: dict) -> None:
+def apply_summary_result(paper_summary, findings_data: list, data: dict) -> list:
     """
     Map AI JSON → PaperSummary fields and return FindingsRow dicts.
     Modifies paper_summary in-place (does not save).

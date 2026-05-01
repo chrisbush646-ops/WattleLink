@@ -1,0 +1,21 @@
+{% load tz %}
+{% if error %}
+<tr>
+  <td colspan="4" style="padding:10px 12px;color:#B85C3A;font-size:13px;">{{ error }}</td>
+</tr>
+{% elif invitation %}
+<tr id="invite-row-{{ invitation.pk }}" style="border-top:1px solid var(--line)">
+  <td style="padding:10px 12px;font-size:13px;">{{ invitation.email }}</td>
+  <td style="padding:10px 12px;">
+    <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:500;font-family:var(--mono);background:var(--wattle-soft,#F6E9BF);color:#7A5C0A;">
+      {{ invitation.get_role_display }}
+    </span>
+  </td>
+  <td style="padding:10px 12px;font-size:12.5px;color:var(--muted,#6A706A);font-family:var(--mono);">
+    Sent just now &nbsp;·&nbsp; Expires in 7 days
+  </td>
+  <td style="padding:10px 12px;font-size:12.5px;color:var(--muted,#6A706A);">
+    Pending
+  </td>
+</tr>
+{% endif %}

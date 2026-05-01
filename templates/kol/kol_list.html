@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block nav_kol_discover %}ni-active{% endblock %}
+{% block title %}KOL Intelligence{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto" x-data="kolListPage()">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div>
+      <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">KOL Intelligence</h1>
+      <div style="font-size:12px;color:var(--muted)">Key opinion leaders ranked by tier. Run AI Discovery on any paper to surface candidates, or use keyword search to find KOLs by therapeutic area.</div>
+    </div>
+  </div>
+
+  <!-- AI Keyword Suggest panel -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--euc);flex-shrink:0"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span style="font-size:13px;font-weight:600;color:var(--ink)">AI KOL Search</span>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.5">
+      Enter a therapeutic area, drug class, or disease. Claude will suggest Australian KOLs meeting standard medical affairs criteria.
+    </p>
+
+    <form hx-post="{% url 'kol:suggest' %}"
+          hx-target="#suggest-results"
+          hx-swap="innerHTML"
+          hx-indicator="#suggest-spinner"
+          style="display:flex;gap:8px;margin-bottom:14px">
+      {% csrf_token %}
+      <div style="flex:1;position:relative">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text"
+               name="query"
+               placeholder="e.g. HER2-positive breast cancer, heart failure, type 2 diabetes SGLT2…"
+               required
+               style="width:100%;padding:8px 12px 8px 30px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box">
+      </div>
+      <button type="submit"
+              style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:8px 18px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0">
+        <span id="suggest-spinner" class="htmx-indicator" style="display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></span>
+        Search
+      </button>
+    </form>
+
+    <div id="suggest-results">
+      {% include "kol/partials/suggest_results.html" %}
+    </div>
+  </div>
+
+  <!-- AI Suggestions panel (from papers) -->
+  {% if total_candidate_count > 0 %}
+  <div style="background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:10px;margin-bottom:18px"
+       x-data="{ open: false }">
+    <div style="display:flex;align-items:center;gap:8px;padding:13px 16px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#8A6918;flex-shrink:0">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      <span style="font-size:13px;font-weight:600;color:#8A6918">AI Suggestions</span>
+      {% if pending_count > 0 %}
+      <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#8A6918;color:#fff;font-weight:600">{{ pending_count }}</span>
+      <span style="font-size:11px;color:#8A6918">pending review</span>
+      {% else %}
+      <span style="font-size:11px;color:#8A6918">{{ total_candidate_count }} total</span>
+      {% endif %}
+      <div style="flex:1"></div>
+      <button @click="open=!open"
+              style="font-size:11px;color:#8A6918;background:none;border:none;cursor:pointer;font-weight:500"
+              x-text="open ? 'Minimise' : 'Explore'">Explore</button>
+    </div>
+    <div x-show="open" x-transition style="padding:0 16px 16px;border-top:1px solid #E7D59A">
+      <p style="font-size:11.5px;color:#8A6918;margin:12px 0 12px;line-height:1.5">
+        KOL candidates identified by AI from your paper library. Review and accept, hold, or reject each one.
+      </p>
+      <div id="kol-candidates-container">
+        {% include "kol/partials/candidate_list.html" with candidates=pending_candidates tab="pending" counts=candidate_counts tier_range=tier_range %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Filter bar -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Status</span>
+      <a href="?" hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+         {% if not status_filter %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        All
+      </a>
+      {% for val, label in status_choices %}
+      <a href="?status={{ val }}" hx-get="{% url 'kol:list' %}?status={{ val }}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+         {% if status_filter == val %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+      <div style="flex:1"></div>
+      <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Add KOL</button>
+    </div>
+    <!-- Search inputs -->
+    <form id="kol-filters" style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <div style="position:relative;flex:1;min-width:160px">
+        <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input name="location" value="{{ location_filter }}"
+               placeholder="Location or state…"
+               hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+               hx-trigger="keyup changed delay:350ms"
+               style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
+      </div>
+      <div style="position:relative;flex:1;min-width:160px">
+        <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/></svg>
+        <input name="specialty" value="{{ specialty_filter }}"
+               placeholder="Specialty or area…"
+               hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+               hx-trigger="keyup changed delay:350ms"
+               style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
+      </div>
+      {% if location_filter or specialty_filter or tier_filter %}
+      <button type="button"
+              hx-get="{% url 'kol:list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}"
+              hx-target="#kol-list-inner"
+              @click="document.querySelectorAll('#kol-filters input[name=location], #kol-filters input[name=specialty], #kol-filters select[name=tier]').forEach(el => el.value = '')"
+              style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap">
+        Clear filters
+      </button>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Create form -->
+  <div x-show="showCreate" x-transition
+       style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:16px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Add KOL</div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input x-model="form.name" placeholder="Full name *" style="flex:2;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+      <select x-model="form.tier" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+        {% for t in tier_range %}<option value="{{ t }}">Tier {{ t }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input x-model="form.institution" placeholder="Institution" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+      <input x-model="form.specialty" placeholder="Specialty" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+    </div>
+    <textarea x-model="form.bio" placeholder="Bio / expertise (optional)…" style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;resize:vertical;min-height:50px;background:var(--surface);margin-bottom:8px"></textarea>
+    <div style="display:flex;gap:6px">
+      <button @click="createKol()" class="btn btn-p btn-sm">Create</button>
+      <button @click="showCreate = false" class="btn btn-g btn-sm">Cancel</button>
+    </div>
+  </div>
+
+  <div id="kol-list-inner">
+    {% include "kol/partials/kol_list_inner.html" with kols=kols tier_range=tier_range status_choices=status_choices %}
+  </div>
+</div>
+
+<script>
+function kolTabSwitch(tab) {
+  fetch('/kol/candidates/?tab=' + tab)
+    .then(r => r.text())
+    .then(html => {
+      const el = document.getElementById('kol-candidates-container');
+      if (el) el.innerHTML = html;
+    });
+}
+
+function kolListPage() {
+  return {
+    showCreate: false,
+    form: { name: '', tier: 3, institution: '', specialty: '', bio: '' },
+    createKol() {
+      if (!this.form.name.trim()) return;
+      fetch('/kol/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify(this.form),
+      }).then(r => r.text()).then(html => {
+        document.getElementById('kol-list-inner').innerHTML = html;
+        this.showCreate = false;
+        this.form = { name: '', tier: 3, institution: '', specialty: '', bio: '' };
+      });
+    },
+  };
+}
+</script>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+{% endblock %}

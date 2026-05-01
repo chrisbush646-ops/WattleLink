@@ -5,6 +5,11 @@ register = template.Library()
 
 
 @register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key, "")
+
+
+@register.filter
 def apa7(paper):
     """Render APA7 citation string for a Paper instance."""
     if paper is None:

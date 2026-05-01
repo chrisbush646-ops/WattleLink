@@ -1,0 +1,81 @@
+{% load claims_tags %}
+<div id="enquiry-{{ enquiry.pk }}"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px"
+     x-data='enquiryCard({{ enquiry.pk }}, {{ enquiry.question|tojson }}, "{{ enquiry.source }}")'>
+  <div style="flex:1;min-width:0">
+
+    <!-- Header row -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+        {% if enquiry.source == 'HCP' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+        {% elif enquiry.source == 'PATIENT' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+        {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+        {{ enquiry.get_source_display }}
+      </span>
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+        {% if enquiry.status == 'OPEN' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
+        {% elif enquiry.status == 'DRAFT' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+        {% elif enquiry.status == 'RESPONDED' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+        {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+        {{ enquiry.get_status_display }}
+      </span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">{{ enquiry.created_at|date:"d M Y" }}</span>
+      <div style="flex:1"></div>
+      <button type="button" @click="expanded = !expanded; if (!expanded) editing = false"
+              style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-weight:500"
+              x-text="expanded ? '↑ Less' : '↓ More'">↓ More</button>
+      <button type="button" @click="editing = !editing; if (editing) expanded = true"
+              style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500"
+              x-text="editing ? 'Done' : 'Edit'">Edit</button>
+      <a href="{% url 'medinfo:detail' enquiry.pk %}"
+         style="font-size:11px;color:var(--euc);text-decoration:none" x-show="!editing">Respond →</a>
+    </div>
+
+    <!-- Collapsed: truncated read view -->
+    <div x-show="!expanded && !editing">
+      <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.5">
+        {{ enquiry.question|truncatechars:160 }}
+      </div>
+      {% if enquiry.response %}
+      <div style="margin-top:8px;padding:8px 12px;background:var(--paper-warm);border-left:3px solid var(--euc);border-radius:var(--r);font-size:12px;color:var(--ink-soft);line-height:1.5">
+        {{ enquiry.response|truncatechars:200 }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Expanded: full read view -->
+    <div x-show="expanded && !editing" style="display:none">
+      <div style="font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Question</div>
+      <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.6;padding:10px 12px;background:var(--paper-warm);border-radius:var(--r);border:1px solid var(--line-soft)">
+        {{ enquiry.question }}
+      </div>
+      {% if enquiry.response %}
+      <div style="font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 0 5px">Response</div>
+      <div style="padding:10px 14px;background:var(--paper-warm);border-left:3px solid var(--euc);border-radius:var(--r);font-size:12.5px;color:var(--ink-soft);line-height:1.6">
+        {{ enquiry.response }}
+      </div>
+      {% else %}
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic">No response recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Edit form (shown when editing, regardless of expanded state) -->
+    <div x-show="editing" style="display:none;margin-top:8px">
+      <div style="font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Question</div>
+      <textarea x-model="question" rows="3"
+                style="width:100%;font-family:var(--serif);font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;resize:vertical;background:var(--surface);margin-bottom:6px;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select x-model="source"
+                style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+          <option value="HCP">Healthcare Professional</option>
+          <option value="PATIENT">Patient / Carer</option>
+          <option value="INTERNAL">Internal</option>
+          <option value="OTHER">Other</option>
+        </select>
+        <button type="button" @click="save()" class="btn btn-p btn-sm">Save</button>
+        <button type="button" @click="editing = false" class="btn btn-g btn-sm">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+</div>

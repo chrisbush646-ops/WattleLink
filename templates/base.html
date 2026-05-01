@@ -122,6 +122,14 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
       </svg>
     </div>
 
+    <!-- AI Search — standalone, above all groups -->
+    <div style="padding:0 8px;margin-bottom:6px">
+      <a href="{% url 'aisearch:home' %}" class="ni {% block nav_aisearch %}{% endblock %}" style="background:rgba(200,155,42,.12);border-left-color:var(--wattle)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        AI Search
+      </a>
+    </div>
+
     <!-- Pipeline group -->
     <div class="ng ng-pipeline">
       <div class="ng-l">Pipeline</div>
@@ -204,6 +212,24 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
       </a>
     </div>
 
+    <!-- Team & Admin — shown to Admin role users -->
+    {% if user.is_admin_role %}
+    <div style="padding:0 8px;margin-bottom:6px;margin-top:4px">
+      <a href="{% url 'accounts_app:team' %}" class="ni {% block nav_team %}{% endblock %}"
+         style="border-left-color:rgba(255,255,255,.15)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Team
+      </a>
+      {% if is_platform_admin %}
+      <a href="{% url 'accounts_app:admin_dashboard' %}" class="ni {% block nav_admin %}{% endblock %}"
+         style="background:rgba(184,92,58,.10);border-left-color:var(--coral)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 8h4M20 6v4"/></svg>
+        Platform Admin
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Sidebar footer: logged-in user -->
     {% if user.is_authenticated %}
     <div class="sb-foot">
@@ -260,7 +286,10 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
     <div class="topbar">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="text" placeholder="Search papers, claims, keywords...">
+        <input type="text" id="global-search"
+               placeholder="Search…"
+               autocomplete="off"
+               onkeydown="if(event.key==='Enter'&&this.value.trim())globalSearch(this.value.trim())">
       </div>
       <div class="top-actions">
         <button class="icon-btn" title="Help">
@@ -318,6 +347,40 @@ document.body.addEventListener('htmx:afterSettle', function(evt) {
 function shell() {
   return {};
 }
+
+(function() {
+  var ROUTES = [
+    { prefix: '/literature/library', url: '/literature/library/', placeholder: 'Search papers…' },
+    { prefix: '/literature/search', url: '/literature/library/', placeholder: 'Search papers…' },
+    { prefix: '/literature/',       url: '/literature/library/', placeholder: 'Search papers…' },
+    { prefix: '/assessment/',       url: '/assessment/',         placeholder: 'Search papers…' },
+    { prefix: '/summaries/',        url: '/summaries/',          placeholder: 'Search papers…' },
+    { prefix: '/claims/',           url: '/claims/',             placeholder: 'Search claims…' },
+    { prefix: '/safety/',           url: '/safety/',             placeholder: 'Search safety signals…' },
+    { prefix: '/export/',           url: '/literature/library/', placeholder: 'Search papers…' },
+    { prefix: '/kol/directory',     url: '/kol/directory/',      placeholder: 'Search KOLs…' },
+    { prefix: '/kol/',              url: '/kol/',                placeholder: 'Search KOLs…' },
+    { prefix: '/medinfo/',          url: '/medinfo/',            placeholder: 'Search enquiries…' },
+    { prefix: '/engagement/',       url: '/engagement/',         placeholder: 'Search events…' },
+    { prefix: '/ai-search/',        url: null,                   placeholder: 'AI search active…' },
+  ];
+  function matchRoute() {
+    var path = window.location.pathname;
+    for (var i = 0; i < ROUTES.length; i++) {
+      if (path.startsWith(ROUTES[i].prefix)) return ROUTES[i];
+    }
+    return { url: '/literature/library/', placeholder: 'Search WattleLink…' };
+  }
+  window.globalSearch = function(q) {
+    var route = matchRoute();
+    if (!route.url) return;
+    window.location.href = route.url + '?q=' + encodeURIComponent(q);
+  };
+  document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('global-search');
+    if (input) input.placeholder = matchRoute().placeholder;
+  });
+})();
 </script>
 
 {% block extra_js %}{% endblock %}

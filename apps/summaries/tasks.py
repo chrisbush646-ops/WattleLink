@@ -36,6 +36,11 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
             FindingsRow(summary=summary, **kw) for kw in row_kwargs
         ])
 
+        from apps.audit.helpers import log_task_action
+        from apps.audit.models import AuditLog
+        log_task_action(tenant, paper, AuditLog.Action.AI_DRAFT,
+                        after={"summary": "AI summary generated", "findings_rows": len(findings_data)})
+
         logger.info("AI summary complete for paper %s", paper_id)
 
     except Exception as exc:

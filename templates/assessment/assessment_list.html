@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Quality Assessment{% endblock %}
+{% block nav_assess %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.pt{font-family:var(--serif);font-weight:300;font-size:34px;letter-spacing:-.025em;line-height:1.05;color:var(--ink)}.pt em{font-style:italic;color:var(--euc)}
+.ps{margin-top:5px;color:var(--muted);font-size:13px}
+.eyebrow{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.ref-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 22px;margin-bottom:14px}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.04em}
+.badge-high{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
+.badge-moderate{background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A}
+.badge-low{background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9}
+.badge-verylow{background:#F0E0F0;color:#7A3A7A;border:1px solid #DFC0DF}
+.badge-rob-low{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
+.badge-rob-some{background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A}
+.badge-rob-high{background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.chip{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .12s;text-decoration:none;display:inline-block}
+.chip:hover{border-color:var(--euc);color:var(--euc)}
+.chip.active{background:var(--euc);color:#F4F6F2;border-color:var(--euc)}
+.tw{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th{text-align:left;padding:10px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--paper-warm);border-bottom:1px solid var(--line)}
+table.dt td{padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+table.dt tbody tr:last-child td{border-bottom:none}
+table.dt tbody tr:hover td{background:var(--paper-warm);cursor:pointer}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ph">
+  <div>
+    <div class="eyebrow" style="margin-bottom:5px">Analysis</div>
+    <h1 class="pt">Quality <em>Assessment</em></h1>
+    <p class="ps">Cochrane GRADE ratings and Risk of Bias for all papers in your library.</p>
+  </div>
+  <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">{{ total }} paper{{ total|pluralize }}</span>
+</div>
+
+<!-- GRADE Reference -->
+<div class="ref-card" x-data="{ open: false }">
+  <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" @click="open=!open">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="1.8"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span style="font-family:var(--serif);font-size:15px;font-weight:400;color:var(--ink)">GRADE Evidence Certainty — Reference Guide</span>
+    </div>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" :style="open ? 'transform:rotate(180deg);transition:.15s' : 'transition:.15s'"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+  <div x-show="open" x-transition style="margin-top:16px">
+    <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.65;margin-bottom:14px">
+      GRADE (Grading of Recommendations, Assessment, Development and Evaluations) is the international standard for rating certainty of evidence. Ratings reflect how confident we are that the estimated effect is close to the true effect. RCTs start at <strong>High</strong>; observational studies start at <strong>Low</strong>. Each concern in a domain typically downgrades certainty by one level.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="padding:12px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:var(--r)">
+        <div style="font-weight:600;color:var(--euc);font-size:12.5px;margin-bottom:4px">High</div>
+        <div style="font-size:11.5px;color:var(--euc);line-height:1.5">We are very confident the true effect lies close to the estimate. Further research is very unlikely to change confidence.</div>
+      </div>
+      <div style="padding:12px 14px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
+        <div style="font-weight:600;color:#8A6918;font-size:12.5px;margin-bottom:4px">Moderate</div>
+        <div style="font-size:11.5px;color:#6B4E10;line-height:1.5">Moderately confident. Further research is likely to have an important impact and may change the estimate.</div>
+      </div>
+      <div style="padding:12px 14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
+        <div style="font-weight:600;color:var(--coral);font-size:12.5px;margin-bottom:4px">Low</div>
+        <div style="font-size:11.5px;color:#8A3A1E;line-height:1.5">Limited confidence. The true effect may be substantially different from the estimate of effect.</div>
+      </div>
+      <div style="padding:12px 14px;background:#F0E8F0;border:1px solid #DFC0DF;border-radius:var(--r)">
+        <div style="font-weight:600;color:#7A3A7A;font-size:12.5px;margin-bottom:4px">Very Low</div>
+        <div style="font-size:11.5px;color:#5A2A5A;line-height:1.5">Very little confidence. The true effect is likely substantially different from the estimate.</div>
+      </div>
+    </div>
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--paper-warm)">
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:20%">Domain</th>
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">What it assesses</th>
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:30%">Possible ratings</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Risk of Bias</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Methodological limitations that may exaggerate or underestimate true effects.</td><td style="padding:8px 12px"><span class="badge badge-high" style="margin-right:3px">Not serious</span><span class="badge badge-moderate" style="margin-right:3px">Serious</span><span class="badge badge-low">Very serious</span></td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Inconsistency</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Unexplained heterogeneity in results across studies.</td><td style="padding:8px 12px"><span class="badge badge-high" style="margin-right:3px">Not serious</span><span class="badge badge-moderate" style="margin-right:3px">Serious</span><span class="badge badge-low">Very serious</span></td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Indirectness</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Differences between research population/intervention and the clinical question.</td><td style="padding:8px 12px"><span class="badge badge-high" style="margin-right:3px">Not serious</span><span class="badge badge-moderate" style="margin-right:3px">Serious</span><span class="badge badge-low">Very serious</span></td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Imprecision</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Wide confidence intervals due to small sample size or few events.</td><td style="padding:8px 12px"><span class="badge badge-high" style="margin-right:3px">Not serious</span><span class="badge badge-moderate" style="margin-right:3px">Serious</span><span class="badge badge-low">Very serious</span></td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Publication Bias</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Selective publication of studies based on direction or magnitude of findings.</td><td style="padding:8px 12px"><span class="badge badge-high" style="margin-right:3px">Undetected</span><span class="badge badge-moderate">Suspected</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- RoB 2 Reference -->
+<div class="ref-card" x-data="{ open: false }">
+  <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" @click="open=!open">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span style="font-family:var(--serif);font-size:15px;font-weight:400;color:var(--ink)">Cochrane Risk of Bias 2 (RoB 2) — Reference Guide</span>
+    </div>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" :style="open ? 'transform:rotate(180deg);transition:.15s' : 'transition:.15s'"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+  <div x-show="open" x-transition style="margin-top:16px">
+    <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.65;margin-bottom:14px">RoB 2 assesses risk of bias in randomised trials across five domains. The overall judgment reflects the highest risk domain.</p>
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--paper-warm)">
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:6%">D</th>
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;width:30%">Domain</th>
+          <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Assessed</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">D1</td><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Randomisation process</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Sequence generation, allocation concealment, baseline imbalances.</td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">D2</td><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Deviations from interventions</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Deviations due to trial context, blinding failures, non-protocol interventions.</td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">D3</td><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Missing outcome data</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Completeness, reasons for missing data, and sensitivity analyses.</td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">D4</td><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Measurement of outcomes</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Appropriateness of outcome measurement and blinding of assessors.</td></tr>
+          <tr style="border-top:1px solid var(--line-soft)"><td style="padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--muted)">D5</td><td style="padding:8px 12px;font-weight:500;color:var(--ink)">Selection of reported result</td><td style="padding:8px 12px;color:var(--ink-soft);line-height:1.5">Pre-specification of outcomes, selective analysis and reporting.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Filter chips -->
+<div class="filter-chips">
+  <a href="{% url 'assessment:list' %}" class="chip {% if not rating_filter %}active{% endif %}">All</a>
+  <a href="{% url 'assessment:list' %}?grade=High" class="chip {% if rating_filter == 'High' %}active{% endif %}">High</a>
+  <a href="{% url 'assessment:list' %}?grade=Moderate" class="chip {% if rating_filter == 'Moderate' %}active{% endif %}">Moderate</a>
+  <a href="{% url 'assessment:list' %}?grade=Low" class="chip {% if rating_filter == 'Low' %}active{% endif %}">Low</a>
+  <a href="{% url 'assessment:list' %}?grade=Very+Low" class="chip {% if rating_filter == 'Very Low' %}active{% endif %}">Very Low</a>
+  <a href="{% url 'assessment:list' %}?grade=unassessed" class="chip {% if rating_filter == 'unassessed' %}active{% endif %}">Not assessed</a>
+</div>
+
+<!-- Papers table -->
+<div class="tw">
+  <table class="dt">
+    <thead>
+      <tr>
+        <th style="width:42%">Paper</th>
+        <th>Study Type</th>
+        <th>GRADE</th>
+        <th>RoB 2</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in paper_rows %}
+      <tr hx-get="{% url 'literature:paper_detail' row.paper.pk %}"
+          hx-target="body"
+          hx-swap="beforeend"
+          style="cursor:pointer">
+        <td>
+          <div style="font-family:var(--serif);font-size:13.5px;color:var(--ink);line-height:1.3">{{ row.paper.title|truncatechars:90 }}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">
+            {{ row.paper.journal_short|default:row.paper.journal|truncatechars:40 }}{% if row.paper.published_date %} · {{ row.paper.published_date|date:"Y" }}{% endif %}
+          </div>
+        </td>
+        <td style="font-size:11.5px;color:var(--ink-soft)">{{ row.paper.study_type|default:"—" }}</td>
+        <td>
+          {% if row.grade_rating == "High" %}<span class="badge badge-high">High</span>
+          {% elif row.grade_rating == "Moderate" %}<span class="badge badge-moderate">Moderate</span>
+          {% elif row.grade_rating == "Low" %}<span class="badge badge-low">Low</span>
+          {% elif row.grade_rating == "Very Low" %}<span class="badge badge-verylow">Very Low</span>
+          {% elif row.grade_draft %}<span style="font-size:11px;color:var(--muted)">Draft</span>
+          {% else %}<span style="font-size:11px;color:var(--muted)">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if row.rob_judgment == "Low" %}<span class="badge badge-rob-low">Low</span>
+          {% elif row.rob_judgment == "Some concerns" %}<span class="badge badge-rob-some">Some concerns</span>
+          {% elif row.rob_judgment == "High" %}<span class="badge badge-rob-high">High</span>
+          {% elif row.rob_draft %}<span style="font-size:11px;color:var(--muted)">Draft</span>
+          {% else %}<span style="font-size:11px;color:var(--muted)">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if row.confirmed %}<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500">Confirmed</span>
+          {% elif row.grade_draft %}<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI Draft</span>
+          {% else %}<span style="font-size:10px;color:var(--muted)">Not assessed</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="padding:32px;text-align:center;color:var(--muted);font-size:13px">No papers match this filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

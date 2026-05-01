@@ -1,0 +1,28 @@
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px">
+  <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--euc-l),var(--euc));display:grid;place-items:center;margin-bottom:8px">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F4F6F2" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  </div>
+  <div style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink)">WattleLink AI</div>
+  <div style="font-size:13px;color:var(--muted);text-align:center;max-width:400px;line-height:1.5">Ask anything about medical literature, clinical evidence, MSL strategy, or product knowledge.</div>
+</div>
+
+<div style="padding:20px 24px;border-top:1px solid var(--line);background:var(--paper-warm)">
+  <form hx-post="{% url 'aisearch:ask' %}"
+        hx-target="#ai-panel"
+        hx-swap="innerHTML"
+        x-data="{ q: '' }"
+        style="display:flex;gap:8px;align-items:flex-end">
+    <textarea name="question" x-model="q"
+              placeholder="Ask a question…"
+              rows="1"
+              autofocus
+              @keydown.enter.prevent="if (!$event.shiftKey && q.trim()) $el.closest('form').requestSubmit()"
+              style="flex:1;resize:none;border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;font:inherit;font-size:13.5px;color:var(--ink);background:var(--surface);line-height:1.45;max-height:160px;overflow-y:auto"
+              @input="$el.style.height='auto';$el.style.height=$el.scrollHeight+'px'"></textarea>
+    <button type="submit" class="btn btn-p" style="flex-shrink:0;height:42px;display:flex;align-items:center;gap:6px">
+      <span class="htmx-indicator" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;display:inline-block;animation:aispin .65s linear infinite;flex-shrink:0"></span>
+      Ask
+    </button>
+  </form>
+  <div style="font-size:10px;color:var(--muted);margin-top:6px">Shift+Enter for new line · Enter to send · All conversations are saved and auditable</div>
+</div>

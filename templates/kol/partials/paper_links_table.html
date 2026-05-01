@@ -1,0 +1,37 @@
+<div id="kol-paper-links-{{ kol.pk }}">
+{% if paper_links %}
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead>
+    <tr style="background:var(--paper-warm)">
+      <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Paper</th>
+      <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Author?</th>
+      <th style="text-align:left;padding:7px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500">Relevance</th>
+      <th style="padding:7px 12px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for link in paper_links %}
+    <tr style="border-top:1px solid var(--line-soft)">
+      <td style="padding:8px 12px;font-family:var(--serif);font-size:13px;color:var(--ink);line-height:1.3">
+        {{ link.paper.title|truncatechars:60 }}
+        <div style="font-size:10px;color:var(--muted);font-family:var(--sans)">{{ link.paper.journal }} · {{ link.paper.published_date.year }}</div>
+      </td>
+      <td style="padding:8px 12px;font-size:11px;color:var(--muted)">
+        {% if link.is_author %}<span style="color:var(--euc);font-weight:500">✓</span>{% else %}—{% endif %}
+      </td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--ink-soft)">{{ link.relevance_note|default:"—"|truncatechars:60 }}</td>
+      <td style="padding:8px 12px;text-align:right">
+        <button hx-post="{% url 'kol:unlink_paper' link.pk %}"
+                hx-target="#kol-paper-links-{{ kol.pk }}"
+                hx-swap="outerHTML"
+                hx-confirm="Remove this paper link?"
+                style="font-size:10px;color:var(--coral);background:none;border:none;cursor:pointer">Remove</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No papers linked yet.</div>
+{% endif %}
+</div>

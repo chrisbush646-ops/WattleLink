@@ -1,0 +1,191 @@
+{% load claims_tags %}
+<div id="kol-{{ kol.pk }}"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px"
+     x-data="kolCard({{ kol.pk }})">
+
+  <div style="display:flex;align-items:flex-start;gap:10px">
+    <!-- Tier badge -->
+    <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;
+      {% if kol.tier == 1 %}background:#E8EFE9;color:var(--euc);border:2px solid #CFDAD0
+      {% elif kol.tier == 2 %}background:var(--wattle-soft);color:#8A6918;border:2px solid #E7D59A
+      {% elif kol.tier == 3 %}background:var(--sky-soft);color:var(--sky);border:2px solid #C3D2DB
+      {% else %}background:var(--line-soft);color:var(--muted);border:2px solid var(--line){% endif %}">
+      T{{ kol.tier }}
+    </div>
+
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+        <a href="{% url 'kol:detail' kol.pk %}"
+           style="font-size:14px;font-weight:600;color:var(--ink);font-family:var(--serif);text-decoration:none">
+          {{ kol.name }}
+        </a>
+        {% if kol.ai_generated %}
+        <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI</span>
+        {% endif %}
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+          {% if kol.status == 'ACTIVE' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+          {% elif kol.status == 'CANDIDATE' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+          {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+          {{ kol.get_status_display }}
+        </span>
+        <div style="flex:1"></div>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ kol.paper_links.count }} paper{{ kol.paper_links.count|pluralize }}</span>
+        <button @click="editing = !editing"
+                style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer"
+                x-text="editing ? 'Done' : 'Edit'"></button>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">
+        {% if kol.institution %}{{ kol.institution }}{% endif %}
+        {% if kol.specialty %} · {{ kol.specialty }}{% endif %}
+        {% if kol.location %} · {{ kol.location }}{% endif %}
+      </div>
+
+      <template x-if="!editing">
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">{{ kol.bio|default:"" }}</div>
+      </template>
+
+      <template x-if="editing">
+        <div style="margin-top:8px" x-data="kolEdit({{ kol.pk }})" x-init="$nextTick(() => htmx.process($el))">
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <select x-model="tier"
+                    style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+              {% for t in tier_range %}<option value="{{ t }}">Tier {{ t }}</option>{% endfor %}
+            </select>
+            <select x-model="status"
+                    style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+              {% for val, label in status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <input x-model="institution" placeholder="Institution"
+                 style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface);margin-bottom:5px">
+          <input x-model="specialty" placeholder="Specialty"
+                 style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface);margin-bottom:5px">
+          <textarea x-model="bio" placeholder="Bio / expertise summary…"
+                    style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 9px;resize:vertical;min-height:54px;background:var(--surface);margin-bottom:5px"></textarea>
+          <textarea x-model="notes" placeholder="Internal MSL notes…"
+                    style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 9px;resize:vertical;min-height:40px;background:var(--surface);margin-bottom:8px"></textarea>
+
+          <!-- Suggested papers results sit directly below notes -->
+          <div id="kol-suggested-papers-{{ kol.pk }}" style="margin-bottom:8px"></div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button @click="save()" class="btn btn-p btn-sm">Save</button>
+
+            <button type="button" @click="suggestPapers({{ kol.pk }})"
+                    style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px">
+              <span x-show="suggesting"
+                    style="display:inline-block;width:10px;height:10px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite"></span>
+              <span x-text="suggesting ? 'Searching…' : 'Suggest Papers'">Suggest Papers</span>
+            </button>
+
+            <template x-if="!confirming">
+              <button type="button" @click="confirming = true"
+                      style="font-size:11px;color:var(--coral);background:none;border:1px solid #E8C8C0;border-radius:var(--r);padding:4px 10px;cursor:pointer">
+                Remove KOL
+              </button>
+            </template>
+            <template x-if="confirming">
+              <span style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:11px;color:var(--muted)">Remove this KOL?</span>
+                <button type="button" @click="removeKol({{ kol.pk }})"
+                        style="font-size:11px;color:#fff;background:var(--coral);border:none;border-radius:var(--r);padding:4px 10px;cursor:pointer;font-weight:500">
+                  Confirm
+                </button>
+                <button type="button" @click="confirming = false"
+                        style="font-size:11px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:var(--r);padding:4px 10px;cursor:pointer">
+                  Cancel
+                </button>
+              </span>
+            </template>
+          </div>
+
+          <!-- Talking Points -->
+          <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">MSL Talking Points</div>
+            <button type="button" @click="draftTalkingPoints({{ kol.pk }})"
+                    style="width:100%;font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:8px">
+              <span x-show="draftingTp"
+                    style="display:inline-block;width:10px;height:10px;border:2px solid rgba(38,64,50,.2);border-top-color:var(--euc);border-radius:50%;animation:spin .7s linear infinite"></span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              <span x-text="draftingTp ? 'Generating…' : 'Draft Talking Points'">Draft Talking Points</span>
+            </button>
+            <div id="kol-tp-draft-{{ kol.pk }}" style="margin-bottom:6px"></div>
+            {% include "kol/partials/talking_points_saved.html" with kol=kol talking_points=kol.talking_points.all %}
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+function kolCard(kolPk) { return { editing: false }; }
+
+function linkSuggestedPaper(kolPk, paperPk, btn) {
+  fetch(`/kol/${kolPk}/link-paper/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+    body: JSON.stringify({ paper_pk: paperPk }),
+  }).then(r => {
+    if (r.ok) {
+      btn.outerHTML = '<span style="font-size:11px;color:var(--euc);font-weight:500;flex-shrink:0">✓ Linked</span>';
+    }
+  });
+}
+function kolEdit(kolPk) {
+  return {
+    tier: {{ kol.tier }},
+    status: '{{ kol.status }}',
+    institution: {{ kol.institution|tojson }},
+    specialty: {{ kol.specialty|tojson }},
+    bio: {{ kol.bio|tojson }},
+    notes: {{ kol.notes|tojson }},
+    confirming: false,
+    suggesting: false,
+    draftingTp: false,
+    save() {
+      fetch(`/kol/${kolPk}/update/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify({ tier: this.tier, status: this.status, institution: this.institution, specialty: this.specialty, bio: this.bio, notes: this.notes }),
+      }).then(r => r.text()).then(html => { document.getElementById(`kol-${kolPk}`).outerHTML = html; });
+    },
+    suggestPapers(pk) {
+      this.suggesting = true;
+      fetch(`/kol/${pk}/suggest-papers/`)
+        .then(r => r.text())
+        .then(html => {
+          const el = document.getElementById(`kol-suggested-papers-${pk}`);
+          if (el) el.innerHTML = html;
+          this.suggesting = false;
+        })
+        .catch(() => { this.suggesting = false; });
+    },
+    removeKol(pk) {
+      fetch(`/kol/${pk}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+      }).then(() => {
+        const el = document.getElementById(`kol-${pk}`);
+        if (el) el.remove();
+      });
+    },
+    draftTalkingPoints(pk) {
+      this.draftingTp = true;
+      const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+      fetch(`/kol/${pk}/talking-points/generate/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf },
+      })
+        .then(r => r.text())
+        .then(html => {
+          const el = document.getElementById(`kol-tp-draft-${pk}`);
+          if (el) { el.innerHTML = html; htmx.process(el); }
+          this.draftingTp = false;
+        })
+        .catch(() => { this.draftingTp = false; });
+    },
+  };
+}
+</script>

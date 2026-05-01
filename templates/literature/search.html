@@ -19,7 +19,7 @@
 .qr select{min-width:100px}.qr input[type="text"]{flex:1;min-width:160px}
 .qr select:focus,.qr input:focus{outline:none;border-color:var(--euc-l)}
 .q-op{min-width:70px;font-size:11px;font-weight:500;text-align:center}
-.q-remove{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:var(--coral);border:1px solid var(--coral-soft);cursor:pointer;flex-shrink:0;font-size:14px;transition:all .12s}
+.q-remove{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:var(--coral);border:1px solid var(--coral-soft);cursor:pointer;flex-shrink:0;font-size:14px;transition:all .12s;background:none}
 .q-remove:hover{background:var(--coral-soft)}
 .q-preview{margin-top:12px;padding:10px 14px;background:var(--paper-warm);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:11.5px;color:var(--euc);line-height:1.6;word-break:break-all}
 .q-preview .label{font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:500;display:block}
@@ -36,6 +36,10 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
 .dropzone:hover,.dropzone.over{border-color:var(--wattle);background:var(--wattle-soft);color:var(--ink)}
 .dropzone strong{color:var(--ink);font-weight:500;display:block;margin-bottom:2px;font-size:12.5px}
 .ai-thinking{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:4px 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Native dialog styling */
+dialog{border:none;border-radius:14px;padding:28px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);background:var(--surface)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
 </style>
 {% endblock %}
 
@@ -59,253 +63,388 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
 <!-- Modal container -->
 <div id="modal-container"></div>
 
+<!-- Saved searches strip -->
+{% if saved_searches %}
+<div id="saved-searches-strip" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+  <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0">Saved</span>
+  {% for s in saved_searches %}
+  <div style="display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden">
+    <button onclick="loadSearch('{{ s.query|escapejs }}')"
+            style="padding:4px 10px 4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap"
+            title="{{ s.query }}">
+      {{ s.name|truncatechars:24 }}
+    </button>
+    <button onclick="runSavedSearch({{ s.id }}, '{{ s.query|escapejs }}')"
+            style="padding:4px 10px 4px 6px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--euc);font-size:11px;font-weight:500;font-family:inherit"
+            title="Run this search">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      Run
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- AI Suggest dialog (native <dialog>) -->
+<dialog id="ai-dialog">
+  <div style="font-family:var(--serif);font-size:20px;font-weight:300;color:var(--ink);margin-bottom:6px">AI Query Suggest</div>
+  <div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Describe your research topic in plain language. The AI will generate the broadest possible query — maximum synonyms, minimal AND restrictions — so you start with the largest result set and refine from there.</div>
+  <div style="font-size:11px;color:var(--euc);background:#E8EFE9;border:1px solid #CFDAD0;border-radius:6px;padding:6px 10px;margin-bottom:14px">Tip: describe only the core topic. Date ranges, study types, and publication filters are applied separately below.</div>
+  <input type="text" id="ai-description"
+         placeholder="e.g. TNF inhibitors in rheumatoid arthritis"
+         style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r);font:inherit;font-size:13px;color:var(--ink);background:var(--surface);margin-bottom:14px;box-sizing:border-box">
+  <div style="display:flex;justify-content:flex-end;gap:8px">
+    <button class="btn btn-g" onclick="document.getElementById('ai-dialog').close()">Cancel</button>
+    <button class="btn btn-p" onclick="runAiSuggest()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      Generate query
+    </button>
+  </div>
+</dialog>
+
 <!-- Query Builder -->
-<div class="qb" x-data="queryBuilder()">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div class="card-t">Boolean Query Builder</div>
+<div class="qb">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+    <div>
+      <div class="card-t">Boolean Query Builder</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">Start broad — use AI Suggest to generate a high-recall query, then narrow with AND / NOT rows or date and study-type filters.</div>
+    </div>
     <div style="display:flex;gap:6px;align-items:center">
-      <!-- AI Suggest -->
-      <div x-show="aiThinking" class="ai-thinking">
+      <div id="ai-thinking" class="ai-thinking" style="display:none">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--wattle)" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         AI thinking…
       </div>
-      <button class="btn btn-g btn-sm" @click="openAiSuggest()" x-show="!aiThinking">
+      <button class="btn btn-g btn-sm" id="ai-suggest-btn" onclick="openAiDialog()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         AI Suggest
       </button>
-      <button class="btn btn-p btn-sm" @click="addRow()">
+      <button class="btn btn-p btn-sm" onclick="addRow()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         Add term
       </button>
     </div>
   </div>
 
-  <!-- AI Suggest panel -->
-  <div x-show="showAiPanel" x-transition style="margin-bottom:14px;padding:12px 14px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:8px">
-    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:6px">Describe your research topic</div>
-    <div style="display:flex;gap:8px">
-      <input type="text" x-model="aiDescription" placeholder="e.g. long-term safety of TNF inhibitors in rheumatoid arthritis"
-             style="flex:1;padding:7px 10px;border:1px solid #E7D59A;border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface)"
-             @keydown.enter="runAiSuggest()"
-             @keydown.escape="showAiPanel=false">
-      <button class="btn btn-sm" style="background:var(--wattle);color:#fff;border:none" @click="runAiSuggest()">Suggest</button>
-      <button class="btn btn-g btn-sm" @click="showAiPanel=false">Cancel</button>
-    </div>
-  </div>
-
   <!-- Query rows -->
-  <template x-for="(row, idx) in rows" :key="idx">
-    <div class="qr">
-      <span class="q-op" style="color:var(--muted);font-family:var(--mono)">
-        <span x-show="idx === 0" style="color:var(--euc);font-weight:600">SEARCH</span>
-        <select x-show="idx > 0" x-model="row.operator"
-                style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:11px;font-weight:600;color:var(--euc);background:var(--surface)">
-          <option>AND</option>
-          <option>OR</option>
-          <option>NOT</option>
-        </select>
-      </span>
-      <select x-model="row.field"
-              style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);min-width:130px">
-        <option value="tiab">Title/Abstract</option>
-        <option value="ti">Title</option>
-        <option value="mesh">MeSH Term</option>
-        <option value="au">Author</option>
-        <option value="ta">Journal</option>
-        <option value="all">All Fields</option>
-      </select>
-      <input type="text" x-model="row.term" placeholder="Enter search term…"
-             @input="updatePreview()"
-             style="flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface)">
-      <button class="q-remove" @click="removeRow(idx)" x-show="rows.length > 1" title="Remove">×</button>
-    </div>
-  </template>
+  <div id="query-rows"></div>
 
   <!-- Preview -->
   <div class="q-preview">
     <span class="label">Generated PubMed query</span>
-    <span x-text="preview || 'Add terms above to build your query…'" :style="preview ? '' : 'color:var(--muted)'"></span>
+    <span id="preview-text" style="color:var(--muted)">Add terms above to build your query…</span>
   </div>
 
   <!-- Filters + actions -->
   <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
-    <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px">
-      <input type="checkbox" x-model="openAccessOnly" style="accent-color:var(--euc)">
+    <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+      <input type="checkbox" id="open-access" checked style="accent-color:var(--euc)">
       Open access only
     </label>
-    <select x-model="studyType"
-            style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);background:var(--surface)">
+    <select id="study-type" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);background:var(--surface);font-family:inherit">
       <option value="">All study types</option>
       <option value="rct">RCT</option>
       <option value="meta">Meta-analysis</option>
       <option value="sr">Systematic review</option>
       <option value="obs">Observational</option>
     </select>
-    <!-- Year range -->
     <div style="display:flex;align-items:center;gap:4px">
       <span style="font-size:12px;color:var(--muted)">Year</span>
-      <input type="number" x-model="yearFrom" placeholder="From"
-             min="1950" max="2030"
+      <input type="number" id="year-from" placeholder="From" min="1950" max="2030"
              style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
       <span style="font-size:12px;color:var(--muted)">–</span>
-      <input type="number" x-model="yearTo" placeholder="To"
-             min="1950" max="2030"
+      <input type="number" id="year-to" placeholder="To" min="1950" max="2030"
              style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
     </div>
     <div style="flex:1"></div>
-    <button class="btn btn-g" @click="saveSearch()">Save search</button>
-    <button class="btn btn-p"
-            @click="runSearch()"
-            :disabled="!preview">
+    <button class="btn btn-g" onclick="saveSearch()">Save search</button>
+    <button class="btn btn-p" id="run-search-btn" onclick="runSearch()" disabled>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       Run search
     </button>
   </div>
 
-  <!-- Results panel (HTMX target) -->
   <div id="search-results" class="mt"></div>
 </div>
 
 <!-- PDF Upload -->
-<div class="card mt"
-     x-data="pdfUpload()"
-     @dragover.prevent="dragging=true"
-     @dragleave.prevent="dragging=false"
-     @drop.prevent="handleDrop($event)">
+<div class="card mt" id="pdf-upload-card">
   <div class="card-t">Upload paywalled PDF</div>
   <div class="card-s mb">For papers behind an institutional paywall that you have purchased access to.</div>
-  <div class="dropzone" :class="{ over: dragging }" @click="$refs.fileInput.click()">
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--wattle)" stroke-width="1.5" style="margin-bottom:6px"><path d="M7 10l5-5 5 5"/><path d="M12 5v12"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
     <strong>Drop PDF here or click to browse</strong>
     PDF only · max 50 MB
-    <input type="file" x-ref="fileInput" accept=".pdf,application/pdf" style="display:none" @change="handleFile($event.target.files[0])">
+    <input type="file" id="file-input" accept=".pdf,application/pdf" style="display:none">
   </div>
-  <div x-show="uploadStatus" x-text="uploadStatus" class="mt" style="font-size:12.5px;color:var(--muted)"></div>
+  <div id="upload-status" class="mt" style="font-size:12.5px;color:var(--muted);display:none"></div>
   <div id="upload-result" class="mt"></div>
 </div>
-
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const CSRF = '{{ csrf_token }}';
+const FIELD_TAGS = { tiab:'[Title/Abstract]', ti:'[Title]', mesh:'[Mesh]', au:'[Author]', ta:'[Journal]', all:'' };
+let qRows = [{ operator:'AND', field:'tiab', term:'' }];
 
-function queryBuilder() {
-  return {
-    rows: [{ operator: 'AND', field: 'tiab', term: '' }],
-    openAccessOnly: true,
-    studyType: '',
-    yearFrom: '',
-    yearTo: '',
-    preview: '',
-    showAiPanel: false,
-    aiDescription: '',
-    aiThinking: false,
-
-    fieldTag(field) {
-      const map = { tiab: '[Title/Abstract]', ti: '[Title]', mesh: '[Mesh]', au: '[Author]', ta: '[Journal]', all: '' };
-      return map[field] || '';
-    },
-
-    updatePreview() {
-      const parts = this.rows
-        .filter(r => r.term.trim())
-        .map((r, i) => {
-          const term = r.term.includes(' ') ? `"${r.term}"` : r.term;
-          const tag = this.fieldTag(r.field);
-          const expr = tag ? `${term}${tag}` : term;
-          return i === 0 ? expr : `${r.operator} ${expr}`;
-        });
-      this.preview = parts.join(' ');
-    },
-
-    addRow() { this.rows.push({ operator: 'AND', field: 'tiab', term: '' }); },
-    removeRow(idx) { this.rows.splice(idx, 1); this.updatePreview(); },
-
-    openAiSuggest() { this.showAiPanel = true; this.$nextTick(() => this.$el.querySelector('input[x-model="aiDescription"]')?.focus()); },
-
-    async runAiSuggest() {
-      if (!this.aiDescription.trim()) return;
-      this.showAiPanel = false;
-      this.aiThinking = true;
-      try {
-        const res = await fetch('{% url "literature:ai_suggest" %}', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-          body: JSON.stringify({ description: this.aiDescription }),
-        });
-        const data = await res.json();
-        if (data.query) {
-          this.rows = [{ operator: 'AND', field: 'all', term: data.query }];
-          this.preview = data.query;
-        } else if (data.error) {
-          document.getElementById('search-results').innerHTML =
-            `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest failed: ${data.error}</div>`;
-        }
-      } catch(e) {
-        console.error(e);
-        document.getElementById('search-results').innerHTML =
-          '<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest is unavailable. Check that ANTHROPIC_API_KEY is set.</div>';
-      }
-      finally { this.aiThinking = false; }
-    },
-
-    async runSearch() {
-      if (!this.preview) return;
-      const form = new FormData();
-      form.append('query', this.preview);
-      form.append('open_access_only', this.openAccessOnly ? 'true' : 'false');
-      form.append('study_type', this.studyType);
-      if (this.yearFrom) form.append('year_from', this.yearFrom);
-      if (this.yearTo) form.append('year_to', this.yearTo);
-      const target = document.getElementById('search-results');
-      target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Searching PubMed…</div>';
-      const res = await fetch('{% url "literature:run_search" %}', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': CSRF },
-        body: form,
-      });
-      target.innerHTML = await res.text();
-    },
-
-    async saveSearch() {
-      if (!this.preview) return;
-      const name = prompt('Name this search:');
-      if (!name) return;
-      await fetch('{% url "literature:save_search" %}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-        body: JSON.stringify({ name, query: this.preview, open_access_only: this.openAccessOnly, study_type: this.studyType }),
-      });
-      alert('Search saved.');
-    },
-  };
+function renderRows() {
+  const container = document.getElementById('query-rows');
+  container.innerHTML = '';
+  qRows.forEach((row, idx) => {
+    const div = document.createElement('div');
+    div.className = 'qr';
+    const opHtml = idx === 0
+      ? '<span style="color:var(--euc);font-weight:600;font-size:11px;font-family:var(--mono)">SEARCH</span>'
+      : `<select style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:11px;font-weight:600;color:var(--euc);background:var(--surface)" onchange="qRows[${idx}].operator=this.value">
+           <option${row.operator==='AND'?' selected':''}>AND</option>
+           <option${row.operator==='OR'?' selected':''}>OR</option>
+           <option${row.operator==='NOT'?' selected':''}>NOT</option>
+         </select>`;
+    div.innerHTML = `
+      <span class="q-op">${opHtml}</span>
+      <select style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);min-width:130px"
+              onchange="qRows[${idx}].field=this.value;updatePreview()">
+        <option value="tiab"${row.field==='tiab'?' selected':''}>Title/Abstract</option>
+        <option value="ti"${row.field==='ti'?' selected':''}>Title</option>
+        <option value="mesh"${row.field==='mesh'?' selected':''}>MeSH Term</option>
+        <option value="au"${row.field==='au'?' selected':''}>Author</option>
+        <option value="ta"${row.field==='ta'?' selected':''}>Journal</option>
+        <option value="all"${row.field==='all'?' selected':''}>All Fields</option>
+      </select>
+      <input type="text" value="${row.term.replace(/"/g,'&quot;')}" placeholder="Enter search term…"
+             style="flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface)"
+             oninput="qRows[${idx}].term=this.value;updatePreview()">
+      ${qRows.length > 1 ? `<button class="q-remove" onclick="removeRow(${idx})" title="Remove">×</button>` : ''}
+    `;
+    container.appendChild(div);
+  });
+  updatePreview();
 }
 
-function pdfUpload() {
-  return {
-    dragging: false,
-    uploadStatus: '',
-    handleDrop(e) {
-      this.dragging = false;
-      const file = e.dataTransfer.files[0];
-      if (file) this.uploadFile(file);
-    },
-    handleFile(file) { if (file) this.uploadFile(file); },
-    async uploadFile(file) {
-      this.uploadStatus = `Uploading ${file.name}…`;
-      const form = new FormData();
-      form.append('pdf', file);
-      const res = await fetch('{% url "literature:upload_pdf" %}', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': CSRF },
-        body: form,
-      });
-      document.getElementById('upload-result').innerHTML = await res.text();
-      this.uploadStatus = '';
-    },
-  };
+function updatePreview() {
+  const parts = qRows
+    .filter(r => r.term.trim())
+    .map((r, i) => {
+      const term = r.term.includes(' ') ? `"${r.term}"` : r.term;
+      const tag = FIELD_TAGS[r.field] || '';
+      const expr = tag ? `${term}${tag}` : term;
+      return i === 0 ? expr : `${r.operator} ${expr}`;
+    });
+  const preview = parts.join(' ');
+  const el = document.getElementById('preview-text');
+  el.textContent = preview || 'Add terms above to build your query…';
+  el.style.color = preview ? 'var(--euc)' : 'var(--muted)';
+  document.getElementById('run-search-btn').disabled = !preview;
+  return preview;
 }
+
+function addRow() {
+  qRows.push({ operator:'AND', field:'tiab', term:'' });
+  renderRows();
+}
+
+function removeRow(idx) {
+  qRows.splice(idx, 1);
+  renderRows();
+}
+
+function openAiDialog() {
+  document.getElementById('ai-description').value = '';
+  document.getElementById('ai-dialog').showModal();
+  document.getElementById('ai-description').focus();
+}
+
+document.getElementById('ai-dialog').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runAiSuggest();
+  if (e.key === 'Escape') document.getElementById('ai-dialog').close();
+});
+
+async function runAiSuggest() {
+  const desc = document.getElementById('ai-description').value.trim();
+  if (!desc) { alert('Please describe your research topic first.'); return; }
+  document.getElementById('ai-dialog').close();
+  document.getElementById('ai-thinking').style.display = 'flex';
+  document.getElementById('ai-suggest-btn').style.display = 'none';
+  const results = document.getElementById('search-results');
+  results.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">Asking AI…</div>';
+  try {
+    const res = await fetch('{% url "literature:ai_suggest" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ description: desc }),
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Server error (status ${res.status}). Response: ${text.slice(0,200)}</div>`;
+      return;
+    }
+    if (data.query) {
+      qRows = [{ operator:'AND', field:'all', term: data.query }];
+      renderRows();
+      results.innerHTML = '<div style="padding:10px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:8px;color:var(--euc);font-size:12.5px">Query generated. Edit it above then click Run search.</div>';
+    } else if (data.error) {
+      results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest failed: ${data.error}</div>`;
+    }
+  } catch(e) {
+    results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Error: ${e.message}</div>`;
+  } finally {
+    document.getElementById('ai-thinking').style.display = 'none';
+    document.getElementById('ai-suggest-btn').style.display = '';
+  }
+}
+
+async function runSearch() {
+  const preview = updatePreview();
+  if (!preview) return;
+  const form = new FormData();
+  form.append('query', preview);
+  form.append('open_access_only', document.getElementById('open-access').checked ? 'true' : 'false');
+  form.append('study_type', document.getElementById('study-type').value);
+  const yFrom = document.getElementById('year-from').value;
+  const yTo = document.getElementById('year-to').value;
+  if (yFrom) form.append('year_from', yFrom);
+  if (yTo) form.append('year_to', yTo);
+  const target = document.getElementById('search-results');
+  target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Searching PubMed…</div>';
+  const res = await fetch('{% url "literature:run_search" %}', {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: form,
+  });
+  target.innerHTML = await res.text();
+}
+
+async function runSavedSearch(id, query) {
+  // Load query into builder for context
+  qRows = [{ operator: 'AND', field: 'all', term: query }];
+  renderRows();
+  const target = document.getElementById('search-results');
+  target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Running saved search…</div>';
+  // Scroll to results
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const form = new FormData();
+  form.append('csrfmiddlewaretoken', CSRF);
+  const res = await fetch(`/literature/search/saved/${id}/run/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: form,
+  });
+  target.innerHTML = await res.text();
+}
+
+async function saveSearch() {
+  const preview = updatePreview();
+  if (!preview) return;
+  const name = prompt('Name this search:');
+  if (!name) return;
+  const res = await fetch('{% url "literature:save_search" %}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ name, query: preview, open_access_only: document.getElementById('open-access').checked, study_type: document.getElementById('study-type').value }),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    addSavedSearchChip(data.id, data.name, preview);
+  }
+}
+
+function addSavedSearchChip(id, name, query) {
+  let strip = document.getElementById('saved-searches-strip');
+  if (!strip) {
+    strip = document.createElement('div');
+    strip.id = 'saved-searches-strip';
+    strip.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap';
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0';
+    label.textContent = 'Saved';
+    strip.appendChild(label);
+    document.getElementById('modal-container').after(strip);
+  }
+  const chip = document.createElement('div');
+  chip.style.cssText = 'display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden';
+  chip.innerHTML = `
+    <button onclick="loadSearch('${query.replace(/'/g, "\\'")}')"
+            style="padding:4px 10px 4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap">
+      ${name.length > 24 ? name.slice(0, 24) + '…' : name}
+    </button>
+    <button onclick="runSavedSearch(${id}, '${query.replace(/'/g, "\\'")}')"
+            style="padding:4px 10px 4px 6px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--euc);font-size:11px;font-weight:500;font-family:inherit">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      Run
+    </button>`;
+  strip.appendChild(chip);
+}
+
+// Ingest functions (defined here because search_results partial is loaded via innerHTML which doesn't execute scripts)
+const INGEST_URL = '{% url "literature:ingest_paper" %}';
+const INGEST_ALL_URL = '{% url "literature:ingest_all_oa" %}';
+
+async function ingestPaper(pmid, btn) {
+  btn.disabled = true; btn.textContent = 'Ingesting…';
+  try {
+    const res = await fetch(INGEST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ pubmed_id: pmid }),
+    });
+    const html = await res.text();
+    const row = document.getElementById('result-row-' + pmid);
+    if (row) row.outerHTML = html;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Ingest';
+    alert('Ingest failed: ' + e.message);
+  }
+}
+
+async function flagForUpload(pmid, btn) {
+  btn.disabled = true; btn.textContent = 'Flagged';
+  btn.className = 'tag gold';
+}
+
+async function ingestAllOA() {
+  const btn = document.getElementById('ingest-all-btn');
+  btn.disabled = true; btn.textContent = 'Ingesting…';
+  const pmids = Array.from(
+    document.querySelectorAll('#search-results [data-oa-pmid]')
+  ).map(el => el.dataset.oaPmid);
+  try {
+    const res = await fetch(INGEST_ALL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ pmids }),
+    });
+    const data = await res.json();
+    btn.textContent = `Ingested ${data.ingested} papers`;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Ingest all open access';
+    alert('Ingest failed: ' + e.message);
+  }
+}
+
+// PDF upload
+const dropzone = document.getElementById('dropzone');
+document.getElementById('file-input').addEventListener('change', e => uploadFile(e.target.files[0]));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('over'); uploadFile(e.dataTransfer.files[0]); });
+
+async function uploadFile(file) {
+  if (!file) return;
+  const status = document.getElementById('upload-status');
+  status.textContent = `Uploading ${file.name}…`;
+  status.style.display = '';
+  const form = new FormData();
+  form.append('pdf', file);
+  const res = await fetch('{% url "literature:upload_pdf" %}', {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: form,
+  });
+  document.getElementById('upload-result').innerHTML = await res.text();
+  status.style.display = 'none';
+}
+
+function loadSearch(query) {
+  qRows = [{ operator: 'AND', field: 'all', term: query }];
+  renderRows();
+}
+
+// Init
+renderRows();
 </script>
 {% endblock %}

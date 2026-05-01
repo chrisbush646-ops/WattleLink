@@ -20,9 +20,11 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def signal_list(request):
-    signals = _sorted_signals(
-        SafetySignal.objects.prefetch_related("mentions")
-    )
+    q = request.GET.get("q", "").strip()
+    qs = SafetySignal.objects.prefetch_related("mentions")
+    if q:
+        qs = qs.filter(event_name__icontains=q)
+    signals = _sorted_signals(qs)
     active_count = sum(1 for s in signals if s.status == SafetySignal.Status.ACTIVE)
     monitoring_count = sum(1 for s in signals if s.status == SafetySignal.Status.MONITORING)
 

@@ -49,6 +49,7 @@ def sync_pubmed_search(self, saved_search_id: int):
                 "doi": article.get("doi", ""),
                 "pmcid": article.get("pmcid", ""),
                 "study_type": article.get("study_type", ""),
+                "full_text": article.get("abstract", ""),
                 "source": (
                     Paper.Source.PUBMED_OA
                     if article.get("is_open_access")
@@ -133,6 +134,12 @@ def process_uploaded_pdf(self, paper_id: int):
         paper.full_text = text[:500_000]
         paper.status = Paper.Status.INGESTED
         paper.save(update_fields=["full_text", "status"])
+
+        from apps.audit.helpers import log_task_action
+        from apps.audit.models import AuditLog
+        log_task_action(paper.tenant, paper, AuditLog.Action.INGEST,
+                        after={"source": "PDF upload", "chars_extracted": len(text)})
+
         logger.info("PDF processed for paper %d, %d chars extracted", paper_id, len(text))
     except Exception as e:
         logger.error("PDF extraction failed for paper %d: %s", paper_id, e)

@@ -1,0 +1,138 @@
+{% load citations %}
+<div id="candidate-{{ candidate.pk }}"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px"
+     x-data="{ showReject: false, showHold: false, rejectReason: '', holdReason: '', tier: {{ candidate.tier }} }">
+
+  <div style="display:flex;align-items:flex-start;gap:10px">
+    <!-- Tier badge -->
+    <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:var(--wattle-soft);color:#8A6918;border:2px solid #E7D59A">
+      T<span x-text="tier"></span>
+    </div>
+
+    <div style="flex:1;min-width:0">
+      <!-- Name row -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ candidate.name }}</span>
+        <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI</span>
+        {% if candidate.is_author %}
+        <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB;font-weight:500">Author</span>
+        {% endif %}
+        <div style="flex:1"></div>
+        {% include "kol/partials/candidate_verify_badge.html" %}
+      </div>
+
+      <!-- Meta row -->
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+        {% if candidate.institution %}{{ candidate.institution }}{% endif %}
+        {% if candidate.specialty %} · {{ candidate.specialty }}{% endif %}
+        {% if candidate.location %} · {{ candidate.location }}{% endif %}
+      </div>
+
+      <!-- Bio -->
+      {% if candidate.bio %}
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:6px">{{ candidate.bio|truncatewords:40 }}</div>
+      {% endif %}
+
+      <!-- Verification note -->
+      {% if candidate.verification_note %}
+      <div style="font-size:11px;color:var(--muted);background:var(--paper-warm);border-radius:var(--r);padding:6px 10px;margin-bottom:8px;line-height:1.4;border-left:3px solid
+        {% if candidate.verification_status == 'LIKELY_CURRENT' %}var(--euc)
+        {% elif candidate.verification_status == 'POSSIBLY_INACTIVE' %}var(--coral)
+        {% else %}var(--wattle){% endif %}">
+        {{ candidate.verification_note }}
+        {% if candidate.verification_concerns %}
+        <ul style="margin:4px 0 0 16px;padding:0">
+          {% for concern in candidate.verification_concerns %}
+          <li style="margin-top:2px">{{ concern }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Source -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        {% if candidate.paper %}
+          Source: <span style="font-style:italic">{{ candidate.paper.title|truncatewords:12 }}</span>
+          {% if candidate.relevance_note %}— {{ candidate.relevance_note|truncatewords:10 }}{% endif %}
+        {% elif candidate.search_query %}
+          Source: keyword search — <em>"{{ candidate.search_query|truncatechars:60 }}"</em>
+        {% endif %}
+      </div>
+
+      <!-- Tier selector + action buttons -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--muted)">Tier:</label>
+        <select x-model="tier" style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:3px 8px;background:var(--surface)">
+          {% for t in tier_range %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+
+        <button
+          @click="
+            fetch('{% url 'kol:accept_candidate' candidate.pk %}', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)?.[1]||''},
+              body:JSON.stringify({tier:parseInt(tier)})
+            }).then(r=>r.text()).then(html=>{
+              document.getElementById('kol-candidates-container').innerHTML=html;
+            })"
+          class="btn btn-p btn-sm">Accept</button>
+
+        <button @click="showHold = !showHold; showReject = false"
+                class="btn btn-g btn-sm">On Hold</button>
+
+        <button @click="showReject = !showReject; showHold = false"
+                style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid #E8C8C0;background:#FEF7F5;color:var(--coral);cursor:pointer;font-weight:500">
+          Reject
+        </button>
+      </div>
+
+      <!-- Hold reason input -->
+      <div x-show="showHold" x-transition style="margin-top:8px">
+        <textarea x-model="holdReason" placeholder="Reason for holding (optional)…"
+                  style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 9px;resize:vertical;min-height:44px;background:var(--surface);margin-bottom:6px"></textarea>
+        <div style="display:flex;gap:6px">
+          <button
+            @click="
+              fetch('{% url 'kol:hold_candidate' candidate.pk %}', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)?.[1]||''},
+                body:JSON.stringify({reason:holdReason})
+              }).then(r=>r.text()).then(html=>{
+                document.getElementById('kol-candidates-container').innerHTML=html;
+              })"
+            class="btn btn-p btn-sm">Confirm Hold</button>
+          <button @click="showHold=false" class="btn btn-g btn-sm">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Reject reason input -->
+      <div x-show="showReject" x-transition style="margin-top:8px">
+        <textarea x-model="rejectReason" placeholder="Reason for rejection (optional)…"
+                  style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 9px;resize:vertical;min-height:44px;background:var(--surface);margin-bottom:6px"></textarea>
+        <div style="display:flex;gap:6px">
+          <button
+            @click="
+              fetch('{% url 'kol:reject_candidate' candidate.pk %}', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)?.[1]||''},
+                body:JSON.stringify({reason:rejectReason})
+              }).then(r=>r.text()).then(html=>{
+                document.getElementById('kol-candidates-container').innerHTML=html;
+              })"
+            style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid #E8C8C0;background:#FEF7F5;color:var(--coral);cursor:pointer;font-weight:500">
+            Confirm Reject
+          </button>
+          <button @click="showReject=false" class="btn btn-g btn-sm">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {% if toast %}
+  <div style="margin-top:8px;padding:6px 12px;background:#E8EFE9;color:var(--euc);border-radius:var(--r);font-size:12px;font-weight:500">
+    {{ toast }}
+  </div>
+  {% endif %}
+</div>

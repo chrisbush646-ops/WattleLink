@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load claims_tags %}
+{% block nav_kol_discover %}ni-active{% endblock %}
+{% block title %}{{ kol.name }}{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto">
+  <div style="font-size:11.5px;color:var(--muted);margin-bottom:16px">
+    <a href="{% url 'kol:list' %}" style="color:var(--euc);text-decoration:none">KOL Intelligence</a>
+    <span style="margin:0 6px">›</span> {{ kol.name }}
+  </div>
+
+  {% include "kol/partials/kol_card.html" with kol=kol tier_range=tier_range status_choices=status_choices %}
+
+  <!-- Notes (separate from card) -->
+  {% if kol.notes %}
+  <div style="margin-top:14px;padding:10px 14px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--euc)">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">MSL Notes</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5">{{ kol.notes }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Talking Points -->
+  <div style="margin-top:28px" x-data="{ generating: false, showDraft: false }">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500">MSL Talking Points</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px">AI-drafted from this KOL's profile and linked papers</div>
+      </div>
+      <button class="btn btn-g btn-sm"
+              hx-post="{% url 'kol:generate_talking_points' kol.pk %}"
+              hx-target="#tp-draft-area"
+              hx-swap="innerHTML"
+              hx-indicator="#tp-spinner"
+              @click="showDraft = true"
+              style="display:flex;align-items:center;gap:6px">
+        <span id="tp-spinner" class="htmx-indicator" style="width:12px;height:12px;border-radius:50%;border:2px solid rgba(38,64,50,.2);border-top-color:var(--euc);animation:aispin .65s linear infinite"></span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Draft talking points
+      </button>
+    </div>
+
+    <!-- Draft area — populated by HTMX -->
+    <div id="tp-draft-area" x-show="showDraft" x-transition style="margin-bottom:14px">
+      <div style="padding:14px;text-align:center;color:var(--muted);font-size:12.5px;background:var(--paper-warm);border:1px solid var(--line);border-radius:var(--r)">
+        Click "Draft talking points" to generate AI suggestions from this KOL's profile.
+      </div>
+    </div>
+
+    <!-- Saved talking points — always visible -->
+    {% include "kol/partials/talking_points_saved.html" with kol=kol talking_points=kol.talking_points.all %}
+  </div>
+
+  <!-- Events attended -->
+  {% with confs=events_attended.conferences rts=events_attended.round_tables abs=events_attended.advisory_boards oes=events_attended.other_events %}
+  {% if confs or rts or abs or oes %}
+  <div style="margin-top:28px">
+    <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:10px">Events Attended</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      {% for c in confs %}
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--euc);flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ c.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">Conference · {{ c.start_date|date:"d M Y" }}{% if c.location %} · {{ c.location }}{% endif %}</div>
+        </div>
+        <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0">{{ c.get_status_display }}</span>
+      </div>
+      {% endfor %}
+      {% for rt in rts %}
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#C89B2A;flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ rt.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">Round Table · {{ rt.date|date:"d M Y" }}{% if rt.location %} · {{ rt.location }}{% endif %}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% for ab in abs %}
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--sky);flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ ab.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">Advisory Board · {{ ab.date|date:"d M Y" }}{% if ab.location %} · {{ ab.location }}{% endif %}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% for oe in oes %}
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--coral);flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ oe.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">{% if oe.event_type %}{{ oe.event_type }}{% else %}Other Event{% endif %} · {{ oe.date|date:"d M Y" }}{% if oe.location %} · {{ oe.location }}{% endif %}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- Paper links -->
+  <div style="margin-top:28px" x-data="kolLinkForm({{ kol.pk }})">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500">Linked papers</div>
+      <button @click="showAdd = !showAdd" class="btn btn-g btn-sm">+ Link paper</button>
+    </div>
+
+    <div x-show="showAdd" x-transition
+         style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+      <select x-model="paperPk" style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface);margin-bottom:8px">
+        <option value="">— Select paper —</option>
+        {% for p in available_papers %}
+        <option value="{{ p.pk }}">{{ p.title|truncatechars:80 }} ({{ p.published_date.year }})</option>
+        {% endfor %}
+      </select>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft)">
+          <input type="checkbox" x-model="isAuthor" style="accent-color:var(--euc)"> Is author
+        </label>
+        <input x-model="relevanceNote" placeholder="Relevance note (optional)…"
+               style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      </div>
+      <div style="display:flex;gap:6px">
+        <button @click="save()" class="btn btn-p btn-sm">Link</button>
+        <button @click="showAdd = false" class="btn btn-g btn-sm">Cancel</button>
+      </div>
+    </div>
+
+    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      {% include "kol/partials/paper_links_table.html" with kol=kol paper_links=paper_links %}
+    </div>
+  </div>
+</div>
+
+<script>
+function kolLinkForm(kolPk) {
+  return {
+    showAdd: false, paperPk: '', isAuthor: false, relevanceNote: '',
+    save() {
+      if (!this.paperPk) return;
+      fetch(`/kol/${kolPk}/link-paper/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify({ paper_pk: this.paperPk, is_author: this.isAuthor, relevance_note: this.relevanceNote }),
+      }).then(r => r.text()).then(html => {
+        document.getElementById(`kol-paper-links-${kolPk}`).outerHTML = html;
+        this.showAdd = false; this.paperPk = ''; this.isAuthor = false; this.relevanceNote = '';
+      });
+    },
+  };
+}
+</script>
+{% endblock %}

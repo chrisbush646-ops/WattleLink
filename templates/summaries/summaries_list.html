@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Summaries{% endblock %}
+{% block nav_summaries %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.pt{font-family:var(--serif);font-weight:300;font-size:34px;letter-spacing:-.025em;line-height:1.05;color:var(--ink)}.pt em{font-style:italic;color:var(--euc)}
+.ps{margin-top:5px;color:var(--muted);font-size:13px}
+.eyebrow{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.kpi-row{display:flex;gap:12px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 20px;flex:1}
+.kpi-v{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--ink);line-height:1}
+.kpi-l{font-size:11px;color:var(--muted);margin-top:4px}
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.filter-chips{display:flex;gap:6px}
+.chip{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .12s;text-decoration:none;display:inline-block}
+.chip:hover{border-color:var(--euc);color:var(--euc)}
+.chip.active{background:var(--euc);color:#F4F6F2;border-color:var(--euc)}
+.search-field{flex:1;min-width:200px;max-width:340px;position:relative}
+.search-field input{width:100%;background:var(--surface);border:1px solid var(--line);padding:7px 10px 7px 30px;border-radius:var(--r);font:inherit;color:var(--ink);font-size:12.5px;transition:border-color .15s}
+.search-field input:focus{outline:none;border-color:var(--euc-l)}
+.search-field svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);width:13px;height:13px}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:40px}
+.sum-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;cursor:pointer;transition:border-color .14s,box-shadow .14s}
+.sum-card:hover{border-color:#B0C4B8;box-shadow:0 2px 12px rgba(38,64,50,.07)}
+.sum-title{font-family:var(--serif);font-size:14px;font-weight:400;color:var(--ink);line-height:1.35;margin-bottom:6px}
+.sum-meta{font-size:11px;color:var(--muted);font-style:italic;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum-excerpt{font-size:12px;color:var(--ink-soft);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.sum-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.04em}
+.badge-confirmed{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
+.badge-draft{background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A}
+.badge-pending{background:var(--line-soft);color:var(--muted);border:1px solid var(--line)}
+.empty{padding:48px;text-align:center;color:var(--muted);font-size:13px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--ink)}
+.section-title em{font-style:italic;color:var(--euc)}
+.lr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.lr-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;transition:border-color .14s,box-shadow .14s}
+.lr-card:hover{border-color:#B0C4B8;box-shadow:0 2px 12px rgba(38,64,50,.07)}
+.lr-title{font-family:var(--serif);font-size:15px;font-weight:400;color:var(--ink);margin-bottom:6px}
+.lr-meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+.lr-body{font-size:12px;color:var(--ink-soft);line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.lr-footer{display:flex;align-items:center;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--muted)}
+.divider{border:none;border-top:1px solid var(--line);margin:32px 0}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ph">
+  <div>
+    <div class="eyebrow" style="margin-bottom:5px">Analysis</div>
+    <h1 class="pt">Paper <em>Summaries</em></h1>
+    <p class="ps">Structured findings, executive paragraphs, and clinician-ready literature reviews.</p>
+  </div>
+  <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">{{ total_summaries }} summar{{ total_summaries|pluralize:"y,ies" }}</span>
+</div>
+
+<!-- KPI row -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-v">{{ total_summaries }}</div>
+    <div class="kpi-l">Total summaries</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-v">{{ confirmed_count }}</div>
+    <div class="kpi-l">Confirmed</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-v">{{ pending_count }}</div>
+    <div class="kpi-l">AI draft / pending</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-v">{{ lit_reviews|length }}</div>
+    <div class="kpi-l">Literature reviews</div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<form method="get" action="{% url 'summaries:list' %}">
+  <div class="filter-bar">
+    <div class="search-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="text" name="q" value="{{ search }}" placeholder="Search by paper title…" autocomplete="off">
+    </div>
+    <div class="filter-chips">
+      <a href="{% url 'summaries:list' %}{% if search %}?q={{ search }}{% endif %}" class="chip {% if not status_filter %}active{% endif %}">All</a>
+      <a href="{% url 'summaries:list' %}?status=CONFIRMED{% if search %}&q={{ search }}{% endif %}" class="chip {% if status_filter == 'CONFIRMED' %}active{% endif %}">Confirmed</a>
+      <a href="{% url 'summaries:list' %}?status=AI_DRAFT{% if search %}&q={{ search }}{% endif %}" class="chip {% if status_filter == 'AI_DRAFT' %}active{% endif %}">AI Draft</a>
+    </div>
+    <button type="submit" class="btn btn-p btn-sm" style="margin-left:auto">Search</button>
+  </div>
+</form>
+
+<!-- Summary cards -->
+{% if summaries %}
+<div class="sum-grid">
+  {% for summary in summaries %}
+  <div class="sum-card"
+       hx-get="{% url 'literature:paper_detail' summary.paper.pk %}"
+       hx-target="body"
+       hx-swap="beforeend">
+    <div class="sum-title">{{ summary.paper.title|truncatechars:100 }}</div>
+    <div class="sum-meta">
+      {{ summary.paper.journal_short|default:summary.paper.journal|truncatechars:50 }}{% if summary.paper.published_date %} · {{ summary.paper.published_date|date:"Y" }}{% endif %}
+    </div>
+    {% if summary.executive_paragraph %}
+    <div class="sum-excerpt">{{ summary.executive_paragraph }}</div>
+    {% elif summary.methodology %}
+    <div class="sum-excerpt">{{ summary.methodology }}</div>
+    {% else %}
+    <div class="sum-excerpt" style="color:var(--muted);font-style:italic">No summary text yet.</div>
+    {% endif %}
+    <div class="sum-footer">
+      {% if summary.status == 'CONFIRMED' %}
+        <span class="badge badge-confirmed">Confirmed</span>
+      {% elif summary.status == 'AI_DRAFT' %}
+        <span class="badge badge-draft">AI Draft</span>
+      {% else %}
+        <span class="badge badge-pending">Pending</span>
+      {% endif %}
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">
+        {{ summary.findings.count }} finding{{ summary.findings.count|pluralize }}
+      </span>
+      {% if summary.confirmed_by %}
+      <div style="display:flex;align-items:center;gap:3px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+        <span style="font-size:9.5px;color:var(--muted)">{{ summary.confirmed_by.get_full_name|default:summary.confirmed_by.email }}{% if summary.confirmed_at %} · {{ summary.confirmed_at|date:"j M Y" }}{% endif %}</span>
+      </div>
+      {% elif summary.confirmed_at %}
+      <span style="font-size:10px;color:var(--muted)">{{ summary.confirmed_at|date:"d M Y" }}</span>
+      {% else %}
+      <span style="font-size:10px;color:var(--muted)">{{ summary.updated_at|date:"d M Y" }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  {% if search %}No summaries match "{{ search }}".{% elif status_filter %}No summaries with this status.{% else %}No summaries yet. Run AI summaries on ingested papers to get started.{% endif %}
+</div>
+{% endif %}
+
+<hr class="divider">
+
+<!-- Literature Reviews section -->
+<div class="section-head">
+  <h2 class="section-title">Literature <em>Reviews</em></h2>
+  <span style="font-size:12px;color:var(--muted)">Clinician-ready documents drawn from confirmed summaries</span>
+</div>
+
+{% if lit_reviews %}
+<div class="lr-grid">
+  {% for lr in lit_reviews %}
+  <div class="lr-card">
+    <div class="lr-title">{{ lr.title }}</div>
+    <div class="lr-meta">
+      {% if lr.created_by %}{{ lr.created_by.get_full_name|default:lr.created_by.email }} · {% endif %}{{ lr.created_at|date:"d M Y" }}
+      · {{ lr.papers.count }} paper{{ lr.papers.count|pluralize }}
+    </div>
+    {% if lr.content %}
+    <div class="lr-body">{{ lr.content|truncatechars:300 }}</div>
+    {% else %}
+    <div class="lr-body" style="color:var(--muted);font-style:italic">No content generated yet.</div>
+    {% endif %}
+    <div class="lr-footer">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
+      Literature review
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty" style="padding:32px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)">
+  No literature reviews yet. Generate one from the Talking Points section once summaries are confirmed.
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,90 @@
+{% load citations %}
+{% if claims %}
+<div style="display:flex;flex-direction:column;gap:10px">
+  {% for claim in claims %}
+  <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px;border-left:3px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %}">
+
+    <!-- Claim text -->
+    <div style="font-family:var(--serif);font-size:15px;color:var(--ink);line-height:1.6;margin-bottom:10px">{{ claim.claim_text }}</div>
+
+    <!-- Paper source -->
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      <span style="font-style:italic">{{ claim.paper.journal_short|default:claim.paper.journal }}</span>
+      {% if claim.paper.published_date %} · {{ claim.paper.published_date|date:"Y" }}{% endif %}
+      · {{ claim.paper.authors_display }}
+    </div>
+
+    <!-- Meta + status row -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <!-- Status badge -->
+      {% if claim.status == 'APPROVED' %}
+      <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:#E8EFE9;color:var(--euc);padding:2px 8px;border-radius:20px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg>
+        Accepted
+      </span>
+      {% elif claim.status == 'REJECTED' %}
+      <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:#FAE8E1;color:var(--coral);padding:2px 8px;border-radius:20px">Rejected</span>
+      {% elif claim.status == 'IN_REVIEW' %}
+      <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--wattle-soft);color:#8A6918;padding:2px 8px;border-radius:20px">In Review</span>
+      {% else %}
+      <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--line-soft);color:var(--muted);padding:2px 8px;border-radius:20px">AI Draft</span>
+      {% endif %}
+
+      <!-- Endpoint type -->
+      <span style="font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase">{{ claim.get_endpoint_type_display }}</span>
+
+      <!-- MLR verdict if available -->
+      {% if claim.mlr_verdict %}
+      <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px;
+        {% if claim.mlr_verdict == 'PASS' %}background:#E8EFE9;color:var(--euc)
+        {% elif claim.mlr_verdict == 'WARN' %}background:var(--wattle-soft);color:#8A6918
+        {% else %}background:#FAE8E1;color:var(--coral){% endif %}">
+        MLR {{ claim.mlr_verdict }}
+      </span>
+      {% endif %}
+
+      <!-- Version -->
+      {% if claim.version > 1 %}
+      <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">v{{ claim.version }}</span>
+      {% endif %}
+
+      <!-- Reviewed by -->
+      {% if claim.reviewed_by and claim.status == 'APPROVED' %}
+      <div style="display:flex;align-items:center;gap:3px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+        <span style="font-size:9.5px;color:var(--muted)">{{ claim.reviewed_by.get_full_name|default:claim.reviewed_by.email }}{% if claim.reviewed_at %} · {{ claim.reviewed_at|date:"j M Y" }}{% endif %}</span>
+      </div>
+      {% endif %}
+
+      <!-- View paper link -->
+      <span style="flex:1"></span>
+      <button hx-get="{% url 'literature:paper_detail' claim.paper.pk %}"
+              hx-target="body"
+              hx-swap="beforeend"
+              style="font-size:11px;color:var(--euc);background:none;border:none;cursor:pointer;padding:0">
+        View paper →
+      </button>
+    </div>
+
+    <!-- MLR red flags -->
+    {% if claim.mlr_red_flags %}
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">
+      {% for flag in claim.mlr_red_flags %}
+      <div style="display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--coral);line-height:1.4">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        {{ flag }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:var(--muted)">
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto 12px;display:block;opacity:.4"><path d="M9 11l2 2 4-4"/><path d="M20 7v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7a3 3 0 013-3h10a3 3 0 013 3z"/></svg>
+  <div style="font-size:14px;font-weight:500;margin-bottom:4px">No claims found</div>
+  <div style="font-size:12px">Try adjusting your search or filter</div>
+</div>
+{% endif %}

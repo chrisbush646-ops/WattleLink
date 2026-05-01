@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load citations %}
+
+{% block title %}Commercial View{% endblock %}
+{% block nav_commercial %}ni-active{% endblock %}
+
+{% block content %}
+<style>
+.cv-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.cv-title{font-family:var(--serif);font-weight:300;font-size:32px;letter-spacing:-.025em;color:var(--ink)}.cv-title em{font-style:italic;color:var(--euc)}
+.cv-sub{font-size:12px;color:var(--muted);margin-top:5px}
+.cv-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:3px 10px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500}
+.sec{margin-bottom:32px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sec-title{font-family:var(--serif);font-size:18px;font-weight:400;color:var(--ink)}
+.sec-link{font-size:11px;color:var(--euc);text-decoration:none}
+.paper-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.paper-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.paper-card:hover{border-color:#CFDAD0;box-shadow:0 2px 8px rgba(38,64,50,.06)}
+.paper-title{font-size:13px;font-weight:600;color:var(--ink);line-height:1.4;font-family:var(--serif)}
+.paper-meta{font-size:11px;color:var(--muted)}
+.paper-claims{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.claim-pill{font-size:10px;padding:2px 8px;border-radius:6px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-family:var(--mono)}
+.claim-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:10px}
+.claim-card:last-child{margin-bottom:0}
+.claim-text{font-size:13px;color:var(--ink);line-height:1.55;margin-bottom:6px}
+.claim-source{font-size:11px;color:var(--muted);font-style:italic;line-height:1.4;padding:6px 10px;background:var(--paper-warm);border-radius:var(--r);border-left:2px solid var(--euc)}
+.claim-footer{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.kol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.kol-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.kol-card:hover{border-color:#CFDAD0;box-shadow:0 2px 8px rgba(38,64,50,.06)}
+.kol-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.kol-t1{background:#E8EFE9;color:var(--euc);border:2px solid #CFDAD0}
+.kol-t2{background:var(--wattle-soft);color:#8A6918;border:2px solid #E7D59A}
+.events-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.event-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;display:flex;gap:14px;align-items:flex-start}
+.event-date-block{text-align:center;flex-shrink:0;min-width:42px}
+.event-day{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);line-height:1}
+.event-mon{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:1px}
+.empty-state{padding:24px;text-align:center;color:var(--muted);font-size:12.5px;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)}
+.pill{font-size:10px;padding:1px 7px;border-radius:8px;white-space:nowrap;font-family:var(--mono)}
+.pill-ep-primary{background:#E8EFE9;color:var(--euc)}
+.pill-ep-secondary{background:var(--sky-soft);color:var(--sky)}
+.pill-ep-safety{background:var(--coral-soft);color:var(--coral)}
+.summary-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:12px}
+.summary-card:last-child{margin-bottom:0}
+.summary-card:hover{border-color:#CFDAD0;box-shadow:0 2px 10px rgba(38,64,50,.07)}
+.summary-title{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-bottom:6px}
+.summary-meta{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.summary-body{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px}
+.summary-findings{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.finding-pill{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:500}
+.fp-primary{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
+.fp-secondary{background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB}
+.fp-safety{background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9}
+.fp-other{background:var(--paper-warm);color:var(--ink-soft);border:1px solid var(--line)}
+</style>
+
+<!-- Header -->
+<div class="cv-header">
+  <div>
+    <div style="font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Commercial View</div>
+    <h1 class="cv-title">Approved <em>Evidence.</em></h1>
+    <p class="cv-sub">Approved claims and literature for commercial team reference. All content has been reviewed and approved by Medical Affairs.</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="cv-badge">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+      Medical Affairs Approved
+    </span>
+    <a href="{% url 'dashboard:index' %}" class="btn btn-g btn-sm">Full Dashboard</a>
+  </div>
+</div>
+
+<!-- Latest approved summaries -->
+<div class="sec">
+  <div class="sec-head">
+    <div>
+      <div class="sec-title">Latest Approved Summaries</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Confirmed paper summaries with key findings</div>
+    </div>
+    <a href="{% url 'literature:library' %}" class="sec-link">View library →</a>
+  </div>
+  {% if approved_summaries %}
+  {% for s in approved_summaries %}
+  <div class="summary-card">
+    <!-- Full paper title — no truncation -->
+    <div class="summary-title">{{ s.paper.title }}</div>
+    <div class="summary-meta">
+      {% with authors=s.paper.authors %}
+      {% if authors %}{{ authors|first }}{% if authors|length > 1 %} et al.{% endif %} · {% endif %}
+      {% endwith %}
+      <em>{{ s.paper.journal_short|default:s.paper.journal }}</em>
+      {% if s.paper.published_date %} · {{ s.paper.published_date|date:"Y" }}{% endif %}
+      {% if s.paper.doi %} · <span style="font-family:var(--mono);font-size:10.5px">{{ s.paper.doi }}</span>{% endif %}
+    </div>
+    {% if s.executive_paragraph %}
+    <div class="summary-body">{{ s.executive_paragraph|truncatewords:60 }}</div>
+    {% elif s.methodology %}
+    <div class="summary-body">{{ s.methodology|truncatewords:60 }}</div>
+    {% endif %}
+    <!-- Key findings count by category -->
+    {% with findings=s.findings.all %}
+    {% if findings %}
+    {% regroup findings by category as grouped_findings %}
+    <div class="summary-findings">
+      {% for grp in grouped_findings %}
+      <span class="finding-pill {% if grp.grouper == 'Primary' %}fp-primary{% elif grp.grouper == 'Secondary' %}fp-secondary{% elif grp.grouper == 'Safety' %}fp-safety{% else %}fp-other{% endif %}">
+        {{ grp.list|length }} {{ grp.grouper }} finding{{ grp.list|length|pluralize }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <!-- Footer -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px">
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:8px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        Confirmed
+      </span>
+      {% if s.confirmed_at %}
+      <span style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">{{ s.confirmed_at|date:"d M Y" }}</span>
+      {% endif %}
+      {% if s.confirmed_by %}
+      <span style="font-size:10.5px;color:var(--muted)">by {{ s.confirmed_by.get_short_name }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">No confirmed summaries yet. Summaries are confirmed in the Summaries stage of the pipeline.</div>
+  {% endif %}
+</div>
+
+<!-- Approved claims -->
+<div class="sec">
+  <div class="sec-head">
+    <div>
+      <div class="sec-title">Approved Claims</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Reviewed and approved for commercial use</div>
+    </div>
+    <a href="{% url 'literature:library' %}" class="sec-link">View in library →</a>
+  </div>
+  {% if approved_claims %}
+  {% for claim in approved_claims %}
+  <div class="claim-card">
+    <div class="claim-text">{{ claim.claim_text }}</div>
+    {% if claim.source_passage %}
+    <div class="claim-source">{{ claim.source_passage|truncatewords:40 }}</div>
+    {% endif %}
+    <div class="claim-footer">
+      <span class="pill pill-ep-{{ claim.endpoint_type|lower }}">{{ claim.get_endpoint_type_display }}</span>
+      <span style="font-size:11px;color:var(--muted)">
+        <em>{{ claim.paper.title|truncatechars:50 }}</em>
+      </span>
+      {% if claim.reviewed_at %}
+      <span style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-left:auto">
+        Approved {{ claim.reviewed_at|date:"d M Y" }}{% if claim.reviewed_by %} · {{ claim.reviewed_by.get_short_name }}{% endif %}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">No approved claims yet.</div>
+  {% endif %}
+</div>
+
+<!-- Key KOLs + Upcoming events side by side -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <div class="sec" style="margin-bottom:0">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">Key Opinion Leaders</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Tier 1 &amp; 2 active KOLs</div>
+      </div>
+      <a href="{% url 'kol:list' %}" class="sec-link">View all →</a>
+    </div>
+    {% if key_kols %}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      {% for kol in key_kols %}
+      <div class="kol-card">
+        <div class="kol-av {% if kol.tier == 1 %}kol-t1{% else %}kol-t2{% endif %}">T{{ kol.tier }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ kol.name }}</div>
+          {% if kol.institution %}
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ kol.institution }}</div>
+          {% endif %}
+          {% if kol.specialty %}
+          <div style="font-size:11px;color:var(--muted)">{{ kol.specialty }}</div>
+          {% endif %}
+          {% if kol.paper_links.count %}
+          <div style="font-size:10px;color:var(--euc);margin-top:4px;font-family:var(--mono)">{{ kol.paper_links.count }} linked paper{{ kol.paper_links.count|pluralize }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No active KOLs at tier 1 or 2 yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="sec" style="margin-bottom:0">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">Upcoming Events</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Conferences &amp; round tables</div>
+      </div>
+      <a href="{% url 'engagement:list' %}" class="sec-link">View all →</a>
+    </div>
+    {% if upcoming_conferences or upcoming_roundtables %}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      {% for conf in upcoming_conferences %}
+      <div class="event-card">
+        <div class="event-date-block">
+          <div class="event-day">{{ conf.start_date|date:"d" }}</div>
+          <div class="event-mon">{{ conf.start_date|date:"M" }}</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ conf.name }}</div>
+          {% if conf.location %}<div style="font-size:11px;color:var(--muted);margin-top:2px">{{ conf.location }}</div>{% endif %}
+          <div style="font-size:10px;color:var(--sky);margin-top:3px;font-family:var(--mono)">Conference · {{ conf.start_date|timeuntil }}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% for rt in upcoming_roundtables %}
+      <div class="event-card">
+        <div class="event-date-block">
+          <div class="event-day">{{ rt.date|date:"d" }}</div>
+          <div class="event-mon">{{ rt.date|date:"M" }}</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ rt.name }}</div>
+          {% if rt.location %}<div style="font-size:11px;color:var(--muted);margin-top:2px">{{ rt.location }}</div>{% endif %}
+          <div style="font-size:10px;color:var(--euc);margin-top:3px;font-family:var(--mono)">Round table · {{ rt.date|timeuntil }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No upcoming events scheduled.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

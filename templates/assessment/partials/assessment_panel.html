@@ -1,5 +1,24 @@
 {% load citations %}
-<div id="assessment-panel-{{ paper.pk }}" x-data="assessmentPanel()" style="margin-top:20px">
+{% if error %}
+<div id="assessment-panel-{{ paper.pk }}" style="margin-top:20px;padding:16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);font-size:12px;color:var(--coral)">
+  AI assessment failed: {{ error }}
+  <div style="margin-top:8px">
+    <button class="btn btn-g btn-sm"
+            hx-post="{% url 'assessment:run_ai' paper.pk %}"
+            hx-target="#assessment-panel-{{ paper.pk }}"
+            hx-swap="outerHTML">Try again</button>
+  </div>
+</div>
+{% else %}
+<div id="assessment-panel-{{ paper.pk }}" x-data="assessmentPanel()" style="margin-top:20px;position:relative">
+
+  <!-- AI loading overlay (shown via hx-indicator while Claude is running) -->
+  <div id="ai-load-{{ paper.pk }}" class="htmx-indicator"
+       style="position:absolute;inset:0;background:rgba(250,247,238,.9);border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:10;border:1px solid var(--line);pointer-events:none">
+    <div style="width:26px;height:26px;border:2.5px solid var(--line);border-top-color:var(--euc);border-radius:50%;animation:aispin .7s linear infinite"></div>
+    <div style="font-size:13px;color:var(--ink);font-weight:500">Generating…</div>
+    <div style="font-size:11.5px;color:var(--muted)">Reading the paper — takes 15–45 seconds</div>
+  </div>
 
   <!-- Header row -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -17,10 +36,11 @@
               hx-post="{% url 'assessment:run_ai' paper.pk %}"
               hx-target="#assessment-panel-{{ paper.pk }}"
               hx-swap="outerHTML"
+              hx-indicator="#ai-load-{{ paper.pk }}"
               :disabled="running"
               @click="running=true">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
-        <span x-text="running ? 'Running…' : 'Run AI Assessment'"></span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span x-text="running ? 'Running…' : 'Run AI Assessment'">Run AI Assessment</span>
       </button>
       {% endif %}
     </div>
@@ -36,20 +56,21 @@
   {% else %}
   <!-- GRADE section -->
   {% if grade %}
-  <div style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">GRADE</div>
+  <div x-data="{ open: false }" style="margin-bottom:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--paper-warm);cursor:pointer" @click="open=!open">
+      <span style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">GRADE</span>
       {% if grade.overall_rating %}
-      <span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+      <span style="font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;
         {% if grade.overall_rating == 'High' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
         {% elif grade.overall_rating == 'Moderate' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
         {% else %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9{% endif %}">
         {{ grade.overall_rating }}
       </span>
       {% endif %}
+      <div style="flex:1"></div>
+      <span style="font-size:10px;color:var(--euc)" x-text="open ? 'Minimise' : 'Explore'">Explore</span>
     </div>
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+    <div x-show="open" x-transition style="border-top:1px solid var(--line-soft)">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:var(--paper-warm)">
@@ -111,20 +132,21 @@
 
   <!-- RoB 2 section -->
   {% if rob %}
-  <div style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">RoB 2</div>
+  <div x-data="{ open: false }" style="margin-bottom:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--paper-warm);cursor:pointer" @click="open=!open">
+      <span style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">RoB 2</span>
       {% if rob.overall_judgment %}
-      <span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+      <span style="font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;
         {% if rob.overall_judgment == 'Low' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
         {% elif rob.overall_judgment == 'Some concerns' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
         {% else %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9{% endif %}">
         {{ rob.overall_judgment }}
       </span>
       {% endif %}
+      <div style="flex:1"></div>
+      <span style="font-size:10px;color:var(--euc)" x-text="open ? 'Minimise' : 'Explore'">Explore</span>
     </div>
-
-    <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+    <div x-show="open" x-transition style="border-top:1px solid var(--line-soft)">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:var(--paper-warm)">
@@ -223,9 +245,15 @@
   {% endif %}{# end if not grade and not rob #}
 </div>
 
-{% if confirmed %}
-<div style="margin-top:6px;font-size:12px;color:var(--euc)">
-  ✓ Assessment confirmed — paper advanced to Assessed.
+{% if grade and grade.confirmed_by %}
+<div style="display:flex;align-items:center;gap:4px;margin-top:8px">
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+  <span style="font-size:10px;color:var(--muted)">Assessment confirmed by <span style="color:var(--euc);font-weight:500">{{ grade.confirmed_by.get_full_name|default:grade.confirmed_by.email }}</span>{% if grade.confirmed_at %} · {{ grade.confirmed_at|date:"j M Y, g:i a" }}{% endif %}</span>
+</div>
+{% elif confirmed %}
+<div style="display:flex;align-items:center;gap:4px;margin-top:8px">
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+  <span style="font-size:10px;color:var(--euc);font-weight:500">Assessment confirmed — paper advanced to Assessed.</span>
 </div>
 {% endif %}
 
@@ -258,3 +286,4 @@ function assessmentPanel() {
   };
 }
 </script>
+{% endif %}

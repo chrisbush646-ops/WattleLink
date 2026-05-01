@@ -1,0 +1,7 @@
+{% for oe in other_events %}
+  {% include "engagement/partials/other_event_card.html" with oe=oe kol_choices=kol_choices %}
+{% empty %}
+<div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No other events yet.</div>
+</div>
+{% endfor %}

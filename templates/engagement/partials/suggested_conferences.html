@@ -1,0 +1,37 @@
+{% if no_data %}
+<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:10px 0;line-height:1.5">
+  Add papers to your library to enable conference suggestions.
+</div>
+
+{% elif error %}
+<div style="font-size:11.5px;color:var(--coral);padding:8px 10px;border-radius:var(--r);background:var(--coral-soft);border:1px solid #E9CBB9">
+  Could not fetch suggestions. Please try again.
+</div>
+
+{% elif suggestions %}
+
+{% if terms %}
+<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px">
+  {% for term in terms %}
+  <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB">{{ term }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div style="display:flex;flex-direction:column;gap:8px">
+  {% for s in suggestions %}
+  <div style="background:var(--paper-warm);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px">
+    <div style="font-family:var(--serif);font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:3px">{{ s.name }}</div>
+    <div style="font-size:10.5px;color:var(--muted);margin-bottom:5px">
+      {{ s.location }}{% if s.timing %} · {{ s.timing }}{% endif %}
+    </div>
+    <div style="font-size:11px;color:var(--ink-soft);line-height:1.4">{{ s.relevance }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:10px 0">
+  No suggestions returned. Try again.
+</div>
+{% endif %}

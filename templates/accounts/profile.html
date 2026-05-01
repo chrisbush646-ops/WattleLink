@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:0 auto" x-data="profilePage()">
+
+  <div style="margin-bottom:24px">
+    <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">My Profile</h1>
+    <div style="font-size:12px;color:var(--muted)">Manage your name and account settings.</div>
+  </div>
+
+  <!-- Avatar + identity -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;display:flex;align-items:center;gap:16px">
+    <div style="width:52px;height:52px;border-radius:50%;background:var(--euc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;font-family:var(--serif)">
+      {{ user.get_initials|default:"?" }}
+    </div>
+    <div>
+      <div style="font-size:16px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ user.get_full_name|default:user.email }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">{{ user.email }}</div>
+      <div style="margin-top:6px">
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;
+          {% if user.role == 'MEDICAL_AFFAIRS' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+          {% elif user.role == 'ADMIN' %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
+          {% else %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB{% endif %}">
+          {{ user.get_role_display }}
+        </span>
+        {% if user.tenant %}
+        <span style="font-size:11px;color:var(--muted);margin-left:8px">{{ user.tenant.name }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit name -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:14px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">Display Name</div>
+
+    {% if saved %}
+    <div style="padding:8px 12px;background:#E8EFE9;color:var(--euc);border-radius:var(--r);font-size:12px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+      Name updated.
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">First name</label>
+        <input x-model="firstName"
+               style="width:100%;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--paper-warm)">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Last name</label>
+        <input x-model="lastName"
+               style="width:100%;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--paper-warm)">
+      </div>
+    </div>
+    <button @click="save()" class="btn btn-p btn-sm" :disabled="saving" x-text="saving ? 'Saving…' : 'Save name'"></button>
+  </div>
+
+  <!-- Password -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:14px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Password</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Change your login password via the secure password change form.</div>
+    <a href="/accounts/password/change/" class="btn btn-g btn-sm" style="text-decoration:none;display:inline-block">Change password</a>
+  </div>
+
+  <!-- Sign out -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 22px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Sign Out</div>
+    <form method="POST" action="/accounts/logout/">
+      {% csrf_token %}
+      <button type="submit"
+              style="font-size:12px;padding:6px 14px;border-radius:var(--r);border:1px solid #E8C8C0;background:#FEF7F5;color:var(--coral);cursor:pointer;font-weight:500">
+        Sign out
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+function profilePage() {
+  return {
+    firstName: '{{ user.first_name|escapejs }}',
+    lastName: '{{ user.last_name|escapejs }}',
+    saving: false,
+    save() {
+      this.saving = true;
+      fetch('/accounts/profile/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+        },
+        body: JSON.stringify({ first_name: this.firstName, last_name: this.lastName }),
+      }).then(r => r.text()).then(html => {
+        document.getElementById('main-content').innerHTML = new DOMParser()
+          .parseFromString(html, 'text/html')
+          .getElementById('main-content').innerHTML;
+        this.saving = false;
+      });
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% if error %}
+<div style="padding:12px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);font-size:12.5px;color:var(--coral)">
+  {{ error }}
+</div>
+
+{% elif candidates %}
+<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+  <div style="font-size:11px;color:var(--muted)">
+    <span style="font-family:var(--mono);font-weight:600;color:var(--euc)">{{ candidates|length }}</span>
+    KOL suggestion{{ candidates|length|pluralize }} for <em>"{{ query }}"</em>
+  </div>
+  <div style="font-size:10px;color:var(--muted)">Based on Claude's training knowledge · verify before outreach</div>
+</div>
+
+{% for candidate in candidates %}
+<div id="suggest-card-{{ candidate.pk }}"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:10px;border-left:3px solid var(--wattle)">
+
+  <div style="display:flex;align-items:flex-start;gap:12px">
+
+    <!-- Tier badge -->
+    <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:var(--wattle-soft);color:#8A6918;border:2px solid #E7D59A">
+      T{{ candidate.tier }}
+    </div>
+
+    <div style="flex:1;min-width:0">
+
+      <!-- Name + AI badge -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:600;color:var(--ink);font-family:var(--serif)">{{ candidate.name }}</span>
+        <span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:600;letter-spacing:.04em">AI SUGGESTED</span>
+      </div>
+
+      <!-- Institution / specialty / location -->
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4">
+        {% if candidate.institution %}<strong style="color:var(--ink-soft)">{{ candidate.institution }}</strong>{% endif %}
+        {% if candidate.specialty %} · {{ candidate.specialty }}{% endif %}
+        {% if candidate.location %} · <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg> {{ candidate.location }}{% endif %}
+      </div>
+
+      <!-- Bio -->
+      {% if candidate.bio %}
+      <div style="font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:8px">{{ candidate.bio }}</div>
+      {% endif %}
+
+      <!-- Relevance note -->
+      {% if candidate.relevance_note %}
+      <div style="font-size:11.5px;color:var(--muted);background:var(--paper-warm);border-radius:var(--r);padding:7px 10px;margin-bottom:10px;line-height:1.45;border-left:3px solid var(--wattle)">
+        <strong style="color:#8A6918">Relevance:</strong> {{ candidate.relevance_note }}
+      </div>
+      {% endif %}
+
+      <!-- Action row -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--muted)">Tier:</label>
+        <select id="suggest-tier-{{ candidate.pk }}"
+                style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:3px 8px;background:var(--surface)">
+          {% for t in tier_range %}
+          <option value="{{ t }}"{% if t == candidate.tier %} selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+
+        <button onclick="suggestAccept({{ candidate.pk }})"
+                style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg>
+          Accept
+        </button>
+
+        <button onclick="suggestSkip({{ candidate.pk }})"
+                style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--muted)">
+          Skip
+        </button>
+
+        <button onclick="suggestRejectToggle({{ candidate.pk }})"
+                style="font-size:12px;background:none;border:1px solid #E8C8C0;border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--coral)">
+          Reject
+        </button>
+      </div>
+
+      <!-- Reject reason (hidden) -->
+      <div id="suggest-reject-{{ candidate.pk }}" style="display:none;margin-top:8px">
+        <textarea id="suggest-reject-reason-{{ candidate.pk }}"
+                  placeholder="Reason (optional)…"
+                  style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 9px;resize:vertical;min-height:40px;background:var(--surface);margin-bottom:6px;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:6px">
+          <button onclick="suggestRejectConfirm({{ candidate.pk }})"
+                  style="font-size:12px;background:var(--coral);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Confirm reject</button>
+          <button onclick="suggestRejectToggle({{ candidate.pk }})"
+                  style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 12px;cursor:pointer;color:var(--muted)">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div style="text-align:center;padding:32px 16px;color:var(--muted)">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 10px;display:block;opacity:.4"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+  <div style="font-size:13px;font-weight:500;margin-bottom:4px">No suggestions yet</div>
+  <div style="font-size:12px">Enter a therapeutic area or keywords above and click Search</div>
+</div>
+{% endif %}
+
+<script>
+function _csrf() { return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''; }
+
+function _removeCard(pk) {
+  const el = document.getElementById('suggest-card-' + pk);
+  if (el) el.style.display = 'none';
+}
+
+function suggestAccept(pk) {
+  const tier = document.getElementById('suggest-tier-' + pk).value;
+  fetch('/kol/candidates/' + pk + '/accept/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
+    body: JSON.stringify({ tier: parseInt(tier) }),
+  }).then(() => {
+    const el = document.getElementById('suggest-card-' + pk);
+    if (el) {
+      el.style.borderLeftColor = 'var(--euc)';
+      el.style.background = '#F2F8F2';
+      el.querySelector('[onclick^="suggestAccept"]').outerHTML =
+        '<span style="font-size:11px;color:var(--euc);font-weight:600">✓ Added to KOL directory</span>';
+    }
+  });
+}
+
+function suggestSkip(pk) {
+  fetch('/kol/candidates/' + pk + '/hold/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
+    body: JSON.stringify({ reason: 'Skipped from keyword search' }),
+  }).then(() => _removeCard(pk));
+}
+
+function suggestRejectToggle(pk) {
+  const el = document.getElementById('suggest-reject-' + pk);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function suggestRejectConfirm(pk) {
+  const reason = document.getElementById('suggest-reject-reason-' + pk).value;
+  fetch('/kol/candidates/' + pk + '/reject/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
+    body: JSON.stringify({ reason }),
+  }).then(() => _removeCard(pk));
+}
+</script>

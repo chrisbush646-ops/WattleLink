@@ -1,0 +1,12 @@
+{% for s in sessions %}
+<a href="{% url 'aisearch:session' s.pk %}"
+   hx-get="{% url 'aisearch:session' s.pk %}"
+   hx-target="#ai-panel"
+   hx-swap="innerHTML"
+   class="ai-session-item {% if session and session.pk == s.pk %}active{% endif %}">
+  <div style="font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">{{ s.title|truncatechars:55 }}</div>
+  <div style="font-size:10px;color:var(--muted)">{{ s.updated_at|date:"d M Y · H:i" }}</div>
+</a>
+{% empty %}
+<div style="padding:16px 12px;font-size:12px;color:var(--muted);text-align:center">No searches yet</div>
+{% endfor %}

@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
 
+_THINKING_BUDGET = 6000
+_MAX_TOKENS = 12000
+
 
 def _load_prompt(filename: str) -> str:
     return (PROMPT_PATH / filename).read_text()
@@ -15,7 +18,8 @@ def _load_prompt(filename: str) -> str:
 
 def extract_claims(paper) -> list[dict]:
     """
-    Call Claude to extract core claims from the paper.
+    Call Claude with extended thinking to extract commercially-oriented,
+    MA Code-compliant core claims from the paper's full text.
     Returns list of claim dicts on success, raises on error.
     """
     content = paper.full_text or paper.title
@@ -26,14 +30,28 @@ def extract_claims(paper) -> list[dict]:
     client = anthropic.Anthropic()
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        model="claude-sonnet-4-6",
+        max_tokens=_MAX_TOKENS,
+        thinking={"type": "enabled", "budget_tokens": _THINKING_BUDGET},
         system=system_prompt,
-        messages=[{"role": "user", "content": content}],
+        messages=[{
+            "role": "user",
+            "content": (
+                "Extract core claims from the following clinical paper. "
+                "Each claim must cover a DISTINCT endpoint or outcome — do not rephrase the same result twice. "
+                "If the paper only has one strong primary result, return just one claim. "
+                "Only add secondary or safety claims if they report genuinely different data:\n\n"
+                + content
+            ),
+        }],
+        timeout=180,
     )
 
-    raw = response.content[0].text.strip()
+    text_block = next((b for b in response.content if b.type == "text"), None)
+    if not text_block:
+        raise ValueError("Claims extraction returned no text block.")
 
+    raw = text_block.text.strip()
     if raw.startswith("```"):
         lines = raw.splitlines()
         raw = "\n".join(line for line in lines if not line.startswith("```"))

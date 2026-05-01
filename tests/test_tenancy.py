@@ -144,3 +144,46 @@ class TestSoftDelete:
             set_current_tenant(None)
 
         assert count == 1
+
+
+@pytest.mark.django_db
+class TestRemovePaperView:
+    @pytest.fixture
+    def client(self, medical_user):
+        from django.test import Client
+        c = Client()
+        c.force_login(medical_user)
+        return c
+
+    @pytest.fixture
+    def paper(self, tenant):
+        return make_paper(tenant, doi_suffix="rm1")
+
+    def test_remove_soft_deletes(self, client, paper, tenant):
+        from django.urls import reverse
+        from apps.accounts.managers import set_current_tenant
+        resp = client.post(reverse("literature:remove", args=[paper.pk]))
+        assert resp.status_code == 200
+        assert resp.get("HX-Refresh") == "true"
+        set_current_tenant(tenant)
+        try:
+            assert Paper.objects.filter(pk=paper.pk).count() == 0
+        finally:
+            set_current_tenant(None)
+        paper.refresh_from_db()
+        assert paper.deleted_at is not None
+
+    def test_remove_other_tenant_404(self, client, db):
+        from django.urls import reverse
+        other = Tenant.objects.create(name="Other", slug="other-rm")
+        other_paper = make_paper(other, doi_suffix="rm2")
+        resp = client.post(reverse("literature:remove", args=[other_paper.pk]))
+        assert resp.status_code == 404
+
+    def test_remove_logged_in_audit(self, client, paper):
+        from django.urls import reverse
+        from apps.audit.models import AuditLog
+        client.post(reverse("literature:remove", args=[paper.pk]))
+        assert AuditLog.objects.filter(
+            entity_type="Paper", entity_id=paper.pk, action=AuditLog.Action.DELETE
+        ).exists()

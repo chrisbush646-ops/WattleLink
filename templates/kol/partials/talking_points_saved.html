@@ -1,0 +1,39 @@
+<div id="tp-saved-{{ kol.pk }}" style="margin-top:10px">
+  {% if talking_points %}
+  <div style="display:flex;flex-direction:column;gap:5px">
+    {% for tp in talking_points %}
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:#F0F7F2;border:1px solid #CFDAD0;border-left:3px solid var(--euc);border-radius:var(--r)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0;margin-top:2px"><polyline points="20 6 9 17 4 12"/></svg>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--ink);line-height:1.5">{{ tp.text }}</div>
+        {% if tp.source_note %}
+        <div style="font-size:10.5px;color:var(--muted);margin-top:3px;font-style:italic">{{ tp.source_note }}</div>
+        {% endif %}
+        {% if tp.created_by %}
+        <div style="display:flex;align-items:center;gap:3px;margin-top:5px">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:9.5px;color:var(--muted)">Accepted by <span style="color:var(--euc);font-weight:500">{{ tp.created_by.get_full_name|default:tp.created_by.email }}</span> · {{ tp.created_at|date:"j M Y, g:i a" }}</span>
+        </div>
+        {% endif %}
+      </div>
+      <form hx-post="{% url 'kol:delete_talking_point' tp.pk %}"
+            hx-target="#tp-saved-{{ kol.pk }}"
+            hx-swap="outerHTML"
+            style="display:inline;flex-shrink:0">
+        {% csrf_token %}
+        <button type="submit"
+                style="width:24px;height:24px;border-radius:50%;border:1px solid #E9CBB9;background:var(--coral-soft);display:grid;place-items:center;cursor:pointer;opacity:.6;transition:opacity .12s"
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.6'"
+                title="Remove talking point">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="font-size:12px;color:var(--muted);padding:8px 0">
+    No talking points saved yet. Generate and accept points above.
+  </div>
+  {% endif %}
+</div>

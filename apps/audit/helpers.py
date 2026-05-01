@@ -10,6 +10,19 @@ def _serialize_entity(entity):
     return data[0]["fields"] if data else None
 
 
+def log_task_action(tenant, entity, action, before=None, after=None, user=None):
+    """Log an audit event from a Celery task (no request context)."""
+    AuditLog.objects.create(
+        tenant=tenant,
+        user=user,
+        entity_type=entity.__class__.__name__,
+        entity_id=entity.pk,
+        action=action,
+        before_state=before,
+        after_state=after,
+    )
+
+
 def log_action(request, entity, action, before=None, after=None):
     tenant = getattr(request, "tenant", None)
     user = request.user if request.user.is_authenticated else None

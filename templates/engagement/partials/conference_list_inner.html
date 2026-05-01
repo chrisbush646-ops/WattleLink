@@ -1,0 +1,7 @@
+{% for conf in conferences %}
+  {% include "engagement/partials/conference_card.html" with conf=conf kol_choices=kol_choices %}
+{% empty %}
+<div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No conferences yet.</div>
+</div>
+{% endfor %}

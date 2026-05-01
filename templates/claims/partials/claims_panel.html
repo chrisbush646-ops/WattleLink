@@ -1,4 +1,23 @@
-<div id="claims-panel-{{ paper.pk }}" style="margin-top:20px">
+{% if error %}
+<div id="claims-panel-{{ paper.pk }}" style="margin-top:20px;padding:16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);font-size:12px;color:var(--coral)">
+  Claim extraction failed: {{ error }}
+  <div style="margin-top:8px">
+    <button class="btn btn-g btn-sm"
+            hx-post="{% url 'claims:run_extraction' paper.pk %}"
+            hx-target="#claims-panel-{{ paper.pk }}"
+            hx-swap="outerHTML">Try again</button>
+  </div>
+</div>
+{% else %}
+<div id="claims-panel-{{ paper.pk }}" style="margin-top:20px;position:relative">
+
+  <!-- AI loading overlay -->
+  <div id="ai-load-{{ paper.pk }}" class="htmx-indicator"
+       style="position:absolute;inset:0;background:rgba(250,247,238,.9);border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:10;border:1px solid var(--line);min-height:80px;pointer-events:none">
+    <div style="width:26px;height:26px;border:2.5px solid var(--line);border-top-color:var(--euc);border-radius:50%;animation:aispin .7s linear infinite"></div>
+    <div style="font-size:13px;color:var(--ink);font-weight:500">Generating…</div>
+    <div style="font-size:11.5px;color:var(--muted)">Extracting claims — takes 15–45 seconds</div>
+  </div>
 
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -13,14 +32,67 @@
         {{ approved_count }} approved
       </span>
       {% endif %}
+      <button onclick="toggleManualClaimForm('{{ paper.pk }}')"
+              class="btn btn-g btn-sm">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add Claim
+      </button>
       <button class="btn btn-g btn-sm"
               hx-post="{% url 'claims:run_extraction' paper.pk %}"
               hx-target="#claims-panel-{{ paper.pk }}"
-              hx-swap="outerHTML">
+              hx-swap="outerHTML"
+              hx-indicator="#ai-load-{{ paper.pk }}">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         Extract Claims
       </button>
     </div>
+  </div>
+
+  <!-- Manual claim form (hidden by default) -->
+  <div id="manual-claim-form-{{ paper.pk }}" style="display:none;margin-bottom:14px">
+    <form hx-post="{% url 'claims:create' paper.pk %}"
+          hx-target="#claims-panel-{{ paper.pk }}"
+          hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset(); toggleManualClaimForm('{{ paper.pk }}')"
+          style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px">
+
+      <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);margin-bottom:12px">
+        Write a claim manually
+      </div>
+
+      <!-- Claim text -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px">Claim text</label>
+        <textarea name="claim_text"
+                  placeholder="e.g. In adults with type 2 diabetes, Drug X reduced HbA1c by 1.2% (95% CI 0.9–1.5, p<0.001) vs placebo over 52 weeks"
+                  required
+                  style="width:100%;font-family:var(--serif);font-size:13.5px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:90px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box"></textarea>
+      </div>
+
+      <!-- Endpoint type -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px">Endpoint type</label>
+        <select name="endpoint_type"
+                style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--paper-warm);color:var(--ink)">
+          <option value="PRIMARY">Primary</option>
+          <option value="SECONDARY">Secondary</option>
+          <option value="SAFETY">Safety</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button type="submit"
+                style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:6px 16px;cursor:pointer;font-weight:500">
+          Add claim
+        </button>
+        <button type="button"
+                onclick="toggleManualClaimForm('{{ paper.pk }}')"
+                style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:6px 14px;cursor:pointer;color:var(--muted)">
+          Cancel
+        </button>
+      </div>
+    </form>
   </div>
 
   {% if not claims %}
@@ -45,3 +117,11 @@
 
   {% endif %}
 </div>
+{% endif %}
+
+<script>
+function toggleManualClaimForm(pk) {
+  const el = document.getElementById('manual-claim-form-' + pk);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>

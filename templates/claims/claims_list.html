@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block nav_claims %}ni-active{% endblock %}
+{% block title %}Core Claims{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:32px 24px">
+
+  <!-- Page header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px">
+    <div>
+      <h1 style="font-family:var(--serif);font-weight:300;font-size:28px;color:var(--ink);margin:0 0 4px">Core Claims</h1>
+      <p style="font-size:13px;color:var(--muted);margin:0">Commercially-ready claims extracted from assessed literature</p>
+    </div>
+    <button onclick="document.getElementById('write-claim-modal').style.display='flex'"
+            style="flex-shrink:0;font-size:13px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:8px 18px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:7px;margin-top:4px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Write claim
+    </button>
+  </div>
+
+  <!-- Write claim modal -->
+  <div id="write-claim-modal"
+       style="display:none;position:fixed;inset:0;background:rgba(18,22,19,.4);backdrop-filter:blur(3px);z-index:900;align-items:center;justify-content:center;padding:40px 20px"
+       onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--surface);border-radius:14px;box-shadow:0 20px 60px -20px rgba(0,0,0,.3);width:100%;max-width:560px;animation:modalIn .22s ease">
+      <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+        <h2 style="font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink);margin:0">Write a claim</h2>
+        <button onclick="document.getElementById('write-claim-modal').style.display='none'"
+                style="background:none;border:none;cursor:pointer;color:var(--muted);width:28px;height:28px;display:grid;place-items:center;border-radius:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+        </button>
+      </div>
+      <div style="padding:20px 24px">
+        <form id="write-claim-form" style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Paper selector -->
+          <div>
+            <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px">Paper</label>
+            <input type="text"
+                   id="paper-search-input"
+                   placeholder="Search by title, journal, or author…"
+                   oninput="searchPapers(this.value)"
+                   autocomplete="off"
+                   style="width:100%;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box">
+            <div id="paper-search-results" style="display:none;border:1px solid var(--line);border-top:none;border-radius:0 0 var(--r) var(--r);background:var(--surface);max-height:180px;overflow-y:auto"></div>
+            <input type="hidden" id="selected-paper-pk" name="paper_pk">
+            <div id="selected-paper-label" style="display:none;margin-top:6px;font-size:12px;color:var(--euc);font-weight:500"></div>
+          </div>
+
+          <!-- Claim text -->
+          <div>
+            <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px">Claim text</label>
+            <textarea id="manual-claim-text"
+                      placeholder="e.g. In adults with type 2 diabetes, Drug X reduced HbA1c by 1.2% (95% CI 0.9–1.5, p<0.001) vs placebo over 52 weeks"
+                      style="width:100%;font-family:var(--serif);font-size:13.5px;line-height:1.6;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;min-height:90px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box"></textarea>
+          </div>
+
+          <!-- Endpoint type -->
+          <div>
+            <label style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px">Endpoint type</label>
+            <select id="manual-endpoint-type"
+                    style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--paper-warm);color:var(--ink)">
+              <option value="PRIMARY">Primary</option>
+              <option value="SECONDARY">Secondary</option>
+              <option value="SAFETY">Safety</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div id="write-claim-error" style="display:none;font-size:12px;color:var(--coral);padding:6px 10px;background:var(--coral-soft);border-radius:var(--r)"></div>
+
+          <div style="display:flex;gap:8px;padding-top:4px">
+            <button type="button" onclick="submitManualClaim()"
+                    style="font-size:13px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:8px 20px;cursor:pointer;font-weight:500">
+              Add &amp; approve
+            </button>
+            <button type="button" onclick="document.getElementById('write-claim-modal').style.display='none'"
+                    style="font-size:13px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:8px 16px;cursor:pointer;color:var(--muted)">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let _paperSearchTimer;
+  function searchPapers(q) {
+    clearTimeout(_paperSearchTimer);
+    const results = document.getElementById('paper-search-results');
+    if (!q.trim()) { results.style.display = 'none'; return; }
+    _paperSearchTimer = setTimeout(() => {
+      fetch(`{% url 'literature:paper_search_json' %}?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.papers.length) { results.style.display = 'none'; return; }
+          results.innerHTML = data.papers.map(p =>
+            `<div onclick="selectPaper(${p.pk}, ${JSON.stringify(p.title)})"
+                  style="padding:8px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line-soft)"
+                  onmouseover="this.style.background='var(--paper-warm)'"
+                  onmouseout="this.style.background=''">
+              <div style="font-weight:500;color:var(--ink)">${p.title.substring(0,80)}${p.title.length>80?'…':''}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.journal||''} ${p.year||''}</div>
+            </div>`
+          ).join('');
+          results.style.display = 'block';
+        });
+    }, 250);
+  }
+  function selectPaper(pk, title) {
+    document.getElementById('selected-paper-pk').value = pk;
+    document.getElementById('paper-search-input').value = title.substring(0, 60) + (title.length > 60 ? '…' : '');
+    document.getElementById('selected-paper-label').textContent = '✓ ' + title.substring(0, 70);
+    document.getElementById('selected-paper-label').style.display = 'block';
+    document.getElementById('paper-search-results').style.display = 'none';
+  }
+  function submitManualClaim() {
+    const pk = document.getElementById('selected-paper-pk').value;
+    const text = document.getElementById('manual-claim-text').value.trim();
+    const endpoint = document.getElementById('manual-endpoint-type').value;
+    const errEl = document.getElementById('write-claim-error');
+    errEl.style.display = 'none';
+    if (!pk) { errEl.textContent = 'Please select a paper.'; errEl.style.display = 'block'; return; }
+    if (!text) { errEl.textContent = 'Claim text is required.'; errEl.style.display = 'block'; return; }
+    const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const body = new FormData();
+    body.append('claim_text', text);
+    body.append('endpoint_type', endpoint);
+    fetch(`/claims/${pk}/create/`, { method:'POST', headers:{'X-CSRFToken':csrf}, body })
+      .then(() => {
+        document.getElementById('write-claim-modal').style.display = 'none';
+        window.location.reload();
+      });
+  }
+  </script>
+
+  <!-- KPI row -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px">
+    <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Accepted</div>
+      <div style="font-size:26px;font-family:var(--mono);font-weight:600;color:var(--euc)">{{ approved_count }}</div>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Awaiting Approval</div>
+      <div style="font-size:26px;font-family:var(--mono);font-weight:600;color:#8A6918">{{ pending_count }}</div>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Total Claims</div>
+      <div style="font-size:26px;font-family:var(--mono);font-weight:600;color:var(--ink)">{{ total_count }}</div>
+    </div>
+  </div>
+
+  <!-- Search + filters -->
+  <div style="background:var(--surface);border-radius:10px;border:1px solid var(--line);padding:16px 20px;margin-bottom:20px">
+    <form hx-get="{% url 'claims:list' %}"
+          hx-target="#claims-results"
+          hx-push-url="true"
+          hx-trigger="submit, change from:select[name=status]"
+          style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+
+      <!-- Search input -->
+      <div style="flex:1;min-width:240px;position:relative">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text"
+               name="q"
+               value="{{ q }}"
+               placeholder="Search claims, papers, keywords…"
+               hx-get="{% url 'claims:list' %}"
+               hx-target="#claims-results"
+               hx-trigger="keyup changed delay:300ms"
+               hx-include="[name=status]"
+               hx-push-url="true"
+               style="width:100%;padding:8px 12px 8px 32px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;background:var(--paper-warm);color:var(--ink);box-sizing:border-box">
+      </div>
+
+      <!-- Status filter chips -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="{% url 'claims:list' %}{% if q %}?q={{ q }}{% endif %}"
+           hx-get="{% url 'claims:list' %}{% if q %}?q={{ q }}{% endif %}"
+           hx-target="#claims-results"
+           hx-push-url="true"
+           style="font-size:12px;padding:6px 14px;border-radius:20px;cursor:pointer;text-decoration:none;
+             {% if not status_filter %}background:var(--ink);color:#fff{% else %}background:var(--line-soft);color:var(--muted){% endif %}">
+          All
+        </a>
+        <a href="{% url 'claims:list' %}?status=approved{% if q %}&q={{ q }}{% endif %}"
+           hx-get="{% url 'claims:list' %}?status=approved{% if q %}&q={{ q }}{% endif %}"
+           hx-target="#claims-results"
+           hx-push-url="true"
+           style="font-size:12px;padding:6px 14px;border-radius:20px;cursor:pointer;text-decoration:none;
+             {% if status_filter == 'approved' %}background:var(--euc);color:#fff{% else %}background:var(--line-soft);color:var(--muted){% endif %}">
+          Accepted
+        </a>
+        <a href="{% url 'claims:list' %}?status=pending{% if q %}&q={{ q }}{% endif %}"
+           hx-get="{% url 'claims:list' %}?status=pending{% if q %}&q={{ q }}{% endif %}"
+           hx-target="#claims-results"
+           hx-push-url="true"
+           style="font-size:12px;padding:6px 14px;border-radius:20px;cursor:pointer;text-decoration:none;
+             {% if status_filter == 'pending' %}background:#8A6918;color:#fff{% else %}background:var(--line-soft);color:var(--muted){% endif %}">
+          Awaiting Approval
+          {% if pending_count %}<span style="font-family:var(--mono);font-size:10px;margin-left:4px">{{ pending_count }}</span>{% endif %}
+        </a>
+        <a href="{% url 'claims:list' %}?status=rejected{% if q %}&q={{ q }}{% endif %}"
+           hx-get="{% url 'claims:list' %}?status=rejected{% if q %}&q={{ q }}{% endif %}"
+           hx-target="#claims-results"
+           hx-push-url="true"
+           style="font-size:12px;padding:6px 14px;border-radius:20px;cursor:pointer;text-decoration:none;
+             {% if status_filter == 'rejected' %}background:var(--coral);color:#fff{% else %}background:var(--line-soft);color:var(--muted){% endif %}">
+          Rejected
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results -->
+  <div id="claims-results">
+    {% include "claims/partials/claims_list_results.html" %}
+  </div>
+
+</div>
+{% endblock %}

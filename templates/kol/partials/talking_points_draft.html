@@ -1,0 +1,47 @@
+{% if error %}
+<div style="padding:12px 14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);color:var(--coral);font-size:13px">
+  AI generation failed: {{ error }}
+</div>
+{% elif draft_points %}
+<div style="display:flex;flex-direction:column;gap:6px">
+  {% for point in draft_points %}
+  <div id="draft-tp-{{ forloop.counter }}"
+       style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);animation:fadeIn .2s ease both;animation-delay:{{ forloop.counter0 }}00ms">
+    <div style="flex:1">
+      <div style="font-size:13px;color:var(--ink);line-height:1.55">{{ point.text }}</div>
+      {% if point.source_note %}
+      <div style="font-size:10.5px;color:var(--muted);margin-top:4px;font-style:italic">{{ point.source_note }}</div>
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:5px;flex-shrink:0;margin-top:1px">
+      <!-- Accept: saves the point and refreshes saved list -->
+      <form hx-post="{% url 'kol:save_talking_point' kol.pk %}"
+            hx-target="#tp-saved-{{ kol.pk }}"
+            hx-swap="outerHTML"
+            style="display:inline">
+        {% csrf_token %}
+        <input type="hidden" name="text" value="{{ point.text }}">
+        <input type="hidden" name="source_note" value="{{ point.source_note|default:'' }}">
+        <button type="submit"
+                onclick="document.getElementById('draft-tp-{{ forloop.counter }}').style.opacity='0.4';document.getElementById('draft-tp-{{ forloop.counter }}').style.pointerEvents='none'"
+                style="width:30px;height:30px;border-radius:50%;border:1.5px solid #CFDAD0;background:#E8EFE9;display:grid;place-items:center;cursor:pointer;transition:all .12s"
+                title="Accept this talking point">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </form>
+      <!-- Dismiss: just removes from the draft list client-side -->
+      <button onclick="document.getElementById('draft-tp-{{ forloop.counter }}').remove()"
+              style="width:30px;height:30px;border-radius:50%;border:1.5px solid #E9CBB9;background:var(--coral-soft);display:grid;place-items:center;cursor:pointer;transition:all .12s"
+              title="Dismiss this talking point">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<style>@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}</style>
+{% else %}
+<div style="padding:12px 14px;color:var(--muted);font-size:13px;text-align:center">
+  No talking points were generated. Try linking papers to this KOL first.
+</div>
+{% endif %}

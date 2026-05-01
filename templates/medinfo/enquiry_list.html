@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block nav_medinfo %}ni-active{% endblock %}
+{% block title %}Medical Information{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto" x-data="enquiryListPage()">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+    <div>
+      <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Medical Information</h1>
+      <div style="font-size:12px;color:var(--muted)">Log and respond to medical information enquiries. All responses are logged with APA7 citations.</div>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div style="display:flex;gap:12px;margin-bottom:20px">
+    <div style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Open</div>
+      <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">{{ counts.open }}</div>
+    </div>
+    <div style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Draft</div>
+      <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ counts.draft }}</div>
+    </div>
+    <div style="flex:1;padding:14px 16px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:var(--r)">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--euc);font-weight:500;margin-bottom:4px">Responded</div>
+      <div style="font-size:22px;font-weight:700;color:var(--euc);font-family:var(--serif)">{{ counts.responded }}</div>
+    </div>
+  </div>
+
+  {% if top_topics or trending %}
+  <!-- Enquiry trends summary -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+
+    <!-- Most Asked -->
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Most Asked</div>
+      {% if top_topics %}
+      <div style="display:flex;flex-direction:column;gap:7px">
+        {% for term, count in top_topics %}
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:84px;font-size:11px;color:var(--ink);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">{{ term }}</div>
+          <div style="flex:1;background:var(--line-soft);border-radius:4px;height:6px;overflow:hidden">
+            <div style="height:100%;border-radius:4px;background:var(--euc);width:{% widthratio count max_topic_count 100 %}%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);width:20px;text-align:right;flex-shrink:0">{{ count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">No data yet</div>
+      {% endif %}
+    </div>
+
+    <!-- Trending -->
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Trending <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px">(last 30 days)</span></div>
+      {% if trending %}
+      <div style="display:flex;flex-direction:column;gap:7px">
+        {% for t in trending %}
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;font-size:11px;color:var(--ink);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.term }}</div>
+          <div style="font-size:11px;font-family:var(--mono);color:var(--muted);flex-shrink:0">{{ t.count }}×</div>
+          {% if t.is_new %}
+          <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB;font-weight:600;flex-shrink:0">NEW</span>
+          {% else %}
+          <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:600;flex-shrink:0">+{{ t.pct_change }}%</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">Log more enquiries to see trends</div>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endif %}
+
+  <!-- Filter + action row -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+    {% for val, label in status_choices %}
+    <a href="?status={{ val }}" style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+       {% if status_filter == val %}background:var(--euc);color:#fff{% else %}background:var(--surface);color:var(--muted);border:1px solid var(--line){% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+    <a href="?" style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+       {% if not status_filter %}background:var(--euc);color:#fff{% else %}background:var(--surface);color:var(--muted);border:1px solid var(--line){% endif %}">All</a>
+    <div style="flex:1"></div>
+    <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Log Enquiry</button>
+  </div>
+
+  <!-- Create form -->
+  <div x-show="showCreate" x-transition
+       style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:16px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Log Medical Information Enquiry</div>
+    <textarea x-model="form.question" placeholder="What was the enquiry? (required)" rows="3"
+              style="width:100%;font-family:var(--serif);font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;resize:vertical;background:var(--surface);margin-bottom:8px"></textarea>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <select x-model="form.source" style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+        {% for val, label in source_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button @click="createEnquiry()" class="btn btn-p btn-sm">Log Enquiry</button>
+      <button @click="showCreate = false" class="btn btn-g btn-sm">Cancel</button>
+    </div>
+  </div>
+
+  <div id="enquiry-list-inner">
+    {% include "medinfo/partials/enquiry_list_inner.html" with enquiries=enquiries %}
+  </div>
+</div>
+
+<script>
+function enquiryListPage() {
+  return {
+    showCreate: false,
+    form: { question: '', source: 'HCP' },
+    createEnquiry() {
+      if (!this.form.question.trim()) return;
+      fetch('/medinfo/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify(this.form),
+      }).then(r => r.text()).then(html => {
+        const el = document.getElementById('enquiry-list-inner');
+        el.innerHTML = html;
+        if (window.Alpine) Alpine.initTree(el);
+        this.showCreate = false; this.form = { question: '', source: 'HCP' };
+      });
+    },
+  };
+}
+
+function enquiryCard(pk, question, source) {
+  return {
+    editing: false,
+    expanded: false,
+    question,
+    source,
+    save() {
+      fetch(`/medinfo/${pk}/update/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify({ question: this.question, source: this.source }),
+      }).then(r => r.text()).then(html => {
+        const old = document.getElementById(`enquiry-${pk}`);
+        old.outerHTML = html;
+        if (window.Alpine) Alpine.initTree(document.getElementById(`enquiry-${pk}`));
+      });
+    },
+  };
+}
+</script>
+{% endblock %}

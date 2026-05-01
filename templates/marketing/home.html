@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WattleLink — Medical Affairs Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --euc: #264032;
+      --euc-dark: #1A2E23;
+      --euc-deep: #0F1C15;
+      --wattle: #C89B2A;
+      --wattle-light: #E5BE5A;
+      --coral: #B85C3A;
+      --sky: #4B6E84;
+      --paper: #F6F2E7;
+      --paper-dark: #EDE8D8;
+      --ink: #1C2B22;
+      --muted: #6B7F74;
+      --line: #D8D3C6;
+      --surface: #FFFFFF;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Geist', system-ui, sans-serif;
+      --r: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px;
+      height: 64px;
+      background: rgba(15, 28, 21, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .nav-logo { display: flex; align-items: center; gap: 1px; text-decoration: none; }
+    .nav-logo-name {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 400;
+      color: #F4F6F2;
+      letter-spacing: -0.02em;
+    }
+    .nav-logo-name em { font-style: italic; font-weight: 300; color: var(--wattle-light); }
+
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      transition: color 0.15s;
+      letter-spacing: 0.01em;
+    }
+    .nav-links a:hover { color: #fff; }
+
+    .nav-cta { display: flex; align-items: center; gap: 12px; }
+    .btn-nav-secondary {
+      font-size: 13px; font-weight: 500;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      transition: all 0.15s;
+    }
+    .btn-nav-secondary:hover { color: #fff; border-color: rgba(255,255,255,0.32); }
+
+    .btn-nav-primary {
+      font-size: 13px; font-weight: 500;
+      color: var(--euc-deep);
+      background: var(--wattle-light);
+      text-decoration: none;
+      padding: 7px 18px;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .btn-nav-primary:hover { background: #fff; }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      background: var(--euc-deep);
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      padding: 120px 48px 96px;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .hero-bg-wattle {
+      position: absolute;
+      right: -20px; top: 40px;
+      opacity: 0.10;
+      pointer-events: none;
+    }
+
+    .hero-content {
+      max-width: 1140px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 58% 1fr;
+      gap: 72px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--wattle-light);
+      background: rgba(200,155,42,0.10);
+      border: 1px solid rgba(200,155,42,0.22);
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+
+    .hero-h1 {
+      font-family: var(--serif);
+      font-size: clamp(46px, 6vw, 78px);
+      font-weight: 300;
+      line-height: 1.04;
+      letter-spacing: -0.035em;
+      color: #F4F6F2;
+      margin-bottom: 28px;
+    }
+    .hero-h1 em { font-style: italic; color: var(--wattle-light); }
+
+    .hero-rule {
+      width: 40px;
+      height: 1px;
+      background: rgba(229,190,90,0.5);
+      margin-bottom: 24px;
+    }
+
+    .hero-sub {
+      font-size: 16px;
+      line-height: 1.7;
+      color: rgba(244,246,242,0.55);
+      margin-bottom: 40px;
+      max-width: 500px;
+    }
+
+    .hero-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 500;
+      color: var(--euc-deep);
+      background: var(--wattle-light);
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+    .btn-primary:hover { background: #fff; transform: translateY(-1px); }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 14px;
+      color: rgba(244,246,242,0.6);
+      text-decoration: none;
+      padding: 12px 0;
+      transition: color 0.15s;
+    }
+    .btn-secondary:hover { color: #fff; }
+
+    .hero-stats {
+      display: flex; gap: 36px; margin-top: 52px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .hero-stat-n {
+      font-family: var(--serif);
+      font-size: 30px; font-weight: 300;
+      color: var(--wattle-light);
+      letter-spacing: -0.03em;
+    }
+    .hero-stat-l {
+      font-size: 11px;
+      color: rgba(244,246,242,0.38);
+      margin-top: 4px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Hero visual panel */
+    .hero-visual { position: relative; }
+    .hero-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 26px;
+      backdrop-filter: blur(4px);
+    }
+    .hero-card-label {
+      font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(255,255,255,0.3); margin-bottom: 18px;
+    }
+    .pipeline-step {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.055);
+    }
+    .pipeline-step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .step-done { background: rgba(38,64,50,0.8); color: #7DBF8E; border: 1px solid rgba(125,191,142,0.28); }
+    .step-active { background: rgba(200,155,42,0.2); color: var(--wattle-light); border: 1px solid rgba(200,155,42,0.35); }
+    .step-pending { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.07); }
+    .step-label { font-size: 12px; color: rgba(255,255,255,0.65); flex: 1; }
+    .step-label.done { color: rgba(255,255,255,0.38); }
+    .step-label.active { color: rgba(255,255,255,0.9); font-weight: 500; }
+    .step-badge { font-size: 9px; padding: 2px 7px; border-radius: 6px; font-weight: 500; }
+    .badge-done { background: rgba(38,64,50,0.6); color: #7DBF8E; }
+    .badge-active { background: rgba(200,155,42,0.2); color: var(--wattle-light); }
+    .badge-ai { background: rgba(75,110,132,0.3); color: #8EB4C8; }
+
+    .hero-card-mini {
+      margin-top: 12px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .mini-stat {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.065);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .mini-stat-n { font-family: var(--serif); font-size: 20px; font-weight: 300; color: var(--wattle-light); }
+    .mini-stat-l { font-size: 9px; color: rgba(255,255,255,0.28); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* Problem section */
+    .problem-section {
+      background: var(--euc-dark);
+      padding: 80px 48px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .problem-inner {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .problem-overline {
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(244,246,242,0.3);
+      margin-bottom: 28px;
+    }
+    .problem-quote {
+      font-family: var(--serif);
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 300;
+      font-style: italic;
+      color: rgba(244,246,242,0.82);
+      line-height: 1.45;
+      letter-spacing: -0.02em;
+      margin-bottom: 32px;
+    }
+    .problem-quote em { font-style: normal; color: var(--wattle-light); }
+    .problem-list {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      margin-bottom: 36px;
+    }
+    .problem-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px;
+      color: rgba(244,246,242,0.45);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .problem-pill svg { opacity: 0.5; }
+    .problem-answer {
+      font-size: 15px;
+      color: rgba(244,246,242,0.85);
+      border-left: 2px solid var(--wattle);
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+    .problem-answer strong { font-weight: 500; }
+
+    /* Section base */
+    section { padding: 104px 48px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-eyebrow {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--wattle);
+      margin-bottom: 14px;
+    }
+    .section-h2 {
+      font-family: var(--serif);
+      font-size: clamp(30px, 3.8vw, 46px);
+      font-weight: 300;
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin-bottom: 18px;
+    }
+    .section-h2 em { font-style: italic; color: var(--euc); }
+    .section-sub {
+      font-size: 15px; line-height: 1.7;
+      color: var(--muted);
+      max-width: 540px;
+    }
+
+    /* Pipeline section */
+    .pipeline-section { background: var(--surface); }
+
+    .pipeline-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: end;
+      margin-bottom: 0;
+    }
+
+    .pipeline-vertical { margin-top: 72px; }
+    .pipeline-step-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 56px;
+      gap: 0 36px;
+      padding: 36px 0;
+      border-top: 1px solid var(--line);
+      align-items: start;
+      transition: background 0.15s;
+    }
+    .pipeline-step-row:last-child { border-bottom: 1px solid var(--line); }
+    .pipeline-step-row:hover { background: var(--paper); margin: 0 -24px; padding-left: 24px; padding-right: 24px; border-radius: 8px; border-color: transparent; }
+
+    .step-big-num {
+      font-family: var(--serif);
+      font-size: 56px;
+      font-weight: 300;
+      letter-spacing: -0.05em;
+      color: var(--euc);
+      opacity: 0.13;
+      line-height: 1;
+      user-select: none;
+      padding-top: 4px;
+    }
+    .step-core {}
+    .step-title {
+      font-family: var(--serif);
+      font-size: 21px;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+    .step-detail {
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: var(--muted);
+      max-width: 560px;
+    }
+    .step-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 3px 10px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      margin-top: 14px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    .step-icon-wrap {
+      padding-top: 6px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .step-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .si-1 { background: #E8EFE9; border: 1.5px solid #CFDAD0; }
+    .si-2 { background: #EEF4F5; border: 1.5px solid #C3D2DB; }
+    .si-3 { background: #F5F0E8; border: 1.5px solid #E7D59A; }
+    .si-4 { background: #E8EFE9; border: 1.5px solid #CFDAD0; }
+    .si-5 { background: #F5EBE8; border: 1.5px solid #E9CBB9; }
+
+    /* Intelligence section */
+    .intel-section { background: var(--paper); }
+
+    .intel-featured-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 56px;
+    }
+    .intel-card-wide {
+      grid-column: span 1;
+      background: var(--euc-deep);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 280px;
+    }
+    .intel-card-wide h3 {
+      font-family: var(--serif); font-size: 26px; font-weight: 300;
+      color: #F4F6F2; margin-bottom: 14px;
+      letter-spacing: -0.02em;
+    }
+    .intel-card-wide p {
+      font-size: 14px; line-height: 1.72; color: rgba(244,246,242,0.52);
+      max-width: 340px;
+    }
+    .intel-card-wide .intel-tag {
+      margin-top: 24px;
+      background: rgba(200,155,42,0.12);
+      color: var(--wattle-light);
+      border: 1px solid rgba(200,155,42,0.2);
+    }
+    .intel-card-wide .intel-icon {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 0;
+    }
+    .intel-card-wide .top { margin-bottom: 24px; }
+
+    .intel-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .intel-stack .intel-card { flex: 1; }
+
+    .intel-lower-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .intel-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px 26px;
+      transition: all 0.2s;
+    }
+    .intel-card:hover {
+      border-color: #CFDAD0;
+      box-shadow: 0 8px 32px rgba(38,64,50,0.07);
+      transform: translateY(-2px);
+    }
+    .intel-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px;
+    }
+    .intel-card h3 {
+      font-family: var(--serif); font-size: 18px; font-weight: 400;
+      color: var(--ink); margin-bottom: 10px;
+    }
+    .intel-card p { font-size: 13px; line-height: 1.68; color: var(--muted); }
+    .intel-tag {
+      display: inline-block;
+      margin-top: 16px;
+      font-size: 10px; padding: 3px 9px;
+      border-radius: 6px; font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+
+    /* Trust section */
+    .trust-section {
+      background: var(--euc-deep);
+      color: #F4F6F2;
+    }
+    .trust-section .section-eyebrow { color: var(--wattle-light); }
+
+    .trust-layout {
+      display: grid;
+      grid-template-columns: 5fr 7fr;
+      gap: 80px;
+      margin-top: 64px;
+      align-items: start;
+    }
+
+    .trust-left {}
+    .trust-editorial {
+      font-family: var(--serif);
+      font-size: clamp(22px, 2.6vw, 32px);
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.42;
+      letter-spacing: -0.02em;
+      color: rgba(244,246,242,0.78);
+    }
+    .trust-editorial em { font-style: normal; color: var(--wattle-light); }
+    .trust-rule {
+      width: 36px; height: 1px;
+      background: rgba(229,190,90,0.4);
+      margin: 28px 0;
+    }
+    .trust-caption {
+      font-size: 12px;
+      color: rgba(244,246,242,0.3);
+      line-height: 1.65;
+      max-width: 260px;
+    }
+
+    .trust-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .trust-card {
+      padding: 26px 22px;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.025);
+      transition: border-color 0.2s;
+    }
+    .trust-card:hover { border-color: rgba(255,255,255,0.14); }
+    .trust-icon { margin-bottom: 16px; }
+    .trust-card h3 {
+      font-family: var(--serif); font-size: 16px; font-weight: 400;
+      color: rgba(244,246,242,0.9); margin-bottom: 10px;
+    }
+    .trust-card p { font-size: 12.5px; line-height: 1.65; color: rgba(244,246,242,0.42); }
+
+    /* CTA */
+    .cta-section {
+      background: var(--paper-dark);
+      text-align: center;
+      padding: 104px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,155,42,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-inner { position: relative; z-index: 1; }
+    .cta-section .section-h2 { margin-bottom: 20px; }
+    .cta-section .section-sub { margin: 0 auto 40px; text-align: center; max-width: 480px; }
+    .cta-actions { display: flex; align-items: center; justify-content: center; gap: 16px; }
+
+    .btn-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 15px; font-weight: 500;
+      color: var(--surface);
+      background: var(--euc);
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+    .btn-cta:hover { background: var(--euc-dark); transform: translateY(-1px); }
+
+    .btn-cta-outline {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 14px; font-weight: 500;
+      color: var(--euc);
+      background: transparent;
+      border: 1.5px solid rgba(38,64,50,0.4);
+      text-decoration: none;
+      padding: 13px 24px;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+    .btn-cta-outline:hover { background: var(--euc); color: #fff; border-color: var(--euc); }
+
+    /* Footer */
+    footer {
+      background: var(--euc-deep);
+      padding: 48px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo {
+      font-family: var(--serif); font-size: 17px; font-weight: 400;
+      color: rgba(244,246,242,0.5);
+    }
+    .footer-logo em { font-style: italic; font-weight: 300; color: var(--wattle-light); }
+    footer p { font-size: 12px; color: rgba(244,246,242,0.25); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: rgba(244,246,242,0.35); text-decoration: none; }
+    .footer-links a:hover { color: rgba(244,246,242,0.65); }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      nav { padding: 0 24px; }
+      .nav-links { display: none; }
+      .hero { padding: 100px 24px 64px; }
+      .hero-content { grid-template-columns: 1fr; gap: 40px; }
+      .hero-visual { display: none; }
+      section { padding: 72px 24px; }
+      .pipeline-header { grid-template-columns: 1fr; gap: 16px; }
+      .pipeline-step-row { grid-template-columns: 52px 1fr; }
+      .pipeline-step-row:hover { margin: 0; padding-left: 0; padding-right: 0; }
+      .step-icon-wrap { display: none; }
+      .intel-featured-row { grid-template-columns: 1fr; }
+      .intel-lower-grid { grid-template-columns: 1fr; }
+      .trust-layout { grid-template-columns: 1fr; gap: 40px; }
+      .trust-2x2 { grid-template-columns: 1fr; }
+      .cta-section { padding: 72px 24px; }
+      footer { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="64" height="50" viewBox="0 0 200 160" fill="none" style="margin-top:10px">
+      <path d="M55 80 C63 54 81 28 103 16 C115 10 127 14 135 24" stroke="rgba(255,255,255,0.5)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M83 38 C75 28 67 26 61 32" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M103 16 C107 8 115 2 123 6" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round"/>
+      <circle cx="135" cy="24" r="14" fill="#A07820"/><circle cx="135" cy="24" r="9.5" fill="#E5BE5A"/>
+      <circle cx="61" cy="32" r="11" fill="#A07820"/><circle cx="61" cy="32" r="7.5" fill="#E5BE5A"/>
+      <circle cx="123" cy="6" r="8.5" fill="#A07820"/><circle cx="123" cy="6" r="5.5" fill="#E5BE5A"/>
+      <circle cx="83" cy="38" r="6.5" fill="#A07820"/><circle cx="83" cy="38" r="4.2" fill="#E5BE5A"/>
+      <circle cx="103" cy="16" r="5.5" fill="#A07820"/><circle cx="103" cy="16" r="3.5" fill="#E5BE5A"/>
+    </svg>
+    <span class="nav-logo-name">Wattle<em>Link</em></span>
+  </a>
+
+  <div class="nav-links">
+    <a href="#pipeline">The Pipeline</a>
+    <a href="#intelligence">Intelligence</a>
+    <a href="#compliance">Compliance</a>
+    <a href="/contact/">Contact</a>
+  </div>
+
+  <div class="nav-cta">
+    <a href="/accounts/login/" class="btn-nav-secondary">Sign in</a>
+    <a href="/dashboard/" class="btn-nav-primary">Go to Dashboard &rarr;</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="home">
+  <svg class="hero-bg-wattle" width="560" height="560" viewBox="0 0 200 160" fill="none">
+    <path d="M55 80 C63 54 81 28 103 16 C115 10 127 14 135 24" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M83 38 C75 28 67 26 61 32" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M103 16 C107 8 115 2 123 6" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="135" cy="24" r="14" fill="#C89B2A"/><circle cx="135" cy="24" r="9.5" fill="#E5BE5A"/>
+    <circle cx="61" cy="32" r="11" fill="#C89B2A"/><circle cx="61" cy="32" r="7.5" fill="#E5BE5A"/>
+    <circle cx="123" cy="6" r="8.5" fill="#C89B2A"/><circle cx="123" cy="6" r="5.5" fill="#E5BE5A"/>
+    <circle cx="83" cy="38" r="6.5" fill="#C89B2A"/><circle cx="83" cy="38" r="4.2" fill="#E5BE5A"/>
+    <circle cx="103" cy="16" r="5.5" fill="#C89B2A"/><circle cx="103" cy="16" r="3.5" fill="#E5BE5A"/>
+    <circle cx="67" cy="56" r="4.5" fill="#C89B2A"/><circle cx="67" cy="56" r="2.8" fill="#E5BE5A"/>
+    <circle cx="145" cy="44" r="5" fill="#C89B2A"/><circle cx="145" cy="44" r="3.2" fill="#E5BE5A"/>
+  </svg>
+
+  <div class="hero-content">
+    <div>
+      <div class="hero-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/></svg>
+        Built for Australian Medical Affairs
+      </div>
+      <h1 class="hero-h1">
+        Evidence your<br>
+        team can<br>
+        <em>stand behind.</em>
+      </h1>
+      <div class="hero-rule"></div>
+      <p class="hero-sub">
+        WattleLink gives your medical affairs team one governed workspace for literature, quality assessment, claims and KOL intelligence. Stay organised, stay visible and build a genuine culture of compliance across everything your team does.
+      </p>
+      <div class="hero-actions">
+        <a href="/dashboard/" class="btn-primary">
+          Go to Dashboard
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#pipeline" class="btn-secondary">
+          See how it works
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-n">5</div>
+          <div class="hero-stat-l">Governed pipeline stages</div>
+        </div>
+        <div>
+          <div class="hero-stat-n">100%</div>
+          <div class="hero-stat-l">Human-reviewed decisions</div>
+        </div>
+        <div>
+          <div class="hero-stat-n">Full</div>
+          <div class="hero-stat-l">Immutable audit trail</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual panel -->
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hero-card-label">Paper pipeline — Phase III Clinical Trial</div>
+        <div class="pipeline-step">
+          <div class="step-num step-done">1</div>
+          <span class="step-label done">Search &amp; Ingest</span>
+          <span class="step-badge badge-done">Done</span>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num step-done">2</div>
+          <span class="step-label done">Quality Assessment</span>
+          <span class="step-badge badge-done">GRADE A</span>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num step-done">3</div>
+          <span class="step-label done">Summary</span>
+          <span class="step-badge badge-done">Confirmed</span>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num step-active">4</div>
+          <span class="step-label active">Core Claims</span>
+          <span class="step-badge badge-ai">AI Draft</span>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num step-pending">5</div>
+          <span class="step-label">PDF &amp; Export</span>
+          <span class="step-badge" style="background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.2)">Pending</span>
+        </div>
+        <div class="hero-card-mini">
+          <div class="mini-stat">
+            <div class="mini-stat-n">3</div>
+            <div class="mini-stat-l">Claims generated</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-n">T1</div>
+            <div class="mini-stat-l">2 KOLs linked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Problem statement -->
+<div class="problem-section">
+  <div class="problem-inner">
+    <div class="problem-overline">A familiar picture</div>
+    <p class="problem-quote">
+      Most Australian medical affairs teams are managing their evidence, claims and KOL relationships across shared drives, inboxes and personal spreadsheets. It holds together until it <em>really needs to work.</em>
+    </p>
+    <div class="problem-list">
+      <span class="problem-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        No single source of truth for evidence
+      </span>
+      <span class="problem-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        Claims approved by email convention
+      </span>
+      <span class="problem-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        No visibility of what is pending or overdue
+      </span>
+      <span class="problem-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        KOL contacts scattered across the team
+      </span>
+      <span class="problem-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        Audit trail impossible to reconstruct
+      </span>
+    </div>
+    <p class="problem-answer">WattleLink replaces that fragility with <strong>a single, governed workspace.</strong> One evidence library, one structured process, one immutable audit trail. Your team always knows where things stand.</p>
+  </div>
+</div>
+
+<!-- Pipeline -->
+<section class="pipeline-section" id="pipeline">
+  <div class="section-inner">
+    <div class="pipeline-header">
+      <div>
+        <div class="section-eyebrow">The Pipeline</div>
+        <h2 class="section-h2">One clear process.<br><em>Every step signed off.</em></h2>
+      </div>
+      <p class="section-sub" style="padding-bottom:4px">WattleLink gives your team a structured, repeatable path from raw literature to approved claim. Each stage requires deliberate sign-off from a named reviewer. Nothing moves forward by accident, and nothing falls through the cracks.</p>
+    </div>
+
+    <div class="pipeline-vertical">
+      <div class="pipeline-step-row">
+        <div class="step-big-num">01</div>
+        <div class="step-core">
+          <div class="step-title">Search &amp; Ingest</div>
+          <p class="step-detail">Boolean PubMed queries with AI-assisted query building bring relevant literature directly into the platform. Open-access PDFs are ingested automatically and paywalled content is uploaded manually. Everything lands in one searchable, organised library rather than a shared drive folder that only some people know about.</p>
+          <span class="step-tag">PubMed · AI Query · PDF Extraction</span>
+        </div>
+        <div class="step-icon-wrap">
+          <div class="step-icon si-1">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#264032" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M11 8v6M8 11h6"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="pipeline-step-row">
+        <div class="step-big-num">02</div>
+        <div class="step-core">
+          <div class="step-title">Quality Assessment</div>
+          <p class="step-detail">Cochrane GRADE and Risk of Bias scoring applied consistently to every paper. AI pre-populates the assessment form and a qualified reviewer confirms each field. The result is a reproducible, evidenced quality rating rather than a judgement call that lives in someone's head.</p>
+          <span class="step-tag">GRADE · RoB 2 · ROBINS-I · Human Confirm</span>
+        </div>
+        <div class="step-icon-wrap">
+          <div class="step-icon si-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B6E84" stroke-width="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="pipeline-step-row">
+        <div class="step-big-num">03</div>
+        <div class="step-core">
+          <div class="step-title">Summaries</div>
+          <p class="step-detail">A structured findings table and executive paragraph for every paper, with each statement traceable to a specific page in the source PDF. Your MSL team gets clarity they can act on in field conversations without having to interpret raw clinical papers themselves.</p>
+          <span class="step-tag">Findings Table · Executive Summary · Page References</span>
+        </div>
+        <div class="step-icon-wrap">
+          <div class="step-icon si-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A6918" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="pipeline-step-row">
+        <div class="step-big-num">04</div>
+        <div class="step-core">
+          <div class="step-title">Core Claims</div>
+          <p class="step-detail">AI-drafted claims paired with a fidelity checklist and a mandatory fair balance statement. Each claim is individually approved, edited or rejected by a named reviewer. No claim progresses without explicit human sign-off, and the decision is permanently recorded against the person who made it.</p>
+          <span class="step-tag">AI Draft · Fidelity Checklist · Fair Balance · Named Reviewer</span>
+        </div>
+        <div class="step-icon-wrap">
+          <div class="step-icon si-4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#264032" stroke-width="1.6"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="pipeline-step-row">
+        <div class="step-big-num">05</div>
+        <div class="step-core">
+          <div class="step-title">PDF Markup &amp; Export</div>
+          <p class="step-detail">Source passages highlighted directly in the original PDF as a separate annotation layer. The source document is never modified. An annotated export package is formatted for Veeva PromoMats submission, with the full audit history attached so every approval decision is visible at the point of use.</p>
+          <span class="step-tag">PDF Annotation · Veeva PromoMats · Export Package</span>
+        </div>
+        <div class="step-icon-wrap">
+          <div class="step-icon si-5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B85C3A" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Intelligence -->
+<section class="intel-section" id="intelligence">
+  <div class="section-inner">
+    <div class="section-eyebrow">Full Picture</div>
+    <h2 class="section-h2">Built around how your<br><em>team actually works.</em></h2>
+    <p class="section-sub">Beyond the evidence pipeline, WattleLink handles the full scope of medical affairs activity in one place. Your KOL relationships, safety surveillance, medical enquiries and engagement planning are all connected to the same evidence base.</p>
+
+    <div class="intel-featured-row">
+      <div class="intel-card-wide">
+        <div class="top">
+          <div class="intel-icon" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);margin-bottom:24px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(229,190,90,0.85)" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+          <h3>KOL Intelligence</h3>
+          <p>A structured, tiered directory of key opinion leaders with AI surfacing candidates directly from your literature. Every profile verified, every interaction logged. Your MSL team always knows who to engage and what to discuss, without relying on personal spreadsheets or fading institutional memory.</p>
+        </div>
+        <span class="intel-tag">AI Discovery · Tier Ranking 1 to 5 · MSL Prep</span>
+      </div>
+      <div class="intel-stack">
+        <div class="intel-card">
+          <div class="intel-icon" style="background:#FBF0ED;border:1.5px solid #E9CBB9">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B85C3A" stroke-width="1.6"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h3>Safety Surveillance</h3>
+          <p>Adverse event signals identified systematically from your literature library. Each signal is classified by severity, tracked over time and paired with a prepared response, so your team is never scrambling when a question comes up.</p>
+          <span class="intel-tag" style="background:#FBF0ED;color:#B85C3A">Signal Detection · AE Tracking · Response Drafting</span>
+        </div>
+        <div class="intel-card">
+          <div class="intel-icon" style="background:#EEF4F5;border:1.5px solid #C3D2DB">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B6E84" stroke-width="1.6"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3>Medical Information</h3>
+          <p>Log HCP enquiries, track trends and respond in a governed workflow. AI-drafted responses are anchored to approved literature with APA7 citations. Nothing goes unanswered and nothing goes unrecorded.</p>
+          <span class="intel-tag" style="background:#EEF4F5;color:#4B6E84">Enquiry Log · AI Response · Trend Analysis</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="intel-lower-grid">
+      <div class="intel-card">
+        <div class="intel-icon" style="background:#F5F0E8;border:1.5px solid #E7D59A">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A6918" stroke-width="1.6"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>
+        </div>
+        <h3>Engagement Planning</h3>
+        <p>Conferences and advisory meetings tracked alongside the evidence they relate to. Link KOLs, papers and discussion themes so every engagement is purposeful, briefed and documented.</p>
+        <span class="intel-tag" style="background:#F5F0E8;color:#8A6918">Conferences · Round Tables · MSL Briefs</span>
+      </div>
+      <div class="intel-card">
+        <div class="intel-icon" style="background:#E8EFE9;border:1.5px solid #CFDAD0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#264032" stroke-width="1.6"><path d="M2 7l10-4 10 4M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
+        </div>
+        <h3>Commercial Access</h3>
+        <p>A dedicated view for commercial teams that surfaces only approved claims, key KOLs and upcoming events. The boundary between reviewed and unreviewed content is enforced by the platform, not left to convention.</p>
+        <span class="intel-tag" style="background:#E8EFE9;color:#264032">Role-Gated · Approved Only · Veeva Ready</span>
+      </div>
+      <div class="intel-card">
+        <div class="intel-icon" style="background:#EEF4F5;border:1.5px solid #C3D2DB">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B6E84" stroke-width="1.6"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <h3>Talking Points &amp; Lit Review</h3>
+        <p>AI-generated talking point documents and literature reviews built from your approved evidence base. Structured for field conversations and ready to use, without starting from a blank page every time.</p>
+        <span class="intel-tag" style="background:#EEF4F5;color:#4B6E84">AI Drafted · Evidence Anchored · Field Ready</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trust / Compliance -->
+<section class="trust-section" id="compliance">
+  <div class="section-inner">
+    <div class="section-eyebrow">A Culture of Compliance</div>
+
+    <div class="trust-layout">
+      <div class="trust-left">
+        <p class="trust-editorial">
+          Compliance works best when it is <em>built into the process itself,</em> not left to individual memory.
+        </p>
+        <div class="trust-rule"></div>
+        <p class="trust-caption">
+          WattleLink makes the compliant path the easy path. Governance is embedded in every workflow, so your team does not have to think about it separately. The right process becomes the default.
+        </p>
+      </div>
+
+      <div class="trust-2x2">
+        <div class="trust-card">
+          <div class="trust-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E5BE5A" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/></svg>
+          </div>
+          <h3>Human in the Loop</h3>
+          <p>AI does the heavy lifting and your team makes every decision. Claims, summaries and assessments each require a named, accountable reviewer before they progress. The platform will not let you skip this step.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E5BE5A" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <h3>Immutable Audit Trail</h3>
+          <p>Every approval, rejection and edit is permanently recorded with a timestamp and the name of the reviewer. The log cannot be altered or deleted, which means your evidence of compliance is always reconstruction-ready.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E5BE5A" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>Role-Based Access</h3>
+          <p>Medical Affairs, Commercial and Admin roles with strict, platform-enforced boundaries. Commercial users cannot see unapproved content. This is a technical control, not a policy that relies on people remembering to behave correctly.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E5BE5A" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </div>
+          <h3>Australian Data Residency</h3>
+          <p>All data stored in AWS Sydney (ap-southeast-2) and never leaves the region without explicit configuration. Built for Australian pharmaceutical data sovereignty requirements from the ground up.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-inner">
+    <div class="section-eyebrow" style="text-align:center">Get Started</div>
+    <h2 class="section-h2" style="text-align:center">Organised, visible and <em>genuinely compliant.</em></h2>
+    <p class="section-sub">If your team is managing evidence, claims and KOL relationships across shared drives and email threads, WattleLink is the purpose-built alternative. Structured, auditable and designed for Australian medical affairs teams who want to work with confidence.</p>
+    <div class="cta-actions">
+      <a href="/dashboard/" class="btn-cta">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Go to Dashboard
+      </a>
+      <a href="/accounts/login/" class="btn-cta-outline">Sign in</a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-logo">Wattle<em>Link</em></span>
+    <p>Medical Affairs Intelligence Platform &middot; Australia</p>
+    <div class="footer-links">
+      <a href="/dashboard/">Dashboard</a>
+      <a href="/accounts/login/">Sign in</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

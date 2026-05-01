@@ -1,0 +1,42 @@
+<div id="other-card-{{ oe.pk }}"
+     style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+    <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ oe.name }}</div>
+    {% if oe.event_type %}
+    <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">{{ oe.event_type }}</span>
+    {% endif %}
+  </div>
+  <div style="font-size:11.5px;color:var(--muted)">
+    {{ oe.date|date:"d M Y" }}{% if oe.location %} · {{ oe.location }}{% endif %}
+  </div>
+  {% if oe.notes %}
+  <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.4">{{ oe.notes|truncatechars:120 }}</div>
+  {% endif %}
+  <!-- KOLs section -->
+  <div x-data="{showKolAdd:false,kolPk:''}" style="margin-top:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      {% for k in oe.kols.all %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 7px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0">
+        {{ k.name }}
+        <button type="button" onclick="removeKolFromEvent('other',{{ oe.pk }},{{ k.pk }})"
+                style="background:none;border:none;cursor:pointer;color:var(--euc);font-size:11px;line-height:1;padding:0;margin-left:1px">×</button>
+      </span>
+      {% endfor %}
+      {% if kol_choices %}
+      <button type="button" @click="showKolAdd=!showKolAdd"
+              style="font-size:10.5px;padding:2px 8px;border-radius:10px;background:none;border:1px dashed var(--line);color:var(--muted);cursor:pointer">+ KOL</button>
+      {% endif %}
+    </div>
+    <div x-show="showKolAdd" style="display:none;margin-top:6px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select x-model="kolPk" style="font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+          <option value="">— Select KOL —</option>
+          {% for k in kol_choices %}<option value="{{ k.pk }}">{{ k.name }}</option>{% endfor %}
+        </select>
+        <button type="button" @click="if(kolPk){addKolToEvent('other',{{ oe.pk }},kolPk);showKolAdd=false;kolPk=''}"
+                class="btn btn-p btn-sm">Link</button>
+        <button type="button" @click="showKolAdd=false" class="btn btn-g btn-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>

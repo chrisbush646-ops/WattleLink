@@ -42,6 +42,7 @@ LOCAL_APPS = [
     "apps.engagement",
     "apps.export",
     "apps.drafting",
+    "apps.aisearch",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -73,6 +74,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.accounts.context_processors.user_permissions",
             ],
         },
     },
@@ -90,6 +92,11 @@ DATABASES = {
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
+
+PASSWORD_HASHERS = [
+    "apps.accounts.hashers.PasslibPBKDF2Hasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",  # fallback for existing hashes
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -146,7 +153,7 @@ ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_UNIQUE_EMAIL = True
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 # AWS S3 (file storage — only active when AWS_STORAGE_BUCKET_NAME is set)

@@ -14,3 +14,5 @@ django-htmx~=1.21
 whitenoise~=6.8
 python-json-logger~=2.0
 requests~=2.32
+passlib[bcrypt]~=1.7
+bcrypt~=5.0

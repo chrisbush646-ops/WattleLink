@@ -1,0 +1,32 @@
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <button type="button" @click="prevMonth()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px;line-height:1">‹</button>
+  <span style="font-size:12px;font-weight:600;color:var(--ink);font-family:var(--serif)" x-text="monthLabel()"></span>
+  <button type="button" @click="nextMonth()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px;line-height:1">›</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+  <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']">
+    <div style="text-align:center;font-size:9px;color:var(--muted);font-weight:600;padding-bottom:5px" x-text="d"></div>
+  </template>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">
+  <template x-for="(cell, i) in calendarDays()" :key="i">
+    <div style="min-height:30px;padding:2px 1px;border-radius:3px" :style="cell && isToday(cell.dateStr) ? 'background:#E8EFE9' : ''">
+      <template x-if="cell">
+        <div style="text-align:center">
+          <div style="font-size:10px;line-height:1.6" :style="isToday(cell.dateStr) ? 'color:var(--euc);font-weight:700' : 'color:var(--ink-soft)'" x-text="cell.day"></div>
+          <div style="display:flex;justify-content:center;gap:1px;flex-wrap:wrap">
+            <template x-for="(e, ei) in cell.events" :key="ei">
+              <div :title="e.name" style="width:4px;height:4px;border-radius:50%;margin-top:1px;background:{{ dot_color }}"></div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+</div>
+<div style="display:flex;justify-content:center;margin-top:10px">
+  <div style="display:flex;align-items:center;gap:4px">
+    <div style="width:7px;height:7px;border-radius:50%;background:{{ dot_color }}"></div>
+    <span style="font-size:9px;color:var(--muted)">{{ legend_label }}</span>
+  </div>
+</div>

@@ -75,7 +75,7 @@ class PubMedClient:
 
         self._throttle()
         try:
-            resp = requests.get(ESEARCH_URL, params=params, timeout=15)
+            resp = requests.get(ESEARCH_URL, params=params, timeout=20)
             resp.raise_for_status()
         except requests.RequestException as e:
             logger.error("PubMed esearch error: %s", e)
@@ -229,29 +229,10 @@ def _parse_article(el) -> dict:
         "pubmed_id": pmid,
         "pmcid": pmcid,
         "study_type": study_type,
-        "is_open_access": bool(pmcid) and _is_pmc_oa(pmcid),
+        "is_open_access": bool(pmcid),
         "abstract": abstract,
     }
 
-
-def _is_pmc_oa(pmcid: str) -> bool:
-    """Return True only if the paper is in the PMC Open Access file set (has a downloadable PDF)."""
-    if not pmcid:
-        return False
-    pmcid_norm = pmcid.upper() if pmcid.upper().startswith("PMC") else f"PMC{pmcid}"
-    try:
-        resp = requests.get(
-            f"https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={pmcid_norm}",
-            timeout=10,
-            headers={"User-Agent": "WattleLink/1.0 (medical-affairs-platform)"},
-        )
-        if resp.status_code == 200:
-            root = ET.fromstring(resp.text)
-            # Any <link> element means the paper is in the OA file set
-            return any(True for _ in root.iter("link"))
-    except Exception as exc:
-        logger.warning("PMC OA check failed for %s: %s", pmcid_norm, exc)
-    return False
 
 
 def _infer_study_type(article_el) -> str:

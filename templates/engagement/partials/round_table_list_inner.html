@@ -1,0 +1,7 @@
+{% for rt in round_tables %}
+  {% include "engagement/partials/round_table_card.html" with rt=rt kol_choices=kol_choices %}
+{% empty %}
+<div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+  <div style="font-size:13px;color:var(--muted)">No round tables yet.</div>
+</div>
+{% endfor %}

@@ -1,4 +1,6 @@
 .env
+.env.production
+certbot/
 *.pyc
 __pycache__/
 *.egg-info/

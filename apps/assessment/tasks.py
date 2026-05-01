@@ -45,6 +45,11 @@ def run_ai_assessment_task(self, paper_id: int, tenant_id: int):
         apply_rob_result(rob, rob_data)
         rob.save()
 
+        from apps.audit.helpers import log_task_action
+        from apps.audit.models import AuditLog
+        log_task_action(tenant, paper, AuditLog.Action.AI_DRAFT,
+                        after={"assessment": "AI pre-fill complete"})
+
         logger.info("AI assessment complete for paper %s", paper_id)
 
     except Exception as exc:

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load citations %}
 
 {% block title %}Dashboard{% endblock %}
 
@@ -21,24 +22,40 @@
 .card-t{font-family:var(--serif);font-size:16px;font-weight:400;color:var(--ink);margin-bottom:4px}
 .card-s{font-size:11.5px;color:var(--muted)}
 .mb{margin-bottom:14px}.mt{margin-top:14px}
-.placeholder-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--muted)}
-.placeholder-row:last-child{border-bottom:none}
-.placeholder-dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex-shrink:0}
+.dash-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.dash-row:last-child{border-bottom:none}
+.dash-dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex-shrink:0;margin-top:4px}
+.dash-dot.active{background:var(--coral)}.dash-dot.euc{background:var(--euc)}.dash-dot.wattle{background:var(--wattle)}.dash-dot.sky{background:var(--sky)}
+.pill{font-size:10px;padding:1px 7px;border-radius:8px;white-space:nowrap;font-family:var(--mono)}
+.pill-needs{background:var(--wattle-soft);color:var(--wattle)}
+.pill-approved{background:#E7F4EA;color:#2A6E39}
+.pill-rejected{background:var(--coral-soft);color:var(--coral)}
+.pill-active{background:var(--coral-soft);color:var(--coral)}
+.pill-monitoring{background:var(--sky-soft);color:var(--sky)}
+.pill-sev-critical{background:var(--coral);color:#fff}
+.pill-sev-serious{background:var(--coral-soft);color:var(--coral)}
+.empty-state{padding:20px;text-align:center;color:var(--muted);font-size:12.5px;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)}
 </style>
 
 <div class="ph">
   <div>
     <div class="eyebrow" style="margin-bottom:5px">Pipeline Overview</div>
     <h1 class="pt">
-      Good {% now "G" as hour %}{% if hour < 12 %}morning{% elif hour < 18 %}afternoon{% else %}evening{% endif %},
+      Good {{ greeting }},
       <em>{{ user.get_short_name|default:user.email }}.</em>
     </h1>
-    <p class="ps">Welcome to WattleLink v3. Set up your first search to get started.</p>
+    <p class="ps">
+      {% if counts.ingested %}{{ counts.ingested }} paper{{ counts.ingested|pluralize }} in pipeline · {{ counts.claims_approved }} claim{{ counts.claims_approved|pluralize }} approved.{% else %}Set up your first search to get started.{% endif %}
+    </p>
   </div>
   <div class="pa">
-    <a href="#" class="btn btn-g">
+    <a href="{% url 'dashboard:commercial' %}" class="btn btn-g">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 7l10-4 10 4M4 7v10l8 4 8-4V7"/></svg>
       Commercial view
+    </a>
+    <a href="{% url 'literature:search' %}" class="btn btn-p">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New search
     </a>
   </div>
 </div>
@@ -47,62 +64,200 @@
 <div class="grid grid-5 mb">
   <div class="kpi">
     <div class="kpi-l">Papers ingested</div>
-    <div class="kpi-v">0</div>
+    <div class="kpi-v">{{ counts.ingested }}</div>
   </div>
   <div class="kpi w">
     <div class="kpi-l">Assessed (GRADE)</div>
-    <div class="kpi-v">0</div>
+    <div class="kpi-v">{{ counts.assessed }}</div>
   </div>
   <div class="kpi s">
     <div class="kpi-l">Summarised</div>
-    <div class="kpi-v">0</div>
+    <div class="kpi-v">{{ counts.summarised }}</div>
   </div>
   <div class="kpi">
     <div class="kpi-l">Claims generated</div>
-    <div class="kpi-v">0</div>
+    <div class="kpi-v">{{ counts.claims_generated }}</div>
   </div>
   <div class="kpi c">
     <div class="kpi-l">Claims approved</div>
-    <div class="kpi-v">0</div>
+    <div class="kpi-v">{{ counts.claims_approved }}</div>
   </div>
 </div>
 
-<!-- Two-column cards -->
+<!-- Row 1: Awaiting action + Recent decisions -->
 <div class="grid grid-2">
   <div class="card">
     <div class="card-t">Papers awaiting action</div>
     <div class="card-s mb">Next steps in the pipeline</div>
-    <div class="placeholder-row">
-      <div class="placeholder-dot"></div>
-      No papers in the pipeline yet. Start a search to ingest your first paper.
-    </div>
+    {% if awaiting %}
+      {% for paper in awaiting %}
+      <div class="dash-row">
+        <div class="dash-dot wattle"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            <a href="{% url 'literature:library' %}" style="color:inherit">{{ paper.title|truncatechars:55 }}</a>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">{{ paper.authors|first }} · {{ paper.published_date|date:"Y" }}</div>
+        </div>
+        <span class="pill pill-needs">{{ next_step_labels|get_item:paper.status }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No papers awaiting action.</div>
+    {% endif %}
   </div>
+
   <div class="card">
     <div class="card-t">Recent claim decisions</div>
-    <div class="card-s mb">Audit trail</div>
-    <div class="placeholder-row">
-      <div class="placeholder-dot"></div>
-      No decisions recorded yet.
-    </div>
+    <div class="card-s mb">Approved and rejected claims</div>
+    {% if recent_decisions %}
+      {% for claim in recent_decisions %}
+      <div class="dash-row">
+        <div class="dash-dot {% if claim.status == 'APPROVED' %}euc{% else %}active{% endif %}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ claim.claim_text|truncatechars:50 }}</div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">
+            {{ claim.paper.title|truncatechars:35 }}{% if claim.reviewed_by %} · {{ claim.reviewed_by.get_short_name }}{% endif %}
+          </div>
+        </div>
+        <span class="pill {% if claim.status == 'APPROVED' %}pill-approved{% else %}pill-rejected{% endif %}">{{ claim.status }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No decisions recorded yet.</div>
+    {% endif %}
   </div>
 </div>
 
+<!-- Row 2: Events + Safety signals -->
 <div class="grid grid-2 mt">
   <div class="card">
     <div class="card-t">Upcoming events</div>
     <div class="card-s mb">Conferences &amp; round tables</div>
-    <div class="placeholder-row">
-      <div class="placeholder-dot"></div>
-      No upcoming events.
-    </div>
+    {% if upcoming_conferences or upcoming_roundtables %}
+      {% for conf in upcoming_conferences %}
+      <div class="dash-row">
+        <div class="dash-dot sky"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink)">
+            <a href="{% url 'engagement:list' %}" style="color:inherit">{{ conf.name }}</a>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">
+            Conference · {{ conf.start_date|date:"d M Y" }}{% if conf.location %} · {{ conf.location }}{% endif %}
+          </div>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--sky)">{{ conf.start_date|timeuntil }} away</span>
+      </div>
+      {% endfor %}
+      {% for rt in upcoming_roundtables %}
+      <div class="dash-row">
+        <div class="dash-dot euc"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink)">
+            <a href="{% url 'engagement:list' %}" style="color:inherit">{{ rt.name }}</a>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">
+            Round table · {{ rt.date|date:"d M Y" }}{% if rt.location %} · {{ rt.location }}{% endif %}
+          </div>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--euc-l)">{{ rt.date|timeuntil }} away</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No upcoming events.</div>
+    {% endif %}
   </div>
+
   <div class="card">
     <div class="card-t">Active safety signals</div>
     <div class="card-s mb">Literature surveillance</div>
-    <div class="placeholder-row">
-      <div class="placeholder-dot"></div>
-      No safety signals detected.
+    {% if active_signals %}
+      {% for signal in active_signals %}
+      <div class="dash-row">
+        <div class="dash-dot active"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink)">
+            <a href="{% url 'safety:list' %}" style="color:inherit">{{ signal.event_name|truncatechars:45 }}</a>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">{{ signal.mention_count }} mention{{ signal.mention_count|pluralize }}</div>
+        </div>
+        <span class="pill {% if signal.severity == 'CRITICAL' %}pill-sev-critical{% else %}pill-sev-serious{% endif %}">{{ signal.severity }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No active safety signals.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Row 3: KOL Intelligence -->
+<div class="grid grid-2 mt">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="card-t">Key Opinion Leaders</div>
+      <a href="{% url 'kol:list' %}" style="font-size:11px;color:var(--euc);text-decoration:none">View all →</a>
     </div>
+    <div class="card-s mb">
+      <span style="font-family:var(--mono)">{{ kol_counts.active }}</span> active KOL{{ kol_counts.active|pluralize }} in directory
+    </div>
+    {% if top_kols %}
+      {% for kol in top_kols %}
+      <div class="dash-row">
+        <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;
+          {% if kol.tier == 1 %}background:#E8EFE9;color:var(--euc);border:1.5px solid #CFDAD0
+          {% elif kol.tier == 2 %}background:var(--wattle-soft);color:#8A6918;border:1.5px solid #E7D59A
+          {% else %}background:var(--sky-soft);color:var(--sky);border:1.5px solid #C3D2DB{% endif %}">
+          T{{ kol.tier }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            <a href="{% url 'kol:detail' kol.pk %}" style="color:inherit;text-decoration:none">{{ kol.name }}</a>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:1px">
+            {% if kol.institution %}{{ kol.institution }}{% endif %}{% if kol.specialty %} · {{ kol.specialty }}{% endif %}
+          </div>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">{{ kol.paper_links.count }}p</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No active KOLs yet. <a href="{% url 'kol:list' %}" style="color:var(--euc)">Go to KOL Intelligence →</a></div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="card-t">AI Candidate Suggestions</div>
+      <a href="{% url 'kol:list' %}" style="font-size:11px;color:var(--euc);text-decoration:none">Review all →</a>
+    </div>
+    <div class="card-s mb">
+      {% if kol_counts.candidates %}
+        <span style="font-family:var(--mono);color:var(--wattle)">{{ kol_counts.candidates }}</span> candidate{{ kol_counts.candidates|pluralize }} awaiting review
+      {% else %}
+        No pending candidates
+      {% endif %}
+    </div>
+    {% if pending_candidates %}
+      {% for candidate in pending_candidates %}
+      <div class="dash-row">
+        <div class="dash-dot {% if candidate.verification_status == 'LIKELY_CURRENT' %}euc{% elif candidate.verification_status == 'POSSIBLY_INACTIVE' %}active{% else %}wattle{% endif %}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ candidate.name }}</div>
+          <div style="color:var(--muted);font-size:11px;margin-top:1px">
+            {% if candidate.specialty %}{{ candidate.specialty }}{% endif %}{% if candidate.institution %} · {{ candidate.institution }}{% endif %}
+          </div>
+        </div>
+        <span class="pill {% if candidate.verification_status == 'LIKELY_CURRENT' %}pill-approved{% elif candidate.verification_status == 'POSSIBLY_INACTIVE' %}pill-rejected{% elif candidate.verification_status == 'UNCERTAIN' %}pill-needs{% else %}pill-monitoring{% endif %}">
+          {% if candidate.verification_status == 'LIKELY_CURRENT' %}Current
+          {% elif candidate.verification_status == 'POSSIBLY_INACTIVE' %}Inactive?
+          {% elif candidate.verification_status == 'UNCERTAIN' %}Uncertain
+          {% else %}Checking{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No pending KOL suggestions. Run AI Discovery on a paper to surface candidates.</div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

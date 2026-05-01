@@ -1,0 +1,59 @@
+<div style="margin-top:24px;border-top:1px solid var(--line);padding-top:16px">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:12px">Activity &amp; Audit Trail</div>
+
+  {% if events %}
+    <div style="position:relative;padding-left:20px">
+      <!-- vertical line -->
+      <div style="position:absolute;left:6px;top:6px;bottom:6px;width:1px;background:var(--line)"></div>
+
+      {% for event in events %}
+      <div style="position:relative;margin-bottom:12px">
+        <!-- dot -->
+        <div style="position:absolute;left:-17px;top:5px;width:9px;height:9px;border-radius:50%;
+          {% if event.action == 'APPROVE' %}background:var(--euc)
+          {% elif event.action == 'REJECT' %}background:var(--coral)
+          {% elif event.action == 'AI_DRAFT' %}background:var(--sky)
+          {% elif event.action == 'INGEST' %}background:var(--wattle)
+          {% elif event.action == 'EXPORT' %}background:var(--euc-l)
+          {% else %}background:var(--muted-soft){% endif %};
+          border:2px solid var(--surface)"></div>
+
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:var(--r);padding:8px 12px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+              {% if event.action == 'APPROVE' %}color:var(--euc)
+              {% elif event.action == 'REJECT' %}color:var(--coral)
+              {% elif event.action == 'AI_DRAFT' %}color:var(--sky)
+              {% elif event.action == 'INGEST' %}color:var(--wattle)
+              {% elif event.action == 'EXPORT' %}color:var(--euc-l)
+              {% else %}color:var(--muted){% endif %}">
+              {{ event.action }}
+            </span>
+            <span style="font-size:11px;color:var(--ink);font-weight:500">
+              {% if event.entity_type == 'Paper' %}Paper
+              {% elif event.entity_type == 'CoreClaim' %}Claim #{{ event.entity_id }}
+              {% elif event.entity_type == 'GradeAssessment' %}GRADE Assessment
+              {% elif event.entity_type == 'RobAssessment' %}RoB Assessment
+              {% elif event.entity_type == 'ExportPackage' %}Export Package
+              {% else %}{{ event.entity_type }}{% endif %}
+            </span>
+            <span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap">
+              {{ event.created_at|date:"d M Y H:i" }}
+            </span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">
+            {% if event.user %}{{ event.user.get_full_name|default:event.user.email }}{% else %}System (automated){% endif %}
+            {% if event.after_state %}
+              · {% for k, v in event.after_state.items %}{{ k }}: {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="padding:16px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line);color:var(--muted);font-size:12px">
+      No activity recorded yet.
+    </div>
+  {% endif %}
+</div>

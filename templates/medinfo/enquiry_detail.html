@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load claims_tags %}
+{% block nav_medinfo %}ni-active{% endblock %}
+{% block title %}Enquiry — {{ enquiry.question|truncatechars:40 }}{% endblock %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto" x-data="enquiryRespond({{ enquiry.pk }})">
+  <div style="font-size:11.5px;color:var(--muted);margin-bottom:16px">
+    <a href="{% url 'medinfo:list' %}" style="color:var(--euc);text-decoration:none">Medical Information</a>
+    <span style="margin:0 6px">›</span> Enquiry #{{ enquiry.pk }}
+  </div>
+
+  <!-- Question card -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:20px">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+        {% if enquiry.source == 'HCP' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+        {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+        {{ enquiry.get_source_display }}
+      </span>
+      <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">{{ enquiry.created_at|date:"d M Y, H:i" }}</span>
+      {% if enquiry.created_by %}<span style="font-size:10px;color:var(--muted)">Logged by {{ enquiry.created_by.email }}</span>{% endif %}
+    </div>
+    <div style="font-family:var(--serif);font-size:15px;color:var(--ink);line-height:1.6">{{ enquiry.question }}</div>
+  </div>
+
+  <!-- Response editor -->
+  <div style="margin-bottom:16px">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Response</div>
+    <textarea x-model="response"
+              placeholder="Draft your response here. Reference specific papers using APA7 citations…"
+              style="width:100%;font-family:var(--serif);font-size:13.5px;line-height:1.65;border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;resize:vertical;min-height:200px;background:var(--surface);color:var(--ink)">{{ enquiry.response }}</textarea>
+  </div>
+
+  <!-- Paper citations -->
+  <div style="margin-bottom:20px">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Cited papers</div>
+    <select @change="addCitation($event.target.value); $event.target.value = ''"
+            style="width:100%;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface);margin-bottom:8px">
+      <option value="">— Add a paper citation —</option>
+      {% for p in papers %}
+      <option value="{{ p.pk }}|{{ p.apa7_citation }}">{{ p.title|truncatechars:80 }}</option>
+      {% endfor %}
+    </select>
+    <template x-for="(cit, i) in citations" :key="i">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--paper-warm);border-radius:var(--r);border:1px solid var(--line-soft);margin-bottom:5px;font-family:var(--serif);font-size:12px;color:var(--ink-soft)">
+        <span x-text="cit.apa7" style="flex:1"></span>
+        <button @click="citations.splice(i, 1)"
+                style="font-size:10px;color:var(--coral);background:none;border:none;cursor:pointer">✕</button>
+      </div>
+    </template>
+  </div>
+
+  <!-- Action buttons -->
+  {% if enquiry.status != 'CLOSED' %}
+  <div style="display:flex;gap:8px">
+    <button @click="save('draft')" class="btn btn-g btn-sm">Save draft</button>
+    <button @click="save('respond')" class="btn btn-p btn-sm">Mark as responded</button>
+    <button hx-post="{% url 'medinfo:close' enquiry.pk %}"
+            hx-target="#enquiry-status-badge"
+            hx-swap="outerHTML"
+            class="btn btn-g btn-sm"
+            style="color:var(--muted)"
+            hx-confirm="Close this enquiry?">
+      Close
+    </button>
+  </div>
+  {% endif %}
+
+  {% if enquiry.status == 'RESPONDED' %}
+  <div style="margin-top:12px;font-size:11.5px;color:var(--euc)">
+    ✓ Responded {% if enquiry.responded_by %}by {{ enquiry.responded_by.email }}{% endif %} on {{ enquiry.responded_at|date:"d M Y" }}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function enquiryRespond(enquiryPk) {
+  return {
+    response: {{ enquiry.response|tojson }},
+    citations: {{ enquiry.citations|tojson }},
+    addCitation(val) {
+      if (!val) return;
+      const [paperId, apa7] = val.split('|');
+      if (!this.citations.find(c => c.paper_id == paperId)) {
+        this.citations.push({ paper_id: parseInt(paperId), apa7 });
+      }
+    },
+    save(action) {
+      fetch(`/medinfo/${enquiryPk}/respond/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+        body: JSON.stringify({ response: this.response, citations: this.citations, action }),
+      }).then(r => r.text()).then(html => {
+        document.getElementById(`enquiry-${enquiryPk}`).outerHTML = html;
+      });
+    },
+  };
+}
+</script>
+{% endblock %}

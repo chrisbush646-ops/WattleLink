@@ -1,0 +1,149 @@
+{% load claims_tags %}
+<div id="linked-claim-{{ claim.pk }}"
+     style="padding:10px 14px;background:var(--paper-warm);border-left:2px solid {% if claim.status == 'APPROVED' %}var(--euc){% elif claim.status == 'REJECTED' %}var(--coral){% else %}var(--wattle){% endif %};border-radius:0 6px 6px 0;margin-bottom:6px">
+
+  <!-- Claim text -->
+  <div id="claim-text-{{ claim.pk }}"
+       style="font-family:var(--serif);font-size:15px;font-weight:400;color:var(--ink);line-height:1.6;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line-soft)">{{ claim.claim_text }}</div>
+
+  <!-- Edit textarea (hidden by default) -->
+  <textarea id="claim-edit-{{ claim.pk }}"
+            style="display:none;width:100%;font-family:var(--serif);font-size:13px;line-height:1.5;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;resize:vertical;min-height:80px;background:var(--surface);color:var(--ink);margin-bottom:8px;box-sizing:border-box">{{ claim.claim_text }}</textarea>
+
+  <!-- Meta row -->
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:{% if claim.mlr_red_flags %}6{% else %}0{% endif %}px">
+    <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">{{ claim.get_status_display }}</span>
+    <span style="font-size:10px;color:var(--muted)">·</span>
+    <span style="font-size:10px;color:var(--muted)">{{ claim.get_endpoint_type_display }}</span>
+    {% if claim.version > 1 %}
+    <span style="font-size:10px;color:var(--muted)">·</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">v{{ claim.version }}</span>
+    {% endif %}
+  </div>
+
+  <!-- MLR flags -->
+  {% if claim.mlr_red_flags %}
+  <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px">
+    {% for flag in claim.mlr_red_flags %}
+    <div style="display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--coral);line-height:1.45">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      {{ flag }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Error -->
+  {% if error %}
+  <div style="font-size:11.5px;color:var(--coral);margin-bottom:6px;padding:5px 8px;background:var(--coral-soft);border-radius:4px">{{ error }}</div>
+  {% endif %}
+
+  <!-- Action area -->
+  <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line-soft)">
+
+    {% if claim.status == 'APPROVED' %}
+      <span style="font-size:11px;color:var(--euc);font-weight:500">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg>
+        Accepted{% if claim.reviewed_by %} by {{ claim.reviewed_by.get_full_name|default:claim.reviewed_by.email }}{% endif %}
+      </span>
+
+    {% elif claim.status == 'REJECTED' %}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--coral);font-weight:500">Rejected</span>
+        {% if claim.rejection_reason %}
+        <span style="font-size:11px;color:var(--muted)">{{ claim.rejection_reason }}</span>
+        {% endif %}
+      </div>
+
+    {% else %}
+
+      <!-- Default buttons: Accept / Edit / Reject -->
+      <div id="claim-actions-{{ claim.pk }}" style="display:flex;gap:6px;align-items:center">
+        <button onclick="lcApprove({{ claim.pk }})"
+                style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Accept</button>
+        <button onclick="lcStartEdit({{ claim.pk }})"
+                style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Edit</button>
+        <button onclick="lcStartReject({{ claim.pk }})"
+                style="font-size:12px;background:none;border:1px solid var(--coral);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--coral)">Reject</button>
+      </div>
+
+      <!-- Edit mode buttons (hidden) -->
+      <div id="claim-edit-actions-{{ claim.pk }}" style="display:none;gap:6px;align-items:center">
+        <button onclick="lcSubmitEdit({{ claim.pk }})"
+                style="font-size:12px;background:var(--euc);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Save</button>
+        <button onclick="lcCancelEdit({{ claim.pk }})"
+                style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Cancel</button>
+      </div>
+
+      <!-- Reject mode (hidden) -->
+      <div id="claim-reject-{{ claim.pk }}" style="display:none">
+        <div style="font-size:10px;font-weight:500;color:var(--coral);margin-bottom:4px">Rejection reason (required)</div>
+        <textarea id="claim-reject-reason-{{ claim.pk }}"
+                  placeholder="Explain why this claim is being rejected…"
+                  style="width:100%;font-size:12px;border:1px solid #E9CBB9;border-radius:var(--r);padding:6px 10px;resize:vertical;min-height:48px;background:var(--surface);margin-bottom:6px;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:6px">
+          <button onclick="lcSubmitReject({{ claim.pk }})"
+                  style="font-size:12px;background:var(--coral);color:#fff;border:none;border-radius:var(--r);padding:5px 14px;cursor:pointer;font-weight:500">Confirm reject</button>
+          <button onclick="lcCancelReject({{ claim.pk }})"
+                  style="font-size:12px;background:none;border:1px solid var(--line);border-radius:var(--r);padding:5px 14px;cursor:pointer;color:var(--ink)">Cancel</button>
+        </div>
+      </div>
+
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function lcApprove(pk) {
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch(`/claims/${pk}/approve/?linked=1`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrf },
+  }).then(r => r.text()).then(html => {
+    document.getElementById(`linked-claim-${pk}`).outerHTML = html;
+  });
+}
+function lcStartEdit(pk) {
+  document.getElementById(`claim-text-${pk}`).style.display = 'none';
+  document.getElementById(`claim-edit-${pk}`).style.display = 'block';
+  document.getElementById(`claim-actions-${pk}`).style.display = 'none';
+  document.getElementById(`claim-edit-actions-${pk}`).style.display = 'flex';
+}
+function lcCancelEdit(pk) {
+  document.getElementById(`claim-text-${pk}`).style.display = '';
+  document.getElementById(`claim-edit-${pk}`).style.display = 'none';
+  document.getElementById(`claim-actions-${pk}`).style.display = 'flex';
+  document.getElementById(`claim-edit-actions-${pk}`).style.display = 'none';
+}
+function lcSubmitEdit(pk) {
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const text = document.getElementById(`claim-edit-${pk}`).value;
+  fetch(`/claims/${pk}/edit/?linked=1`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    body: JSON.stringify({ claim_text: text }),
+  }).then(r => r.text()).then(html => {
+    document.getElementById(`linked-claim-${pk}`).outerHTML = html;
+  });
+}
+function lcStartReject(pk) {
+  document.getElementById(`claim-actions-${pk}`).style.display = 'none';
+  document.getElementById(`claim-reject-${pk}`).style.display = 'block';
+}
+function lcCancelReject(pk) {
+  document.getElementById(`claim-actions-${pk}`).style.display = 'flex';
+  document.getElementById(`claim-reject-${pk}`).style.display = 'none';
+}
+function lcSubmitReject(pk) {
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const reason = document.getElementById(`claim-reject-reason-${pk}`).value.trim();
+  if (!reason) return;
+  fetch(`/claims/${pk}/reject/?linked=1`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    body: JSON.stringify({ reason }),
+  }).then(r => r.text()).then(html => {
+    document.getElementById(`linked-claim-${pk}`).outerHTML = html;
+  });
+}
+</script>

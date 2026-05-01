@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block nav_conferences %}ni-active{% endblock %}
+{% block title %}Engagement{% endblock %}
+
+{% block content %}
+<script>
+/* Seed the Alpine store before Alpine initialises */
+const _allEvents = [
+  ...{{ conf_events_json|safe }},
+  ...{{ rt_events_json|safe }},
+  ...{{ ab_events_json|safe }},
+  ...{{ other_events_json|safe }},
+];
+document.addEventListener('alpine:init', () => {
+  Alpine.store('calEvents', _allEvents);
+});
+</script>
+
+{% with at=active_tab %}
+<div style="max-width:1060px;margin:0 auto">
+
+  <div style="margin-bottom:20px">
+    <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Engagement</h1>
+    <div style="font-size:12px;color:var(--muted)">Conferences, advisory boards, round tables, and other events.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 284px;gap:20px;align-items:start">
+
+    <!-- ── LEFT: tabs + content ── -->
+    <div>
+
+      <!-- Tab buttons -->
+      <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--line)">
+        {% for tab_key, tab_label, tab_count in tab_items %}
+        <button type="button" id="tab-btn-{{ tab_key }}" onclick="engagementTabSwitch('{{ tab_key }}')"
+                style="font-size:12.5px;font-weight:600;padding:7px 16px;background:none;border:none;cursor:pointer;font-family:var(--serif);
+                  {% if at == tab_key %}border-bottom:2px solid var(--euc);color:var(--euc);margin-bottom:-2px
+                  {% else %}border-bottom:2px solid transparent;color:var(--muted){% endif %}">
+          {{ tab_label }}
+          <span style="font-size:10px;padding:1px 6px;border-radius:8px;margin-left:5px;
+                {% if at == tab_key %}background:#E8EFE9;color:var(--euc){% else %}background:var(--line-soft);color:var(--muted){% endif %}">{{ tab_count }}</span>
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- Conferences -->
+      <div id="conf-tab" {% if at != 'conferences' %}style="display:none"{% endif %}>
+        <div x-data="confPage()">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Conferences</div>
+            <button type="button" @click="showForm=!showForm" class="btn btn-g btn-sm">+ Add</button>
+          </div>
+          <div x-show="showForm" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input x-model="form.name" placeholder="Conference name *" style="flex:2;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <select x-model="form.status" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+                {% for val, label in conf_status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input x-model="form.location" placeholder="Location" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.start_date" type="date" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.end_date" type="date" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+            </div>
+            <div style="display:flex;gap:6px">
+              <button @click="create()" class="btn btn-p btn-sm">Create</button>
+              <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
+            </div>
+          </div>
+          <div id="conf-list-inner">{% include "engagement/partials/conference_list_inner.html" with conferences=conferences %}</div>
+        </div>
+      </div>
+
+      <!-- Round Tables -->
+      <div id="rt-tab" {% if at != 'roundtables' %}style="display:none"{% endif %}>
+        <div x-data="rtPage()">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Round Tables</div>
+            <button type="button" @click="showForm=!showForm" class="btn btn-g btn-sm">+ Add</button>
+          </div>
+          <div x-show="showForm" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input x-model="form.name" placeholder="Meeting name *" style="flex:2;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.date" type="date" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+            </div>
+            <input x-model="form.location" placeholder="Location" style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface);margin-bottom:6px">
+            <input x-model="form.themes_raw" placeholder="Discussion themes (comma-separated)" style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface);margin-bottom:8px">
+            <div style="display:flex;gap:6px">
+              <button @click="create()" class="btn btn-p btn-sm">Create</button>
+              <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
+            </div>
+          </div>
+          <div id="rt-list-inner">{% include "engagement/partials/round_table_list_inner.html" with round_tables=round_tables %}</div>
+        </div>
+      </div>
+
+      <!-- Advisory Boards -->
+      <div id="advisory-tab" {% if at != 'advisory' %}style="display:none"{% endif %}>
+        <div x-data="abPage()">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Advisory Boards</div>
+            <button type="button" @click="showForm=!showForm" class="btn btn-g btn-sm">+ Add</button>
+          </div>
+          <div x-show="showForm" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input x-model="form.name" placeholder="Board name *" style="flex:2;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.date" type="date" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+            </div>
+            <input x-model="form.location" placeholder="Location" style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface);margin-bottom:6px">
+            <input x-model="form.agenda_raw" placeholder="Agenda items (comma-separated)" style="width:100%;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface);margin-bottom:8px">
+            <div style="display:flex;gap:6px">
+              <button @click="create()" class="btn btn-p btn-sm">Create</button>
+              <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
+            </div>
+          </div>
+          <div id="ab-list-inner">{% include "engagement/partials/advisory_board_list_inner.html" with advisory_boards=advisory_boards %}</div>
+        </div>
+      </div>
+
+      <!-- Other Events -->
+      <div id="other-tab" {% if at != 'other' %}style="display:none"{% endif %}>
+        <div x-data="otherPage()">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Other Events</div>
+            <button type="button" @click="showForm=!showForm" class="btn btn-g btn-sm">+ Add</button>
+          </div>
+          <div x-show="showForm" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <input x-model="form.name" placeholder="Event name *" style="flex:2;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.date" type="date" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input x-model="form.location" placeholder="Location" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+              <input x-model="form.event_type" placeholder="Type (e.g. Webinar, Workshop)" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;background:var(--surface)">
+            </div>
+            <div style="display:flex;gap:6px">
+              <button @click="create()" class="btn btn-p btn-sm">Create</button>
+              <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
+            </div>
+          </div>
+          <div id="other-list-inner">{% include "engagement/partials/other_event_list_inner.html" with other_events=other_events %}</div>
+        </div>
+      </div>
+
+    </div><!-- end left -->
+
+    <!-- ── RIGHT: shared calendar + suggest ── -->
+    <div style="position:sticky;top:16px">
+
+      <!-- Shared calendar (all 4 types) -->
+      <div x-data="miniCalendar()" style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <button type="button" @click="prevMonth()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px;line-height:1">‹</button>
+          <span style="font-size:12px;font-weight:600;color:var(--ink);font-family:var(--serif)" x-text="monthLabel()"></span>
+          <button type="button" @click="nextMonth()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px;line-height:1">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+          <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']">
+            <div style="text-align:center;font-size:9px;color:var(--muted);font-weight:600;padding-bottom:5px" x-text="d"></div>
+          </template>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">
+          <template x-for="(cell, i) in calendarDays()" :key="i">
+            <div style="min-height:30px;padding:2px 1px;border-radius:3px" :style="cell && isToday(cell.dateStr) ? 'background:#E8EFE9' : ''">
+              <template x-if="cell">
+                <div style="text-align:center">
+                  <div style="font-size:10px;line-height:1.6" :style="isToday(cell.dateStr) ? 'color:var(--euc);font-weight:700' : 'color:var(--ink-soft)'" x-text="cell.day"></div>
+                  <div style="display:flex;justify-content:center;gap:1px;flex-wrap:wrap">
+                    <template x-for="(e, ei) in eventsForDate(cell.dateStr)" :key="ei">
+                      <div :title="e.name" :style="`display:inline-block;width:5px;height:5px;border-radius:50%;margin-top:1px;background:${dotColor(e.type)}`"></div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+        <!-- Legend -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:10px">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--euc);flex-shrink:0"></div><span style="font-size:9px;color:var(--muted)">Conference</span></div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#C89B2A;flex-shrink:0"></div><span style="font-size:9px;color:var(--muted)">Round Table</span></div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--sky);flex-shrink:0"></div><span style="font-size:9px;color:var(--muted)">Advisory Board</span></div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--coral);flex-shrink:0"></div><span style="font-size:9px;color:var(--muted)">Other Event</span></div>
+        </div>
+      </div>
+
+      <!-- Suggest Conferences -->
+      <div x-data="suggestConf()" style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Suggest Conferences</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">AI-suggested conferences based on your team's therapeutic area, inferred from your paper library.</div>
+        <button type="button" @click="fetch()" :disabled="loading"
+                style="width:100%;font-size:11px;padding:6px 12px;border-radius:var(--r);border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px">
+          <span x-show="loading" style="display:none;width:10px;height:10px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite"></span>
+          <span x-text="loading ? 'Finding conferences…' : 'Suggest Conferences'">Suggest Conferences</span>
+        </button>
+        <div id="conf-suggestions" style="margin-top:10px"></div>
+      </div>
+
+    </div><!-- end right -->
+
+  </div><!-- end grid -->
+</div>
+{% endwith %}
+
+<script>
+const TAB_IDS = { conferences: 'conf-tab', roundtables: 'rt-tab', advisory: 'advisory-tab', other: 'other-tab' };
+
+function engagementTabSwitch(tab) {
+  Object.entries(TAB_IDS).forEach(([key, id]) => {
+    document.getElementById(id).style.display = key === tab ? '' : 'none';
+  });
+  const active   = { borderBottomColor: 'var(--euc)', color: 'var(--euc)', marginBottom: '-2px' };
+  const inactive = { borderBottomColor: 'transparent', color: 'var(--muted)', marginBottom: '0' };
+  Object.keys(TAB_IDS).forEach(key => {
+    const btn = document.getElementById(`tab-btn-${key}`);
+    if (btn) Object.assign(btn.style, key === tab ? active : inactive);
+  });
+}
+
+function miniCalendar() {
+  const today = new Date();
+  return {
+    year: today.getFullYear(), month: today.getMonth(),
+    dotColor(type) {
+      return { conference: 'var(--euc)', roundtable: '#C89B2A', advisory: 'var(--sky)', other: 'var(--coral)' }[type] || 'var(--muted)';
+    },
+    monthLabel() { return new Date(this.year, this.month, 1).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }); },
+    prevMonth() { if (this.month === 0) { this.month = 11; this.year--; } else this.month--; },
+    nextMonth() { if (this.month === 11) { this.month = 0; this.year++; } else this.month++; },
+    calendarDays() {
+      const offset = (new Date(this.year, this.month, 1).getDay() + 6) % 7;
+      const total  = new Date(this.year, this.month + 1, 0).getDate();
+      const days = [];
+      for (let i = 0; i < offset; i++) days.push(null);
+      for (let d = 1; d <= total; d++) {
+        const m = String(this.month+1).padStart(2,'0'), dd = String(d).padStart(2,'0');
+        days.push({ day: d, dateStr: `${this.year}-${m}-${dd}` });
+      }
+      return days;
+    },
+    eventsForDate(dateStr) {
+      const evs = Alpine.store('calEvents') || [];
+      return evs.filter(e => e.date === dateStr || (e.end_date && dateStr > e.date && dateStr <= e.end_date));
+    },
+    isToday(dateStr) {
+      const t = new Date();
+      return dateStr === `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    },
+  };
+}
+
+function _pushEvent(type, name, date, end_date) {
+  Alpine.store('calEvents').push({ type, name, date, end_date: end_date || null });
+}
+
+function confPage() {
+  return {
+    showForm: false,
+    form: { name: '', location: '', start_date: '', end_date: '', status: 'UPCOMING' },
+    create() {
+      if (!this.form.name || !this.form.start_date) return;
+      fetch('/engagement/conference/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
+        .then(r => r.text()).then(html => { document.getElementById('conf-list-inner').innerHTML = html; });
+      _pushEvent('conference', this.form.name, this.form.start_date, this.form.end_date);
+      this.showForm = false; this.form = { name: '', location: '', start_date: '', end_date: '', status: 'UPCOMING' };
+    },
+  };
+}
+
+function rtPage() {
+  return {
+    showForm: false,
+    form: { name: '', date: '', location: '', themes_raw: '' },
+    create() {
+      if (!this.form.name || !this.form.date) return;
+      const themes = this.form.themes_raw.split(',').map(t => t.trim()).filter(Boolean);
+      fetch('/engagement/roundtable/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, discussion_themes: themes }) })
+        .then(r => r.text()).then(html => { document.getElementById('rt-list-inner').innerHTML = html; });
+      _pushEvent('roundtable', this.form.name, this.form.date, null);
+      this.showForm = false; this.form = { name: '', date: '', location: '', themes_raw: '' };
+    },
+  };
+}
+
+function abPage() {
+  return {
+    showForm: false,
+    form: { name: '', date: '', location: '', agenda_raw: '' },
+    create() {
+      if (!this.form.name || !this.form.date) return;
+      const agenda_items = this.form.agenda_raw.split(',').map(t => t.trim()).filter(Boolean);
+      fetch('/engagement/advisory-board/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, agenda_items }) })
+        .then(r => r.text()).then(html => { document.getElementById('ab-list-inner').innerHTML = html; });
+      _pushEvent('advisory', this.form.name, this.form.date, null);
+      this.showForm = false; this.form = { name: '', date: '', location: '', agenda_raw: '' };
+    },
+  };
+}
+
+function otherPage() {
+  return {
+    showForm: false,
+    form: { name: '', date: '', location: '', event_type: '' },
+    create() {
+      if (!this.form.name || !this.form.date) return;
+      fetch('/engagement/other-event/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
+        .then(r => r.text()).then(html => { document.getElementById('other-list-inner').innerHTML = html; });
+      _pushEvent('other', this.form.name, this.form.date, null);
+      this.showForm = false; this.form = { name: '', date: '', location: '', event_type: '' };
+    },
+  };
+}
+
+function _replaceEventCard(type, pk, html) {
+  const cardIdMap = { conference: `conference-card-${pk}`, roundtable: `roundtable-card-${pk}`, advisory: `advisory-card-${pk}`, other: `other-card-${pk}` };
+  const el = document.getElementById(cardIdMap[type]);
+  if (!el) return;
+  el.outerHTML = html;
+  const newEl = document.getElementById(cardIdMap[type]);
+  if (newEl && window.Alpine) Alpine.initTree(newEl);
+}
+
+function addKolToEvent(type, eventPk, kolPk) {
+  fetch(`/engagement/event/${type}/${eventPk}/kol/add/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+    body: JSON.stringify({ kol_pk: kolPk }),
+  }).then(r => r.text()).then(html => _replaceEventCard(type, eventPk, html));
+}
+
+function removeKolFromEvent(type, eventPk, kolPk) {
+  fetch(`/engagement/event/${type}/${eventPk}/kol/${kolPk}/remove/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+  }).then(r => r.text()).then(html => _replaceEventCard(type, eventPk, html));
+}
+
+function suggestConf() {
+  return {
+    loading: false,
+    fetch() {
+      this.loading = true;
+      window.fetch('/engagement/conferences/suggest/')
+        .then(r => r.text()).then(html => { document.getElementById('conf-suggestions').innerHTML = html; this.loading = false; })
+        .catch(() => { this.loading = false; });
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% load citations %}
+<div style="margin-top:12px;border-top:1px solid var(--line-soft);padding-top:12px">
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Suggested Papers</span>
+    {% if terms %}
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      {% for term in terms %}
+      <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB">{{ term }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if papers %}
+  <div style="display:flex;flex-direction:column;gap:6px">
+    {% for paper in papers %}
+    <div id="suggest-paper-{{ kol.pk }}-{{ paper.pk }}"
+         style="background:var(--paper-warm);border:1px solid var(--line);border-radius:var(--r);padding:9px 12px;display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:500;color:var(--ink);line-height:1.4;margin-bottom:2px">{{ paper.title|truncatewords:18 }}</div>
+        <div style="font-size:11px;color:var(--muted)">
+          {{ paper.journal_short|default:paper.journal }}
+          {% if paper.published_date %} · {{ paper.published_date.year }}{% endif %}
+          {% if paper.study_type %} · <span style="font-family:var(--mono);font-size:10px">{{ paper.study_type }}</span>{% endif %}
+        </div>
+      </div>
+      <button type="button"
+              onclick="linkSuggestedPaper({{ kol.pk }}, {{ paper.pk }}, this)"
+              style="flex-shrink:0;font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--euc);cursor:pointer;font-weight:500;white-space:nowrap">
+        + Link
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% elif terms %}
+  <div style="font-size:12px;color:var(--muted);padding:12px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+    No unlinked papers matched this KOL's specialty or bio keywords.
+  </div>
+
+  {% else %}
+  <div style="font-size:12px;color:var(--muted);padding:12px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
+    Add a specialty or bio to this KOL to enable paper matching.
+  </div>
+  {% endif %}
+
+</div>

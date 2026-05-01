@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from apps.accounts.managers import TenantManager
 
 
 class AuditLog(models.Model):
@@ -10,6 +11,8 @@ class AuditLog(models.Model):
         REJECT = "REJECT"
         EXPORT = "EXPORT"
         DELETE = "DELETE"
+        AI_DRAFT = "AI_DRAFT"
+        INGEST = "INGEST"
 
     tenant = models.ForeignKey(
         "accounts.Tenant",
@@ -28,6 +31,8 @@ class AuditLog(models.Model):
     before_state = models.JSONField(null=True, blank=True)
     after_state = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = TenantManager()
 
     class Meta:
         indexes = [
