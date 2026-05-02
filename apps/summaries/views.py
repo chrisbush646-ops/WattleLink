@@ -263,12 +263,22 @@ Return ONLY valid JSON, no prose outside it.""",
             }],
         )
         import json as _json
-        result = _json.loads(response.content[0].text.strip())
+        raw = response.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = "\n".join(
+                line for line in raw.splitlines()
+                if not line.strip().startswith("```")
+            ).strip()
+        result = _json.loads(raw)
         return JsonResponse({
             "table_markdown": result.get("table_markdown", ""),
             "discussion": result.get("discussion", ""),
             "paper_count": len(papers),
         })
+    except _json.JSONDecodeError as e:
+        logger.error("generate_results_section JSON error: %s\nRaw: %s", e, locals().get("raw", "")[:300])
+        return JsonResponse({"error": "AI returned an unexpected format. Please try again."}, status=500)
     except Exception as e:
         logger.error("generate_results_section error: %s", e)
         return JsonResponse({"error": str(e)}, status=500)
