@@ -909,7 +909,6 @@ document.addEventListener('alpine:init', () => {
     if (!el || !el._x_dataStack) return;
     const comp = el._x_dataStack[0];
     if (!comp) return;
-    if (f.study_types) comp.studyTypes = f.study_types;
     if (f.date_preset) comp.datePreset = f.date_preset;
     if (f.language_english !== undefined) comp.languageEnglish = f.language_english;
     if (f.species_humans !== undefined) comp.speciesHumans = f.species_humans;
