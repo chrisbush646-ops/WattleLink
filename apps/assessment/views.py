@@ -111,50 +111,49 @@ def assessment_panel(request, paper_pk):
 @login_required
 @require_POST
 def run_ai_assessment(request, paper_pk):
-    """Run AI pre-fill synchronously and return the populated assessment panel."""
+    """Dispatch AI pre-fill as a background task and return the processing indicator."""
+    from django.core.cache import cache
+    from .tasks import run_ai_assessment_task
+
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    task = run_ai_assessment_task.delay(paper.pk, request.tenant.pk)
+    cache.set(f"ai_assessment_task:{paper_pk}", task.id, timeout=3600)
+    return render(request, "assessment/partials/ai_processing.html", {"paper": paper})
 
-    from .services.ai_assessment import (
-        run_ai_assessment as _run_ai,
-        apply_grade_result,
-        apply_rob_result,
-    )
 
-    ctx = {
+@login_required
+def ai_assessment_status(request, paper_pk):
+    """Poll endpoint — returns the processing partial while the task runs, then the full panel."""
+    from celery.result import AsyncResult
+    from django.core.cache import cache
+
+    paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    task_id = cache.get(f"ai_assessment_task:{paper_pk}")
+
+    if task_id:
+        state = AsyncResult(task_id).state
+        if state in ("PENDING", "STARTED", "RETRY"):
+            return render(request, "assessment/partials/ai_processing.html", {"paper": paper})
+        cache.delete(f"ai_assessment_task:{paper_pk}")
+
+    try:
+        grade = paper.grade_assessment
+    except GradeAssessment.DoesNotExist:
+        grade = None
+
+    try:
+        rob = paper.rob_assessment
+    except RobAssessment.DoesNotExist:
+        rob = None
+
+    return render(request, "assessment/partials/assessment_panel.html", {
         "paper": paper,
+        "grade": grade,
+        "rob": rob,
         "grade_domain_rating_choices": GradeAssessment.DomainRating.choices,
         "rob_judgment_choices": RobAssessment.Judgment.choices,
         "grade_overall_choices": GradeAssessment.OverallRating.choices,
-    }
-
-    try:
-        result = _run_ai(paper)
-
-        grade, _ = GradeAssessment.all_objects.get_or_create(
-            paper=paper, defaults={"tenant": request.tenant}
-        )
-        apply_grade_result(grade, result.get("grade", {}))
-        grade.save()
-
-        rob, _ = RobAssessment.all_objects.get_or_create(
-            paper=paper, defaults={"tenant": request.tenant}
-        )
-        apply_rob_result(rob, result.get("rob", {}))
-        rob.save()
-
-        log_action(request, paper, AuditLog.Action.AI_DRAFT,
-                   after={"assessment": "AI pre-fill complete"})
-
-        ctx["grade"] = grade
-        ctx["rob"] = rob
-
-    except Exception as exc:
-        logger.error("AI assessment failed for paper %s: %s", paper_pk, exc)
-        ctx["grade"] = None
-        ctx["rob"] = None
-        ctx["error"] = str(exc)
-
-    return render(request, "assessment/partials/assessment_panel.html", ctx)
+    })
 
 
 @login_required

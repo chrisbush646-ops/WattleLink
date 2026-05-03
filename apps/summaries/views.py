@@ -75,52 +75,44 @@ def summary_panel(request, paper_pk):
 @login_required
 @require_POST
 def run_ai_summary(request, paper_pk):
-    """Run AI summarisation synchronously and return the populated summary panel."""
+    """Dispatch AI summarisation as a background task and return the processing indicator."""
+    from django.core.cache import cache
+    from .tasks import run_ai_summary_task
+
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    task = run_ai_summary_task.delay(paper.pk, request.tenant.pk)
+    cache.set(f"ai_summary_task:{paper_pk}", task.id, timeout=3600)
+    return render(request, "summaries/partials/ai_processing.html", {"paper": paper})
 
-    from apps.summaries.tasks import _ensure_full_text
-    _ensure_full_text(paper)
-    paper.refresh_from_db(fields=["full_text"])
 
-    from .services.ai_summary import run_ai_summary as _run_ai, apply_summary_result
-    from .services.validation import validate_summary
+@login_required
+def ai_summary_status(request, paper_pk):
+    """Poll endpoint — returns the processing partial while the task runs, then the full panel."""
+    from celery.result import AsyncResult
+    from django.core.cache import cache
 
-    ctx = {
-        "paper": paper,
-        "category_choices": FindingsRow.Category.choices,
-    }
+    paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    task_id = cache.get(f"ai_summary_task:{paper_pk}")
+
+    if task_id:
+        state = AsyncResult(task_id).state
+        if state in ("PENDING", "STARTED", "RETRY"):
+            return render(request, "summaries/partials/ai_processing.html", {"paper": paper})
+        cache.delete(f"ai_summary_task:{paper_pk}")
 
     try:
-        result = _run_ai(paper)
+        summary = paper.summary
+        findings = list(summary.findings.all())
+    except PaperSummary.DoesNotExist:
+        summary = None
+        findings = []
 
-        summary, _ = PaperSummary.all_objects.get_or_create(
-            paper=paper, defaults={"tenant": request.tenant}
-        )
-
-        findings_data = result.get("findings", [])
-        row_kwargs = apply_summary_result(summary, findings_data, result)
-
-        summary.validation_warnings = validate_summary(result, paper.full_text or "")
-        summary.save()
-
-        FindingsRow.objects.filter(summary=summary).delete()
-        FindingsRow.objects.bulk_create([
-            FindingsRow(summary=summary, **kw) for kw in row_kwargs
-        ])
-
-        log_action(request, paper, AuditLog.Action.AI_DRAFT,
-                   after={"summary": "AI summary generated", "findings_rows": len(findings_data)})
-
-        ctx["summary"] = summary
-        ctx["findings"] = list(summary.findings.all())
-
-    except Exception as exc:
-        logger.error("AI summary failed for paper %s: %s", paper_pk, exc)
-        ctx["summary"] = None
-        ctx["findings"] = []
-        ctx["error"] = str(exc)
-
-    return render(request, "summaries/partials/summary_panel.html", ctx)
+    return render(request, "summaries/partials/summary_panel.html", {
+        "paper": paper,
+        "summary": summary,
+        "findings": findings,
+        "category_choices": FindingsRow.Category.choices,
+    })
 
 
 @login_required
