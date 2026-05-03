@@ -87,48 +87,42 @@
     <!-- KOL Type filter row -->
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Type</span>
-      <a href="?{% if status_filter %}status={{ status_filter }}&{% endif %}{% if q %}q={{ q }}&{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if not type_filter %}background:var(--ink);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      <button type="button" @click="setType('')"
+              :style="activeType === '' ? 'background:var(--ink);color:#fff;border-color:var(--ink)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         All
-      </a>
-      <a href="?type=PHYSICIAN{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if type_filter == 'PHYSICIAN' %}background:var(--muted);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      </button>
+      <button type="button" @click="setType('PHYSICIAN')"
+              :style="activeType === 'PHYSICIAN' ? 'background:var(--muted);color:#fff;border-color:var(--muted)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         Physician
-      </a>
-      <a href="?type=RESEARCH{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if type_filter == 'RESEARCH' %}background:var(--sky);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      </button>
+      <button type="button" @click="setType('RESEARCH')"
+              :style="activeType === 'RESEARCH' ? 'background:var(--sky);color:#fff;border-color:var(--sky)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         Research
-      </a>
-      <a href="?type=BOTH{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if type_filter == 'BOTH' %}background:var(--coral);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      </button>
+      <button type="button" @click="setType('BOTH')"
+              :style="activeType === 'BOTH' ? 'background:var(--coral);color:#fff;border-color:var(--coral)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         Research &amp; Physician
-      </a>
+      </button>
     </div>
 
     <!-- Status filter row -->
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Status</span>
-      <a href="?{% if type_filter %}type={{ type_filter }}&{% endif %}{% if q %}q={{ q }}&{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if not status_filter %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      <button type="button" @click="setStatus('')"
+              :style="activeStatus === '' ? 'background:var(--euc);color:#fff;border-color:var(--euc)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         All
-      </a>
+      </button>
       {% for val, label in status_choices %}
-      <a href="?status={{ val }}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
-         {% if status_filter == val %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+      <button type="button" @click="setStatus('{{ val }}')"
+              :style="activeStatus === '{{ val }}' ? 'background:var(--euc);color:#fff;border-color:var(--euc)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         {{ label }}
-      </a>
+      </button>
       {% endfor %}
       <div style="flex:1"></div>
       <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Add KOL</button>
@@ -271,7 +265,28 @@ function kolTabSwitch(tab) {
 function kolListPage() {
   return {
     showCreate: false,
+    activeType: '{{ type_filter }}',
+    activeStatus: '{{ status_filter }}',
     form: { name: '', tier: 3, kol_type: 'PHYSICIAN', institution: '', specialty: '', bio: '' },
+    _applyFilters() {
+      const params = new URLSearchParams();
+      document.querySelectorAll('#kol-filters input').forEach(el => {
+        if (el.name) params.set(el.name, el.value);
+      });
+      htmx.ajax('GET', '{% url "kol:list" %}?' + params.toString(), { target: '#kol-list-inner', swap: 'innerHTML' });
+    },
+    setType(val) {
+      this.activeType = val;
+      const hidden = document.querySelector('#kol-filters input[name=type]');
+      if (hidden) hidden.value = val;
+      this._applyFilters();
+    },
+    setStatus(val) {
+      this.activeStatus = val;
+      const hidden = document.querySelector('#kol-filters input[name=status]');
+      if (hidden) hidden.value = val;
+      this._applyFilters();
+    },
     createKol() {
       if (!this.form.name.trim()) return;
       fetch(KOL_URLS.createKol, {
