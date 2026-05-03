@@ -670,8 +670,6 @@ def ai_suggest(request):
     try:
         from .services.ai_suggest import suggest_pubmed_query
         result = suggest_pubmed_query(description)
-        if not result or not result.get("rows"):
-            return JsonResponse({"error": "No query could be generated"}, status=500)
         return JsonResponse(result)
     except Exception as e:
         logger.error("AI suggest failed: %s", e)

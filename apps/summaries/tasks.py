@@ -5,6 +5,34 @@ from config.celery import app
 logger = logging.getLogger(__name__)
 
 
+def _ensure_full_text(paper) -> None:
+    """
+    Make sure paper.full_text contains the richest available text before summarising.
+    Priority: PDF source file → PMC full text → keep existing (abstract).
+    Updates paper.full_text and saves to DB if a longer version is found.
+    """
+    from apps.literature.services.pdf import extract_text
+
+    if paper.source_file:
+        try:
+            text = extract_text(paper.source_file.path)
+            if len(text) > len(paper.full_text or ""):
+                paper.full_text = text[:500_000]
+                paper.save(update_fields=["full_text"])
+                logger.info("Used PDF text for paper %s (%d chars)", paper.pk, len(text))
+                return
+        except Exception as exc:
+            logger.warning("PDF extraction failed for paper %s: %s", paper.pk, exc)
+
+    if len(paper.full_text or "") < 4_000 and paper.pmcid:
+        try:
+            from apps.literature.services.pubmed import fetch_pmc_full_text
+            fetch_pmc_full_text(paper)
+            paper.refresh_from_db(fields=["full_text"])
+        except Exception as exc:
+            logger.warning("PMC fetch failed for paper %s: %s", paper.pk, exc)
+
+
 @app.task(bind=True, max_retries=2, default_retry_delay=30)
 def run_ai_summary_task(self, paper_id: int, tenant_id: int):
     """Async AI summarisation — creates/updates PaperSummary and FindingsRows."""
@@ -20,6 +48,7 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
         set_current_tenant(tenant)
         paper = Paper.all_objects.get(pk=paper_id, tenant=tenant)
 
+        _ensure_full_text(paper)
         result = run_ai_summary(paper)
 
         summary, created = PaperSummary.all_objects.get_or_create(

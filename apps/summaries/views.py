@@ -78,23 +78,8 @@ def run_ai_summary(request, paper_pk):
     """Run AI summarisation synchronously and return the populated summary panel."""
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
 
-    # Ensure full text is available before summarising.
-    # Priority: PDF extraction → PMC fetch → existing full_text (abstract).
-    # The ingest flow stores the abstract in full_text; both PDF extraction
-    # and PMC fetch can get real full-paper text and update the field.
-    _short = len(paper.full_text or "") < 4_000
-    if _short and paper.source_file:
-        try:
-            from apps.literature.services.pdf import extract_text
-            text = extract_text(paper.source_file.path)
-            if len(text) > len(paper.full_text or ""):
-                paper.full_text = text[:500_000]
-                paper.save(update_fields=["full_text"])
-        except Exception as exc:
-            logger.warning("PDF re-extraction failed for paper %s: %s", paper_pk, exc)
-    elif _short and paper.pmcid:
-        from apps.literature.services.pubmed import fetch_pmc_full_text
-        fetch_pmc_full_text(paper)
+    from apps.summaries.tasks import _ensure_full_text
+    _ensure_full_text(paper)
     paper.refresh_from_db(fields=["full_text"])
 
     from .services.ai_summary import run_ai_summary as _run_ai, apply_summary_result

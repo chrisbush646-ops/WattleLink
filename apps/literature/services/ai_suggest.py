@@ -31,34 +31,44 @@ def _client():
 def suggest_pubmed_query(description: str) -> dict:
     """
     Generate a structured PubMed query from a natural language description.
-    Returns dict with keys: rows (for backward compat), query_parts, recommended_filters, explanation.
+    Returns dict with keys: rows, query_parts, recommended_filters, explanation.
     """
     client = _client()
     if not client:
-        logger.warning("ANTHROPIC_API_KEY not set; returning empty suggestion")
-        return {}
+        raise ValueError("ANTHROPIC_API_KEY is not configured.")
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        temperature=0,
+        system=_load_prompt(),
+        messages=[{
+            "role": "user",
+            "content": (
+                "Generate a PubMed Boolean search query for the following research topic.\n\n"
+                f"Research topic: {description}\n\n"
+                "Return ONLY the JSON object matching the Mode 1 schema. No prose, no markdown fences."
+            ),
+        }],
+    )
+
+    raw = response.content[0].text.strip()
+    # Strip markdown code fences if the model adds them despite instructions
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        raw = "\n".join(l for l in lines if not l.strip().startswith("```")).strip()
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            temperature=0,
-            system=_load_prompt(),
-            messages=[{
-                "role": "user",
-                "content": f"Mode: query suggestion\n\nResearch topic: {description}"
-            }],
-        )
-        raw = response.content[0].text.strip()
-        if raw.startswith("```"):
-            lines = raw.splitlines()
-            raw = "\n".join(l for l in lines if not l.startswith("```"))
         data = json.loads(raw)
-    except Exception as e:
-        logger.error("AI suggest query error: %s", e)
-        return {}
+    except json.JSONDecodeError as exc:
+        logger.error("AI suggest: JSON parse failed. Raw response: %r", raw[:500])
+        raise ValueError(f"AI returned unparseable response: {exc}") from exc
 
     parts = data.get("query_parts", [])
+    if not parts:
+        logger.error("AI suggest: no query_parts in response. Full data: %r", data)
+        raise ValueError("AI returned a response with no query rows.")
+
     rows = [
         {
             "operator": p.get("operator", "AND"),

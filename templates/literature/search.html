@@ -88,21 +88,17 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <div id="modal-container"></div>
 
 <!-- Saved searches strip -->
+{% load citations %}
 {% if saved_searches %}
 <div id="saved-searches-strip" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">
   <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0">Saved</span>
   {% for s in saved_searches %}
   <div style="display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden">
-    <button @click="loadSavedSearch('{{ s.query|escapejs }}', {{ s.filters|default:'{}' }})"
-            style="padding:4px 10px 4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap"
-            title="{{ s.query }}">
-      {{ s.name|truncatechars:24 }}
-    </button>
     <button @click="runSavedSearchById({{ s.id }})"
-            style="padding:4px 10px 4px 6px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--euc);font-size:11px;font-weight:500;font-family:inherit"
-            title="Run this search">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      Run
+            style="padding:4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:5px"
+            title="Run: {{ s.query }}">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      {{ s.name|truncatechars:28 }}
     </button>
   </div>
   {% endfor %}
@@ -612,14 +608,25 @@ function searchBuilder() {
     async runSavedSearchById(id) {
       this.searching = true;
       this.searchComplete = false;
-      const res = await fetch(`/literature/search/saved/${id}/run/`, {
-        method: 'POST', headers: { 'X-CSRFToken': CSRF },
-      });
-      const html = await res.text();
-      this.searching = false;
-      this.searchComplete = true;
-      document.getElementById('search-results').innerHTML = html;
-      document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Scroll so the user can see the loading indicator
+      const resultsEl = document.getElementById('search-results');
+      if (resultsEl) {
+        resultsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Running saved search…</div>';
+        resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      try {
+        const res = await fetch(`/literature/search/saved/${id}/run/`, {
+          method: 'POST', headers: { 'X-CSRFToken': CSRF },
+        });
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        const html = await res.text();
+        if (resultsEl) resultsEl.innerHTML = html;
+        this.searchComplete = true;
+      } catch(e) {
+        if (resultsEl) resultsEl.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Search failed: ${e.message}</div>`;
+      } finally {
+        this.searching = false;
+      }
     },
 
     async runBroadSearch() {

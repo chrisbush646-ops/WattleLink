@@ -90,6 +90,4 @@ Return ONLY valid JSON:
 - All PubMed syntax must be valid — use only recognised field tags
 - Do not fabricate MeSH terms — only suggest MeSH terms you are confident exist
 - If a term has no established MeSH, use `[tiab]` only
-
-## DOI rule
-Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.
+- Do NOT generate, guess, or include DOIs anywhere in your output
