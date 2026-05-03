@@ -16,8 +16,9 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput \
-    --settings=config.settings.production || true
+RUN SECRET_KEY=build-time-placeholder \
+    python manage.py collectstatic --noinput \
+    --settings=config.settings.production
 
 CMD exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:$PORT \
