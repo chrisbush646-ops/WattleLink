@@ -50,7 +50,7 @@ def run_ai_summary(paper) -> dict:
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        max_tokens=8192,
         temperature=0,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
