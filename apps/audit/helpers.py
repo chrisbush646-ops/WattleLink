@@ -30,11 +30,21 @@ def log_action(request, entity, action, before=None, after=None):
     if tenant is None and user is not None:
         tenant = getattr(user, "tenant", None)
 
+    if entity is None:
+        entity_type = action
+        entity_id = 0
+    elif isinstance(entity, str):
+        entity_type = entity
+        entity_id = 0
+    else:
+        entity_type = entity.__class__.__name__
+        entity_id = entity.pk
+
     AuditLog.objects.create(
         tenant=tenant,
         user=user,
-        entity_type=entity.__class__.__name__,
-        entity_id=entity.pk,
+        entity_type=entity_type,
+        entity_id=entity_id,
         action=action,
         before_state=_serialize_entity(before) if not isinstance(before, dict) else before,
         after_state=_serialize_entity(after) if not isinstance(after, dict) else after,

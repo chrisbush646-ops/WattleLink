@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
 
-_THINKING_BUDGET = 5000
-_MAX_TOKENS = 10000
+_MAX_TOKENS = 4096
 
 
 def _load_prompt(filename: str) -> str:
@@ -47,17 +46,13 @@ def validate_claim(claim) -> dict:
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=_MAX_TOKENS,
-        thinking={"type": "enabled", "budget_tokens": _THINKING_BUDGET},
+        temperature=0,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
         timeout=180,
     )
 
-    text_block = next((b for b in response.content if b.type == "text"), None)
-    if not text_block:
-        raise ValueError("MLR validation returned no text block.")
-
-    raw = text_block.text.strip()
+    raw = response.content[0].text.strip()
     if raw.startswith("```"):
         lines = raw.splitlines()
         raw = "\n".join(line for line in lines if not line.startswith("```"))

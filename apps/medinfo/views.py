@@ -26,6 +26,36 @@ _STOP_WORDS = {
 }
 
 
+def _extract_terms_from_row(row):
+    """Return unigrams + bigrams for a single enquiry row, filtering stop words."""
+    if row['keywords']:
+        words = [k.lower().strip() for k in row['keywords'] if k.strip()]
+    else:
+        raw = row['question'].lower().split()
+        words = [
+            w.strip('?.,!();:\'"')
+            for w in raw
+            if len(w.strip('?.,!();:\'"')) > 3
+            and w.strip('?.,!();:\'"').lower() not in _STOP_WORDS
+        ]
+    bigrams = [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)]
+    return words + bigrams
+
+
+def _suppress_phrase_components(counter):
+    """Remove unigrams that are already captured as part of a frequent bigram phrase."""
+    phrase_words = set()
+    for term, count in counter.items():
+        if ' ' in term and count >= 2:
+            for w in term.split():
+                phrase_words.add(w)
+    return Counter({
+        term: count
+        for term, count in counter.items()
+        if ' ' in term or term not in phrase_words
+    })
+
+
 def _analyse_enquiry_trends(enquiries_qs):
     now = timezone.now()
     recent_cutoff = now - timedelta(days=30)
@@ -33,29 +63,19 @@ def _analyse_enquiry_trends(enquiries_qs):
 
     rows = list(enquiries_qs.values('keywords', 'question', 'created_at'))
 
-    def extract_terms(row):
-        if row['keywords']:
-            return [k.lower().strip() for k in row['keywords'] if k.strip()]
-        words = row['question'].lower().split()
-        return [
-            w.strip('?.,!();:\'"')
-            for w in words
-            if len(w) > 3 and w.strip('?.,!();:\'"').lower() not in _STOP_WORDS
-        ]
-
     all_terms, recent_terms, prev_terms = [], [], []
     for row in rows:
-        terms = extract_terms(row)
+        terms = _extract_terms_from_row(row)
         all_terms.extend(terms)
         if row['created_at'] >= recent_cutoff:
             recent_terms.extend(terms)
         elif row['created_at'] >= prev_cutoff:
             prev_terms.extend(terms)
 
-    top_topics = Counter(all_terms).most_common(8)
+    top_topics = _suppress_phrase_components(Counter(all_terms)).most_common(8)
 
-    recent_count = Counter(recent_terms)
-    prev_count = Counter(prev_terms)
+    recent_count = _suppress_phrase_components(Counter(recent_terms))
+    prev_count = _suppress_phrase_components(Counter(prev_terms))
     trending = []
     for term, recent_n in recent_count.most_common(20):
         prev_n = prev_count.get(term, 0)
@@ -68,6 +88,17 @@ def _analyse_enquiry_trends(enquiries_qs):
 
 
 @login_required
+def enquiry_stats(request):
+    """Lightweight partial returning just the stat counts — used by the auto-refresh mechanism."""
+    counts = {
+        "open": Enquiry.objects.filter(status=Enquiry.Status.OPEN).count(),
+        "draft": Enquiry.objects.filter(status=Enquiry.Status.DRAFT).count(),
+        "responded": Enquiry.objects.filter(status=Enquiry.Status.RESPONDED).count(),
+    }
+    return render(request, "medinfo/partials/enquiry_stats.html", {"counts": counts})
+
+
+@login_required
 def enquiry_list(request):
     enquiries = Enquiry.objects.select_related("created_by", "assigned_to")
     status_filter = request.GET.get("status", "")
@@ -76,6 +107,10 @@ def enquiry_list(request):
         enquiries = enquiries.filter(status=status_filter)
     if q:
         enquiries = enquiries.filter(question__icontains=q)
+
+    if request.headers.get("HX-Request"):
+        return render(request, "medinfo/partials/enquiry_list_inner.html", {"enquiries": enquiries})
+
     counts = {
         "open": Enquiry.objects.filter(status=Enquiry.Status.OPEN).count(),
         "draft": Enquiry.objects.filter(status=Enquiry.Status.DRAFT).count(),

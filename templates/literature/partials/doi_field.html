@@ -1,0 +1,88 @@
+{% comment %}
+DOI field component with CrossRef verification status.
+Expects: paper (Paper instance).
+Renders: status indicator, input, Verify button, Search CrossRef button.
+{% endcomment %}
+<div id="doi-field-{{ paper.pk }}" style="display:flex;flex-direction:column;gap:6px">
+
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <input type="text"
+           id="doi-input-{{ paper.pk }}"
+           value="{{ paper.doi }}"
+           placeholder="10.xxxx/..."
+           style="font-family:var(--mono);font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;width:280px;background:var(--surface)"
+           onblur="cleanDoiOnBlur(this, {{ paper.pk }})"
+    >
+
+    {# Status indicator #}
+    {% if not paper.doi %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+        <span style="color:var(--line)">—</span> No DOI
+      </span>
+    {% elif paper.doi_verified %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--euc)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Verified via CrossRef
+      </span>
+    {% else %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#8A6918">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Unverified
+      </span>
+    {% endif %}
+
+    {# Verify button — only when a DOI is present #}
+    {% if paper.doi %}
+    <button hx-post="{% url 'literature:doi_verify' paper.pk %}"
+            hx-target="#doi-field-{{ paper.pk }}"
+            hx-swap="outerHTML"
+            hx-include="#doi-input-{{ paper.pk }}"
+            style="padding:3px 10px;font-size:11px;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--ink);cursor:pointer;font-family:var(--sans)">
+      Verify
+    </button>
+    {% endif %}
+
+    {# Search CrossRef button — always available #}
+    <button hx-post="{% url 'literature:doi_search' paper.pk %}"
+            hx-target="#doi-field-{{ paper.pk }}"
+            hx-swap="outerHTML"
+            style="padding:3px 10px;font-size:11px;border:1px solid var(--euc);border-radius:20px;background:transparent;color:var(--euc);cursor:pointer;font-family:var(--sans)">
+      Search CrossRef
+    </button>
+  </div>
+
+  {# Title mismatch warning #}
+  {% if paper.doi and not paper.doi_verified and paper.doi_verification_details.crossref_title %}
+    {% with cr_title=paper.doi_verification_details.crossref_title %}
+    <div style="font-size:11px;color:var(--coral);background:#FDF0EC;border:1px solid #E9CBB9;border-radius:6px;padding:6px 10px;margin-top:2px">
+      <strong>Warning:</strong> DOI resolves to a different paper: &ldquo;{{ cr_title|truncatechars:120 }}&rdquo;. Please confirm this is correct.
+    </div>
+    {% endwith %}
+  {% endif %}
+
+  {# Unverified hint from PDF extraction #}
+  {% if doi_unverified_hint %}
+  <div style="font-size:11px;color:#8A6918;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:6px;padding:6px 10px;margin-top:2px">
+    DOI found in PDF but could not be verified. Please confirm or correct: <code style="font-family:var(--mono)">{{ doi_unverified_hint }}</code>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function cleanDoiOnBlur(input, paperPk) {
+  let val = input.value.trim();
+  // Strip known prefixes
+  for (const prefix of ['https://doi.org/', 'http://doi.org/', 'DOI:', 'doi:']) {
+    if (val.toLowerCase().startsWith(prefix.toLowerCase())) {
+      val = val.slice(prefix.length).trim();
+      break;
+    }
+  }
+  input.value = val;
+  // Auto-verify via HTMX if value changed and looks like a DOI
+  if (val && /^10\.\d{4,9}\//.test(val)) {
+    htmx.trigger(input.closest('[id^="doi-field-"]').querySelector('[hx-post*="doi/verify"]'), 'click');
+  }
+}
+</script>

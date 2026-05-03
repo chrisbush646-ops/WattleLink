@@ -20,6 +20,7 @@ def suggest_kols_by_keyword(query: str) -> list[dict]:
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=4096,
+        temperature=0,
         system=(PROMPT_PATH / "kol_suggest.md").read_text(),
         messages=[{
             "role": "user",
@@ -53,6 +54,7 @@ def discover_kols(paper) -> list[dict]:
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=2048,
+        temperature=0,
         system=(PROMPT_PATH / "kol_discovery.md").read_text(),
         messages=[{"role": "user", "content": content}],
     )

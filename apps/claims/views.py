@@ -401,6 +401,17 @@ def suggest_claims(request, paper_pk):
 
 
 @login_required
+def claims_stats(request):
+    """Lightweight partial returning just the KPI counts — used by the auto-refresh mechanism."""
+    all_qs = CoreClaim.all_objects.filter(tenant=request.tenant, deleted_at__isnull=True)
+    return render(request, "claims/partials/claims_stats.html", {
+        "approved_count": all_qs.filter(status=CoreClaim.Status.APPROVED).count(),
+        "pending_count": all_qs.filter(status__in=[CoreClaim.Status.AI_DRAFT, CoreClaim.Status.IN_REVIEW]).count(),
+        "total_count": all_qs.count(),
+    })
+
+
+@login_required
 @require_POST
 def update_fidelity(request, claim_pk):
     """Save fidelity checklist state (individual checkbox toggle)."""

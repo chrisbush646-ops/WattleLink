@@ -46,6 +46,24 @@ def signal_list(request):
 
 
 @login_required
+def signal_stats(request):
+    """Lightweight partial returning just the stat counts — used by the auto-refresh mechanism."""
+    signals = SafetySignal.objects.all()
+    total = signals.count()
+    active_count = signals.filter(status=SafetySignal.Status.ACTIVE).count()
+    monitoring_count = signals.filter(status=SafetySignal.Status.MONITORING).count()
+    scanned_count = Paper.objects.filter(safety_scanned_at__isnull=False).count()
+    unscanned_count = Paper.objects.filter(safety_scanned_at__isnull=True).exclude(full_text="").count()
+    return render(request, "safety/partials/signal_stats.html", {
+        "total": total,
+        "active_count": active_count,
+        "monitoring_count": monitoring_count,
+        "scanned_count": scanned_count,
+        "unscanned_count": unscanned_count,
+    })
+
+
+@login_required
 def signal_detail(request, signal_pk):
     signal = get_object_or_404(SafetySignal, pk=signal_pk, tenant=request.tenant)
     mentions = signal.mentions.select_related("paper", "added_by")

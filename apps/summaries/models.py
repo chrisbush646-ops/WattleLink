@@ -25,7 +25,7 @@ class PaperSummary(SoftDeleteModel):
         choices=Status.choices,
         default=Status.AI_DRAFT,
     )
-    methodology = models.TextField(blank=True)
+    methodology = models.JSONField(default=dict, blank=True)
     executive_paragraph = models.TextField(blank=True)
     safety_summary = models.TextField(blank=True)
     adverse_events = models.JSONField(
@@ -37,6 +37,8 @@ class PaperSummary(SoftDeleteModel):
         help_text="[{limitation, page_ref}, ...]",
     )
     ai_prefilled = models.BooleanField(default=False)
+    validation_warnings = models.JSONField(default=list, blank=True)
+    confidence_flags = models.JSONField(default=list, blank=True)
     confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -57,6 +59,25 @@ class PaperSummary(SoftDeleteModel):
         ]
         verbose_name_plural = "paper summaries"
 
+    @property
+    def methodology_brief(self) -> str:
+        """One-line plain text summary of the methodology for commercial view and compact displays."""
+        m = self.methodology
+        if not isinstance(m, dict):
+            return str(m) if m else ""
+        parts = []
+        design = (m.get("study_design") or "").strip()
+        if design and design.lower() != "not reported":
+            parts.append(design)
+        pop = m.get("population") or {}
+        n = (pop.get("sample_size") or "").strip() if isinstance(pop, dict) else ""
+        if n and n.lower() != "not reported":
+            parts.append(n)
+        followup = (m.get("follow_up") or "").strip()
+        if followup and followup.lower() != "not reported":
+            parts.append(f"{followup} follow-up")
+        return " · ".join(parts)
+
     def __str__(self):
         return f"Summary: {self.paper}"
 
@@ -65,6 +86,7 @@ class FindingsRow(models.Model):
     class Category(models.TextChoices):
         PRIMARY = "Primary", "Primary"
         SECONDARY = "Secondary", "Secondary"
+        POST_HOC = "Post-hoc", "Post-hoc"
         SAFETY = "Safety", "Safety"
         OTHER = "Other", "Other"
 

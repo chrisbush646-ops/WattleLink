@@ -48,7 +48,7 @@
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    .nav-logo { display: flex; align-items: center; gap: 1px; text-decoration: none; }
+    .nav-logo { display: flex; align-items: center; gap: 0; text-decoration: none; }
     .nav-logo-name {
       font-family: var(--serif);
       font-size: 20px;
@@ -658,23 +658,26 @@
 <!-- Navigation -->
 <nav>
   <a href="/" class="nav-logo">
-    <svg width="64" height="50" viewBox="0 0 200 160" fill="none" style="margin-top:10px">
-      <path d="M55 80 C63 54 81 28 103 16 C115 10 127 14 135 24" stroke="rgba(255,255,255,0.5)" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M83 38 C75 28 67 26 61 32" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M103 16 C107 8 115 2 123 6" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round"/>
-      <circle cx="135" cy="24" r="14" fill="#A07820"/><circle cx="135" cy="24" r="9.5" fill="#E5BE5A"/>
-      <circle cx="61" cy="32" r="11" fill="#A07820"/><circle cx="61" cy="32" r="7.5" fill="#E5BE5A"/>
-      <circle cx="123" cy="6" r="8.5" fill="#A07820"/><circle cx="123" cy="6" r="5.5" fill="#E5BE5A"/>
-      <circle cx="83" cy="38" r="6.5" fill="#A07820"/><circle cx="83" cy="38" r="4.2" fill="#E5BE5A"/>
-      <circle cx="103" cy="16" r="5.5" fill="#A07820"/><circle cx="103" cy="16" r="3.5" fill="#E5BE5A"/>
+    <svg width="140" height="40" viewBox="0 0 220 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Icon box -->
+      <rect x="0" y="0" width="64" height="64" rx="14" fill="rgba(255,255,255,0.10)"/>
+      <!-- W mark -->
+      <path d="M10 16 C11 28 14 38 18 46 C20 50 22 50 24 46 C26 40 28 34 34 34 C40 34 42 40 44 46 C46 50 48 50 50 46 C54 38 57 28 58 16 L50 16 C49 26 47 34 45 38 C44 40 43 40 42 38 C40 34 38 28 34 28 C30 28 28 34 26 38 C25 40 24 40 23 38 C21 34 19 26 18 16 Z" fill="#F4F6F2"/>
+      <!-- Stem -->
+      <path d="M33 28 C32 22 30 16 28 12" stroke="#3C5C4A" stroke-width="1" stroke-linecap="round"/>
+      <!-- Wattle blossom -->
+      <circle cx="28" cy="12" r="4" fill="#C89B2A"/>
+      <circle cx="28" cy="12" r="2.5" fill="#E5BE5A"/>
+      <!-- Wordmark -->
+      <text x="80" y="38" fill="#F4F6F2" font-size="28" font-family="Georgia, serif" font-weight="400" letter-spacing="-0.02em">Wattle<tspan font-style="italic" font-weight="300">Link</tspan></text>
     </svg>
-    <span class="nav-logo-name">Wattle<em>Link</em></span>
   </a>
 
   <div class="nav-links">
     <a href="#pipeline">The Pipeline</a>
     <a href="#intelligence">Intelligence</a>
     <a href="#compliance">Compliance</a>
+    <a href="/faq/">FAQ</a>
     <a href="/contact/">Contact</a>
   </div>
 
@@ -1020,7 +1023,16 @@
 <!-- Footer -->
 <footer>
   <div class="footer-inner">
-    <span class="footer-logo">Wattle<em>Link</em></span>
+    <span class="footer-logo" style="display:inline-flex;align-items:center;gap:10px">
+      <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="64" height="64" rx="14" fill="rgba(255,255,255,0.08)"/>
+        <path d="M10 16 C11 28 14 38 18 46 C20 50 22 50 24 46 C26 40 28 34 34 34 C40 34 42 40 44 46 C46 50 48 50 50 46 C54 38 57 28 58 16 L50 16 C49 26 47 34 45 38 C44 40 43 40 42 38 C40 34 38 28 34 28 C30 28 28 34 26 38 C25 40 24 40 23 38 C21 34 19 26 18 16 Z" fill="rgba(244,246,242,0.4)"/>
+        <path d="M33 28 C32 22 30 16 28 12" stroke="#3C5C4A" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="28" cy="12" r="4" fill="#C89B2A"/>
+        <circle cx="28" cy="12" r="2.5" fill="#E5BE5A"/>
+      </svg>
+      Wattle<em>Link</em>
+    </span>
     <p>Medical Affairs Intelligence Platform &middot; Australia</p>
     <div class="footer-links">
       <a href="/dashboard/">Dashboard</a>

@@ -30,6 +30,7 @@ def extract_safety_signals(paper) -> list[dict]:
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=_MAX_TOKENS,
+        temperature=0,
         system=system_prompt,
         messages=[{
             "role": "user",

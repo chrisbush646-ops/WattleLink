@@ -1,0 +1,40 @@
+<a href="{% url 'medinfo:list' %}"
+   hx-get="{% url 'medinfo:list' %}"
+   hx-target="#enquiry-list-inner"
+   hx-push-url="true"
+   style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);text-decoration:none;display:block;cursor:pointer;transition:box-shadow .12s"
+   onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+   onmouseout="this.style.boxShadow=''">
+  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">All</div>
+  <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ counts.open|add:counts.draft|add:counts.responded }}</div>
+</a>
+<a href="{% url 'medinfo:list' %}?status=OPEN"
+   hx-get="{% url 'medinfo:list' %}?status=OPEN"
+   hx-target="#enquiry-list-inner"
+   hx-push-url="true"
+   style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r);text-decoration:none;display:block;cursor:pointer;transition:box-shadow .12s"
+   onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+   onmouseout="this.style.boxShadow=''">
+  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Open</div>
+  <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">{{ counts.open }}</div>
+</a>
+<a href="{% url 'medinfo:list' %}?status=DRAFT"
+   hx-get="{% url 'medinfo:list' %}?status=DRAFT"
+   hx-target="#enquiry-list-inner"
+   hx-push-url="true"
+   style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r);text-decoration:none;display:block;cursor:pointer;transition:box-shadow .12s"
+   onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+   onmouseout="this.style.boxShadow=''">
+  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Draft</div>
+  <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ counts.draft }}</div>
+</a>
+<a href="{% url 'medinfo:list' %}?status=RESPONDED"
+   hx-get="{% url 'medinfo:list' %}?status=RESPONDED"
+   hx-target="#enquiry-list-inner"
+   hx-push-url="true"
+   style="flex:1;padding:14px 16px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:var(--r);text-decoration:none;display:block;cursor:pointer;transition:box-shadow .12s"
+   onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+   onmouseout="this.style.boxShadow=''">
+  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--euc);font-weight:500;margin-bottom:4px">Responded</div>
+  <div style="font-size:22px;font-weight:700;color:var(--euc);font-family:var(--serif)">{{ counts.responded }}</div>
+</a>

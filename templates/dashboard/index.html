@@ -84,6 +84,33 @@
   </div>
 </div>
 
+<!-- DOI health status bar -->
+{% if doi_stats %}
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:11.5px;flex-wrap:wrap">
+  <span style="color:var(--muted)">DOIs:</span>
+  <a href="{% url 'literature:library' %}?doi_status=verified"
+     style="display:inline-flex;align-items:center;gap:4px;color:var(--euc);text-decoration:none">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    {{ doi_stats.verified }} verified
+  </a>
+  {% if doi_stats.unverified %}
+  <span style="color:var(--line)">·</span>
+  <a href="{% url 'literature:library' %}?doi_status=unverified"
+     style="display:inline-flex;align-items:center;gap:4px;color:#8A6918;text-decoration:none">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    {{ doi_stats.unverified }} unverified
+  </a>
+  {% endif %}
+  {% if doi_stats.missing %}
+  <span style="color:var(--line)">·</span>
+  <a href="{% url 'literature:library' %}?doi_status=missing"
+     style="color:var(--muted);text-decoration:none">
+    {{ doi_stats.missing }} missing
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Row 1: Awaiting action + Recent decisions -->
 <div class="grid grid-2">
   <div class="card">

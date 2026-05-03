@@ -9,22 +9,16 @@
       <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Medical Information</h1>
       <div style="font-size:12px;color:var(--muted)">Log and respond to medical information enquiries. All responses are logged with APA7 citations.</div>
     </div>
+    <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Log Enquiry</button>
   </div>
 
-  <!-- Stats row -->
-  <div style="display:flex;gap:12px;margin-bottom:20px">
-    <div style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
-      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Open</div>
-      <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">{{ counts.open }}</div>
-    </div>
-    <div style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
-      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Draft</div>
-      <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ counts.draft }}</div>
-    </div>
-    <div style="flex:1;padding:14px 16px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:var(--r)">
-      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--euc);font-weight:500;margin-bottom:4px">Responded</div>
-      <div style="font-size:22px;font-weight:700;color:var(--euc);font-family:var(--serif)">{{ counts.responded }}</div>
-    </div>
+  <!-- Stats row — auto-refreshes after any mutation via wlStatsRefresh event -->
+  <div id="medinfo-stats"
+       style="display:flex;gap:12px;margin-bottom:20px"
+       hx-trigger="wlStatsRefresh from:body"
+       hx-get="{% url 'medinfo:stats' %}"
+       hx-swap="innerHTML">
+    {% include "medinfo/partials/enquiry_stats.html" %}
   </div>
 
   {% if top_topics or trending %}
@@ -89,20 +83,6 @@
     <input type="hidden" name="status" value="{{ status_filter }}">
   </div>
 
-  <!-- Filter + action row -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
-    {% for val, label in status_choices %}
-    <a href="?status={{ val }}" style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
-       {% if status_filter == val %}background:var(--euc);color:#fff{% else %}background:var(--surface);color:var(--muted);border:1px solid var(--line){% endif %}">
-      {{ label }}
-    </a>
-    {% endfor %}
-    <a href="?" style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
-       {% if not status_filter %}background:var(--euc);color:#fff{% else %}background:var(--surface);color:var(--muted);border:1px solid var(--line){% endif %}">All</a>
-    <div style="flex:1"></div>
-    <button @click="showCreate = !showCreate" class="btn btn-p btn-sm">+ Log Enquiry</button>
-  </div>
-
   <!-- Create form -->
   <div x-show="showCreate" x-transition
        style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:16px">
@@ -141,6 +121,7 @@ function enquiryListPage() {
         el.innerHTML = html;
         if (window.Alpine) Alpine.initTree(el);
         this.showCreate = false; this.form = { question: '', source: 'HCP' };
+        document.body.dispatchEvent(new CustomEvent('wlStatsRefresh'));
       });
     },
   };

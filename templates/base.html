@@ -101,24 +101,19 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
   <!-- SIDEBAR -->
   <aside class="sb">
     <div class="brand">
-      <svg width="100%" viewBox="36 -8 126 138" fill="none" style="max-height:80px">
-        <!-- stem: light so it shows on dark sidebar -->
-        <path d="M55 80 C63 54 81 28 103 16 C115 10 127 14 135 24" stroke="rgba(255,255,255,0.45)" stroke-width="2.4" stroke-linecap="round"/>
-        <path d="M83 38 C75 28 67 26 61 32" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M103 16 C107 8 115 2 123 6" stroke="rgba(255,255,255,0.3)" stroke-width="1.2" stroke-linecap="round"/>
-        <!-- wattle flowers -->
-        <circle cx="135" cy="24" r="14" fill="#A07820"/><circle cx="135" cy="24" r="9.5" fill="#E5BE5A"/>
-        <circle cx="61" cy="32" r="11" fill="#A07820"/><circle cx="61" cy="32" r="7.5" fill="#E5BE5A"/>
-        <circle cx="123" cy="6" r="8.5" fill="#A07820"/><circle cx="123" cy="6" r="5.5" fill="#E5BE5A"/>
-        <circle cx="83" cy="38" r="6.5" fill="#A07820"/><circle cx="83" cy="38" r="4.2" fill="#E5BE5A"/>
-        <circle cx="103" cy="16" r="5.5" fill="#A07820"/><circle cx="103" cy="16" r="3.5" fill="#E5BE5A"/>
-        <circle cx="67" cy="56" r="4.5" fill="#A07820"/><circle cx="67" cy="56" r="2.8" fill="#E5BE5A"/>
-        <!-- leaf detail -->
-        <path d="M91 28 C85 23 79 25 74 22" stroke="rgba(255,255,255,0.2)" stroke-width="0.9" stroke-linecap="round"/>
-        <path d="M91 28 C87 33 81 31 76 34" stroke="rgba(255,255,255,0.2)" stroke-width="0.9" stroke-linecap="round"/>
-        <path d="M115 18 C119 13 125 15 131 12" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" stroke-linecap="round"/>
-        <!-- wordmark -->
-        <text x="99" y="118" text-anchor="middle" fill="#F4F6F2" font-size="32" font-family="Georgia, serif" font-weight="400" letter-spacing="-0.02em">Wattle<tspan font-style="italic" font-weight="300">Link</tspan></text>
+      <svg width="100%" viewBox="0 0 220 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+        <!-- Icon box -->
+        <rect x="8" y="8" width="32" height="32" rx="7" fill="#1A2E23"/>
+        <!-- W mark -->
+        <path d="M13 16 C14 20 15 24 17 27 C17.5 28 18 28 18.5 27 C19 25 20 23 24 23 C28 23 29 25 29.5 27 C30 28 30.5 28 31 27 C33 24 34 20 35 16 L31 16 C30.5 18 30 22 29 24 C28.5 25 28 25 27.5 24 C27 22 26 19 24 19 C22 19 21 22 20.5 24 C20 25 19.5 25 19 24 C18 22 17.5 18 17 16 Z" fill="#F4F6F2"/>
+        <!-- Stem -->
+        <path d="M23 19 C22.5 16 22 13 21 12" stroke="#3C5C4A" stroke-width="0.6" stroke-linecap="round"/>
+        <!-- Wattle blossom -->
+        <circle cx="21" cy="12" r="2" fill="#C89B2A"/>
+        <circle cx="21" cy="12" r="1.2" fill="#E5BE5A"/>
+        <!-- Wordmark -->
+        <text x="48" y="28" fill="#F4F6F2" font-size="17" font-family="Georgia, serif" font-weight="400" letter-spacing="-0.02em">Wattle<tspan font-style="italic" font-weight="300">Link</tspan></text>
+        <text x="48" y="40" fill="rgba(232,239,233,0.4)" font-size="8" font-family="inherit" font-weight="500" letter-spacing="0.12em">MEDICAL AFFAIRS</text>
       </svg>
     </div>
 
@@ -144,6 +139,10 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
       <a href="{% url 'literature:library' %}" class="ni {% block nav_library %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h12a3 3 0 013 3v13H7a3 3 0 01-3-3V4z"/><path d="M4 17a3 3 0 013-3h12"/><path d="M8 8h7M8 11h5"/></svg>
         Literature Database
+      </a>
+      <a href="{% url 'literature:awaiting_upload' %}" class="ni {% block nav_awaiting %}{% endblock %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Awaiting Upload
       </a>
     </div>
 
@@ -205,7 +204,7 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
       <div class="ng-l">Views</div>
       <a href="{% url 'dashboard:commercial' %}" class="ni {% block nav_commercial %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 7l10-4 10 4M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
-        Commercial View
+        Commercial Dashboard
       </a>
     </div>
 
@@ -338,6 +337,16 @@ document.body.addEventListener('htmx:responseError', function(evt) {
 document.body.addEventListener('htmx:afterSettle', function(evt) {
   if (window.Alpine && evt.detail.target) {
     Alpine.initTree(evt.detail.target);
+  }
+});
+
+// After any successful mutating HTMX request, fire wlStatsRefresh so stat
+// sections on the current page can reload their counts without a full reload.
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+  if (!evt.detail.successful) return;
+  var verb = (evt.detail.requestConfig || {}).verb || '';
+  if (['post', 'put', 'patch', 'delete'].includes(verb)) {
+    document.body.dispatchEvent(new CustomEvent('wlStatsRefresh'));
   }
 });
 

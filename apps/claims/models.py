@@ -114,6 +114,7 @@ class CoreClaim(SoftDeleteModel):
     mlr_rationale = models.TextField(blank=True)
     mlr_checked_at = models.DateTimeField(null=True, blank=True)
 
+    confidence_flags = models.JSONField(default=list, blank=True)
     ai_generated = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

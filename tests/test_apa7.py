@@ -17,6 +17,8 @@ def make_paper(tenant, **kwargs):
         "issue": "9",
         "pages": "801-812",
         "doi": "10.1056/NEJMoa2401234",
+        "doi_verified": True,
+        "doi_source": Paper.DOISource.PUBMED,
         "status": Paper.Status.INGESTED,
         "source": Paper.Source.PUBMED_OA,
     }

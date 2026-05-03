@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load citations %}
+
+{% block title %}Awaiting Upload{% endblock %}
+{% block nav_awaiting %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.pt{font-family:var(--serif);font-weight:300;font-size:34px;letter-spacing:-.025em;line-height:1.05;color:var(--ink)}.pt em{font-style:italic;color:var(--euc)}
+.ps{margin-top:5px;color:var(--muted);font-size:13px}
+.paper-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.paper-row:hover{border-color:#CFDAD0}
+.paper-row.is-done{opacity:.55;pointer-events:none}
+.row-head{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer}
+.row-title{font-family:var(--serif);font-size:14.5px;font-weight:500;color:var(--ink);line-height:1.35;flex:1;min-width:0}
+.row-meta{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tag{display:inline-flex;align-items:center;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;white-space:nowrap}
+.tag-amber{background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A}
+.tag-grey{background:var(--line-soft);color:var(--muted);border:1px solid var(--line)}
+.upload-panel{border-top:1px solid var(--line);padding:18px 18px 20px;background:var(--paper-warm)}
+.drop-zone{border:2px dashed var(--line);border-radius:var(--r-lg);padding:28px 20px;text-align:center;transition:border-color .15s,background .15s;position:relative;cursor:pointer}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--euc-l);background:#EEF4F0}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.drop-zone-icon{width:36px;height:36px;background:#E8EFE9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;border:1px solid #CFDAD0}
+.drop-label{font-size:13px;color:var(--ink);font-weight:500;margin-bottom:4px}
+.drop-sub{font-size:11.5px;color:var(--muted)}
+.file-chosen{display:none;align-items:center;gap:8px;margin-top:12px;padding:8px 12px;background:var(--surface);border-radius:var(--r);border:1px solid var(--line);font-size:12.5px;color:var(--ink)}
+.upload-actions{display:flex;align-items:center;gap:8px;margin-top:12px}
+.empty-state{padding:48px 24px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
+.empty-icon{width:48px;height:48px;background:#E8EFE9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;border:1px solid #CFDAD0}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ph">
+  <div>
+    <div style="font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Literature</div>
+    <h1 class="pt">Awaiting <em>Upload.</em></h1>
+    <p class="ps">
+      {% if papers %}
+        {{ papers|length }} paywalled paper{{ papers|length|pluralize }} without a PDF. Open access papers are fetched automatically — these require a manual upload to enable full-text extraction.
+      {% else %}
+        All papers have a PDF attached.
+      {% endif %}
+    </p>
+  </div>
+  <a href="{% url 'literature:library' %}" class="btn btn-g btn-sm">Back to Library</a>
+</div>
+
+{% if papers %}
+<div id="awaiting-list">
+  {% for paper in papers %}
+  <div id="awaiting-row-{{ paper.pk }}" class="paper-row" x-data="uploadRow({{ paper.pk }})">
+
+    <!-- Row header — click to expand -->
+    <div class="row-head" @click="toggle()">
+      <div style="flex:1;min-width:0">
+        <div class="row-title">{{ paper.title }}</div>
+        <div class="row-meta">
+          {% if paper.authors %}{{ paper.authors|first }}{% if paper.authors|length > 1 %} et al.{% endif %} · {% endif %}
+          {{ paper.journal_short|default:paper.journal|default:"Unknown journal" }}
+          {% if paper.published_date %} · {{ paper.published_date|date:"Y" }}{% endif %}
+          {% if paper.doi %} · <span style="font-family:var(--mono);font-size:10px">{{ paper.doi }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="row-actions">
+        {% if paper.status == 'AWAITING_UPLOAD' %}
+        <span class="tag tag-amber">Upload failed</span>
+        {% else %}
+        <span class="tag tag-grey">No PDF</span>
+        {% endif %}
+        {% if paper.published_date %}
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ paper.published_date|date:"Y" }}</span>
+        {% endif %}
+        <div style="width:28px;height:28px;border-radius:6px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"
+             :style="open ? 'background:var(--euc);border-color:var(--euc)' : ''">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               :style="open ? 'stroke:#F4F6F2' : ''"
+               style="transition:transform .2s" :style="open ? 'transform:rotate(180deg)' : ''">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload panel -->
+    <div class="upload-panel" x-show="open" x-transition>
+      <div id="upload-feedback-{{ paper.pk }}">
+        <form hx-post="{% url 'literature:attach_pdf' paper.pk %}"
+              hx-encoding="multipart/form-data"
+              hx-target="#awaiting-row-{{ paper.pk }}"
+              hx-swap="outerHTML"
+              @submit="submitting = true">
+
+          <div class="drop-zone"
+               @dragover.prevent="$el.classList.add('drag-over')"
+               @dragleave="$el.classList.remove('drag-over')"
+               @drop.prevent="$el.classList.remove('drag-over'); handleFile($event.dataTransfer.files[0])">
+            <input type="file" name="pdf" accept=".pdf"
+                   @change="handleFile($event.target.files[0])">
+            <div class="drop-zone-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="drop-label" x-text="fileName || 'Choose a PDF or drag it here'">Choose a PDF or drag it here</div>
+            <div class="drop-sub" x-show="!fileName">PDF files only · max 50 MB</div>
+          </div>
+
+          <div class="upload-actions">
+            <button type="submit" class="btn btn-p btn-sm"
+                    :disabled="!fileName || submitting"
+                    x-text="submitting ? 'Uploading…' : 'Upload PDF'">
+              Upload PDF
+            </button>
+            <button type="button" class="btn btn-g btn-sm" @click="toggle()">Cancel</button>
+            <span x-show="submitting" style="font-size:11.5px;color:var(--muted)">Extracting text, this may take a moment…</span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+  </div>
+  <div style="font-family:var(--serif);font-size:18px;font-weight:400;color:var(--ink);margin-bottom:6px">All caught up</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:18px">All paywalled papers have a PDF attached. Open access papers are fetched from PubMed automatically.</div>
+  <a href="{% url 'literature:library' %}" class="btn btn-g btn-sm" style="text-decoration:none">Back to Library</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function uploadRow(pk, openByDefault = false) {
+  return {
+    open: openByDefault,
+    fileName: '',
+    submitting: false,
+    toggle() {
+      this.open = !this.open;
+      if (!this.open) { this.fileName = ''; this.submitting = false; }
+    },
+    handleFile(file) {
+      if (file) this.fileName = file.name;
+    },
+  };
+}
+</script>
+{% endblock %}

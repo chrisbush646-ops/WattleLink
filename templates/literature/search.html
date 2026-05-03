@@ -37,18 +37,42 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
 .dropzone strong{color:var(--ink);font-weight:500;display:block;margin-bottom:2px;font-size:12.5px}
 .ai-thinking{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:4px 0}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* Native dialog styling */
-dialog{border:none;border-radius:14px;padding:28px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);background:var(--surface)}
+@keyframes aispin{to{transform:rotate(360deg)}}
+dialog{border:none;border-radius:14px;padding:28px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.2);background:var(--surface)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+/* Date preset buttons */
+.date-preset{padding:4px 10px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:11.5px;color:var(--muted);background:var(--surface);cursor:pointer;transition:all .12s}
+.date-preset.active,.date-preset:hover{border-color:var(--euc);color:var(--euc);background:#E8EFE9}
+/* Study type checkboxes */
+.st-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.st-cb{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:12px;color:var(--ink);transition:all .12s}
+.st-cb:hover{border-color:var(--euc-l)}
+.st-cb input{accent-color:var(--euc);flex-shrink:0}
+/* Chip strip */
+.chip-strip{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px 3px 10px;border:1px solid var(--line);border-radius:20px;font-size:11.5px;color:var(--ink);background:var(--surface);cursor:pointer;transition:all .12s}
+.chip:hover{border-color:var(--euc);background:#E8EFE9;color:var(--euc)}
+.chip.active-and{border-color:var(--euc);background:#E8EFE9;color:var(--euc)}
+.chip.active-not{border-color:var(--coral);background:var(--coral-soft);color:var(--coral)}
+/* Refinement tag */
+.ref-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:20px;font-size:11.5px}
+.ref-tag.and-tag{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
+.ref-tag.not-tag{background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9}
+/* Funnel counter */
+.funnel-step{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-family:var(--mono)}
+/* AI suggestion card */
+.ai-sug{padding:10px 12px;border:1px solid var(--line-soft);border-radius:8px;background:var(--paper-warm);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
 </style>
 {% endblock %}
 
 {% block content %}
+<div x-data="searchBuilder()" x-cloak>
+
 <div class="ph">
   <div>
-    <div class="eyebrow" style="margin-bottom:5px">Stage 1</div>
-    <h1 class="pt">Search &amp; <em>Ingest</em></h1>
-    <p class="ps">Build a PubMed Boolean query, ingest open-access papers, and flag paywalled articles for upload.</p>
+    <div class="eyebrow" style="margin-bottom:5px">Search &amp; Ingest</div>
+    <h1 class="pt">Cast the <em>net</em></h1>
+    <p class="ps">Start broad — build a high-recall query, run it, then refine to the most clinically relevant papers.</p>
   </div>
   <div class="pa">
     <button class="btn btn-g"
@@ -69,12 +93,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0">Saved</span>
   {% for s in saved_searches %}
   <div style="display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden">
-    <button onclick="loadSearch('{{ s.query|escapejs }}')"
+    <button @click="loadSavedSearch('{{ s.query|escapejs }}', {{ s.filters|default:'{}' }})"
             style="padding:4px 10px 4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap"
             title="{{ s.query }}">
       {{ s.name|truncatechars:24 }}
     </button>
-    <button onclick="runSavedSearch({{ s.id }}, '{{ s.query|escapejs }}')"
+    <button @click="runSavedSearchById({{ s.id }})"
             style="padding:4px 10px 4px 6px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--euc);font-size:11px;font-weight:500;font-family:inherit"
             title="Run this search">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -85,86 +109,360 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </div>
 {% endif %}
 
-<!-- AI Suggest dialog (native <dialog>) -->
+<!-- AI Suggest Query dialog -->
 <dialog id="ai-dialog">
   <div style="font-family:var(--serif);font-size:20px;font-weight:300;color:var(--ink);margin-bottom:6px">AI Query Suggest</div>
-  <div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Describe your research topic in plain language. The AI will generate the broadest possible query — maximum synonyms, minimal AND restrictions — so you start with the largest result set and refine from there.</div>
-  <div style="font-size:11px;color:var(--euc);background:#E8EFE9;border:1px solid #CFDAD0;border-radius:6px;padding:6px 10px;margin-bottom:14px">Tip: describe only the core topic. Date ranges, study types, and publication filters are applied separately below.</div>
+  <div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Describe your research topic. The AI generates a high-recall query with MeSH terms, synonyms, and recommended filters.</div>
+  <div style="font-size:11px;color:var(--euc);background:#E8EFE9;border:1px solid #CFDAD0;border-radius:6px;padding:6px 10px;margin-bottom:14px">Tip: describe only the core topic. Date ranges, study types, and other filters are set separately.</div>
   <input type="text" id="ai-description"
-         placeholder="e.g. TNF inhibitors in rheumatoid arthritis"
+         placeholder="e.g. TNF-alpha inhibitors in rheumatoid arthritis long-term safety"
          style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r);font:inherit;font-size:13px;color:var(--ink);background:var(--surface);margin-bottom:14px;box-sizing:border-box">
+  <div id="ai-explanation" style="display:none;font-size:12px;color:var(--muted);background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:8px 12px;margin-bottom:12px"></div>
   <div style="display:flex;justify-content:flex-end;gap:8px">
     <button class="btn btn-g" onclick="document.getElementById('ai-dialog').close()">Cancel</button>
-    <button class="btn btn-p" onclick="runAiSuggest()">
+    <button class="btn btn-p" id="ai-dialog-btn" onclick="runAiSuggestDialog()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
       Generate query
     </button>
   </div>
 </dialog>
 
-<!-- Query Builder -->
+<!-- ═══════════════════════════════════════════════════
+     STAGE 1 — QUERY BUILDER
+═══════════════════════════════════════════════════ -->
 <div class="qb">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
     <div>
+      <div class="eyebrow" style="margin-bottom:3px">Stage 1 — Broad Search</div>
       <div class="card-t">Boolean Query Builder</div>
-      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">Start broad — use AI Suggest to generate a high-recall query, then narrow with AND / NOT rows or date and study-type filters.</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">Build a broad, high-recall query. Narrow it in Stage 2.</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
-      <div id="ai-thinking" class="ai-thinking" style="display:none">
+      <div x-show="aiThinking" class="ai-thinking">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--wattle)" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         AI thinking…
       </div>
-      <button class="btn btn-g btn-sm" id="ai-suggest-btn" onclick="openAiDialog()">
+      <button class="btn btn-g btn-sm" x-show="!aiThinking" @click="openAiDialog()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-        AI Suggest
+        AI Suggest Query
       </button>
-      <button class="btn btn-p btn-sm" onclick="addRow()">
+      <button class="btn btn-p btn-sm" @click="addRow()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-        Add term
+        Add concept
       </button>
     </div>
   </div>
 
-  <!-- Query rows -->
-  <div id="query-rows"></div>
+  <!-- ── a. Query rows ── -->
+  <template x-for="(row, idx) in rows" :key="idx">
+    <div class="qr">
+      <!-- Operator -->
+      <span class="q-op" x-show="idx === 0">
+        <span style="color:var(--euc);font-weight:600;font-size:11px;font-family:var(--mono)">SEARCH</span>
+      </span>
+      <template x-if="idx > 0">
+        <select x-model="row.operator" @change="updatePreview()"
+                style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:11px;font-weight:600;color:var(--euc);background:var(--surface);min-width:70px">
+          <option>AND</option><option>OR</option><option>NOT</option>
+        </select>
+      </template>
+      <!-- Field -->
+      <select x-model="row.field" @change="updatePreview()"
+              style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface);min-width:130px">
+        <option value="tiab">Title/Abstract</option>
+        <option value="ti">Title</option>
+        <option value="mesh">MeSH Terms</option>
+        <option value="au">Author</option>
+        <option value="ta">Journal</option>
+        <option value="affl">Affiliation</option>
+        <option value="all">All Fields</option>
+      </select>
+      <!-- Term -->
+      <input type="text" x-model="row.term" @input="row.expanded=''; updatePreview()" placeholder="Enter search term…"
+             style="flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface)">
+      <!-- Synonyms toggle -->
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;font-size:11px;color:var(--muted)">
+        <input type="checkbox" x-model="row.synonymsEnabled" @change="onSynonymToggle(idx)"
+               style="accent-color:var(--euc)">
+        <span :style="row.synonymsEnabled ? 'color:var(--euc);font-weight:500' : ''">Synonyms</span>
+      </label>
+      <!-- Expanding indicator -->
+      <span x-show="row.expanding" style="font-size:10px;color:var(--muted)">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--wattle)" stroke-width="2" style="animation:aispin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      </span>
+      <!-- Expanded badge -->
+      <span x-show="row.synonymsEnabled && row.expanded && !row.expanding"
+            style="font-size:9.5px;padding:1px 7px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;white-space:nowrap">expanded</span>
+      <!-- Remove -->
+      <button x-show="rows.length > 1" @click="removeRow(idx)" class="q-remove" title="Remove">×</button>
+    </div>
+  </template>
 
-  <!-- Preview -->
+  <!-- ── b. Date range ── -->
+  <div style="margin-top:14px;padding:12px 14px;background:var(--paper-warm);border-radius:8px;border:1px solid var(--line-soft)">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Date range</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="date-preset" :class="datePreset==='last1' && 'active'" @click="setDatePreset('last1')">Last 1 year</button>
+      <button class="date-preset" :class="datePreset==='last2' && 'active'" @click="setDatePreset('last2')">Last 2 years</button>
+      <button class="date-preset" :class="datePreset==='last5' && 'active'" @click="setDatePreset('last5')">Last 5 years</button>
+      <button class="date-preset" :class="datePreset==='last10' && 'active'" @click="setDatePreset('last10')">Last 10 years</button>
+      <button class="date-preset" :class="datePreset==='custom' && 'active'" @click="setDatePreset('custom')">Custom</button>
+      <template x-if="datePreset==='custom'">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="date" x-model="dateFrom" @change="updatePreview()"
+                 style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px">
+          <span style="font-size:12px;color:var(--muted)">–</span>
+          <input type="date" x-model="dateTo" @change="updatePreview()"
+                 style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px">
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── c. Study type checkboxes ── -->
+  <div style="margin-top:10px;padding:12px 14px;background:var(--paper-warm);border-radius:8px;border:1px solid var(--line-soft)">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Study type</div>
+    <div class="st-grid">
+      <label class="st-cb"><input type="checkbox" value="rct" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> RCT</label>
+      <label class="st-cb"><input type="checkbox" value="meta" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Meta-analysis</label>
+      <label class="st-cb"><input type="checkbox" value="sr" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Systematic Review</label>
+      <label class="st-cb"><input type="checkbox" value="obs" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Observational</label>
+      <label class="st-cb"><input type="checkbox" value="case_report" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Case Report</label>
+      <label class="st-cb"><input type="checkbox" value="clinical_trial" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Clinical Trial</label>
+      <label class="st-cb"><input type="checkbox" value="review" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Review</label>
+      <label class="st-cb"><input type="checkbox" value="guideline" x-model="studyTypes" @change="updatePreview()" style="accent-color:var(--euc)"> Practice Guideline</label>
+    </div>
+  </div>
+
+  <!-- ── d+e. Language + Species ── -->
+  <div style="margin-top:10px;display:flex;gap:16px;padding:10px 14px;background:var(--paper-warm);border-radius:8px;border:1px solid var(--line-soft)">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" x-model="languageEnglish" @change="updatePreview()" style="accent-color:var(--euc)">
+      English only
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" x-model="speciesHumans" @change="updatePreview()" style="accent-color:var(--euc)">
+      Humans only
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" x-model="hasAbstract" @change="updatePreview()" style="accent-color:var(--euc)">
+      Has abstract
+    </label>
+  </div>
+
+  <!-- ── f. Advanced filters (collapsible) ── -->
+  <div style="margin-top:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--paper-warm);cursor:pointer"
+         @click="advancedOpen=!advancedOpen">
+      <span style="font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em">Advanced filters</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"
+           :style="advancedOpen ? 'transform:rotate(180deg)' : ''">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+    <div x-show="advancedOpen" x-transition style="padding:12px 14px;border-top:1px solid var(--line-soft)">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:5px">Age group</div>
+          <select x-model="ageGroup" @change="updatePreview()"
+                  style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;background:var(--surface)">
+            <option value="">All ages</option>
+            <option value="child">Child</option>
+            <option value="adolescent">Adolescent</option>
+            <option value="adult">Adult</option>
+            <option value="aged">Aged (65+)</option>
+            <option value="aged80">Aged 80+</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:5px">Sex</div>
+          <select x-model="sexFilter" @change="updatePreview()"
+                  style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;background:var(--surface)">
+            <option value="">All</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer;margin-top:14px">
+          <input type="checkbox" x-model="fullTextOnly" @change="updatePreview()" style="accent-color:var(--euc)">
+          Full text available
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer;margin-top:14px">
+          <input type="checkbox" x-model="freeFullTextOnly" @change="updatePreview()" style="accent-color:var(--euc)">
+          Free full text
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live query preview -->
   <div class="q-preview">
     <span class="label">Generated PubMed query</span>
-    <span id="preview-text" style="color:var(--muted)">Add terms above to build your query…</span>
+    <span id="preview-text" style="color:var(--muted)" x-text="previewQuery || 'Add terms above to build your query…'"
+          :style="previewQuery ? 'color:var(--euc)' : 'color:var(--muted)'"></span>
   </div>
 
-  <!-- Filters + actions -->
-  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
-    <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
-      <input type="checkbox" id="open-access" checked style="accent-color:var(--euc)">
-      Open access only
-    </label>
-    <select id="study-type" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);background:var(--surface);font-family:inherit">
-      <option value="">All study types</option>
-      <option value="rct">RCT</option>
-      <option value="meta">Meta-analysis</option>
-      <option value="sr">Systematic review</option>
-      <option value="obs">Observational</option>
-    </select>
-    <div style="display:flex;align-items:center;gap:4px">
-      <span style="font-size:12px;color:var(--muted)">Year</span>
-      <input type="number" id="year-from" placeholder="From" min="1950" max="2030"
-             style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <input type="number" id="year-to" placeholder="To" min="1950" max="2030"
-             style="width:74px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:var(--surface)">
-    </div>
+  <!-- Run search row -->
+  <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+    <button class="btn btn-g" @click="saveSearch()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save search
+    </button>
     <div style="flex:1"></div>
-    <button class="btn btn-g" onclick="saveSearch()">Save search</button>
-    <button class="btn btn-p" id="run-search-btn" onclick="runSearch()" disabled>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      Run search
+    <button class="btn btn-p" :disabled="!previewQuery || searching" @click="runBroadSearch()">
+      <template x-if="searching">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:aispin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      </template>
+      <template x-if="!searching">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </template>
+      <span x-text="searching ? 'Searching PubMed…' : 'Run search'">Run search</span>
     </button>
   </div>
-
-  <div id="search-results" class="mt"></div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════
+     STAGE 2 — REFINEMENT PANEL (shown after search)
+═══════════════════════════════════════════════════ -->
+<div x-show="searchComplete" x-transition style="margin-bottom:16px">
+  <!-- Result count banner -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--ink)">
+      Found <span x-text="totalCount" style="font-style:italic;color:var(--euc)">0</span> papers
+    </div>
+    <!-- Funnel counter -->
+    <template x-if="countHistory.length > 1">
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <template x-for="(count, i) in countHistory" :key="i">
+          <div class="funnel-step">
+            <span x-text="count" :style="i === countHistory.length - 1 ? 'font-weight:600;color:var(--euc)' : 'color:var(--muted)'"></span>
+            <template x-if="i < countHistory.length - 1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+    <div style="flex:1"></div>
+    <button class="btn btn-g btn-sm" @click="resetRefinements()">Reset refinements</button>
+  </div>
+
+  <!-- Refinement panel card -->
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="eyebrow">Stage 2 — Refine</div>
+      <button class="btn btn-g btn-sm" @click="runAiSuggestRefinements()" :disabled="aiRefineLoading">
+        <template x-if="aiRefineLoading">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:aispin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </template>
+        <template x-if="!aiRefineLoading">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </template>
+        AI Suggest Refinements
+      </button>
+    </div>
+
+    <!-- AI refinement suggestions -->
+    <template x-if="aiSuggestions.length > 0">
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">AI suggestions</div>
+        <template x-for="(sug, i) in aiSuggestions" :key="i">
+          <div class="ai-sug">
+            <div style="flex:1">
+              <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink);margin-bottom:3px"
+                   x-text="(sug.operator === 'NOT' ? 'NOT ' : 'AND ') + sug.term"></div>
+              <div style="font-size:11.5px;color:var(--muted);line-height:1.5" x-text="sug.rationale"></div>
+              <div style="font-size:10.5px;color:var(--euc);margin-top:2px" x-text="sug.estimated_impact"></div>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0">
+              <button class="btn btn-g btn-sm" @click="acceptSuggestion(sug)">Accept</button>
+              <button style="padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;font-size:11px;color:var(--muted)"
+                      @click="aiSuggestions.splice(i,1)">Dismiss</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Quick filter chips: MeSH -->
+    <template x-if="meshChips.length > 0">
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Top MeSH terms</div>
+        <div class="chip-strip">
+          <template x-for="chip in meshChips" :key="chip.term">
+            <button class="chip"
+                    :class="getChipClass(chip.term)"
+                    @click="toggleChip(chip.term)"
+                    x-text="chip.term + ' (' + chip.count + ')'">
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Quick filter chips: Journals -->
+    <template x-if="journalChips.length > 0">
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Top journals</div>
+        <div class="chip-strip">
+          <template x-for="chip in journalChips" :key="chip.term">
+            <button class="chip"
+                    :class="getChipClass(chip.term, 'journal')"
+                    @click="toggleJournalChip(chip.term)"
+                    x-text="chip.term + ' (' + chip.count + ')'">
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Refinement + Exclusion inputs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+      <div>
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Add terms to narrow (AND)</div>
+        <div style="display:flex;gap:6px">
+          <input type="text" x-model="refineInput" placeholder="e.g. long-term[tiab]"
+                 @keydown.enter="addRefinementTerm()"
+                 style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface)">
+          <button class="btn btn-g btn-sm" @click="addRefinementTerm()">Add</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+          <template x-for="(term, i) in refinementTerms" :key="i">
+            <span class="ref-tag and-tag">
+              <span x-text="'AND ' + term" style="font-family:var(--mono);font-size:10.5px"></span>
+              <button @click="removeRefinementTerm(i)"
+                      style="margin-left:2px;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px;line-height:1">×</button>
+            </span>
+          </template>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Exclude terms (NOT)</div>
+        <div style="display:flex;gap:6px">
+          <input type="text" x-model="excludeInput" placeholder="e.g. pediatric[tiab]"
+                 @keydown.enter="addExclusionTerm()"
+                 style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface)">
+          <button class="btn btn-g btn-sm" @click="addExclusionTerm()">Add</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+          <template x-for="(term, i) in exclusionTerms" :key="i">
+            <span class="ref-tag not-tag">
+              <span x-text="'NOT ' + term" style="font-family:var(--mono);font-size:10.5px"></span>
+              <button @click="removeExclusionTerm(i)"
+                      style="margin-left:2px;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px;line-height:1">×</button>
+            </span>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results area -->
+  <div id="search-results"></div>
+</div>
+
+<!-- Stage 1 results placeholder (shown before stage 2 is active) -->
+<div x-show="!searchComplete" id="search-results-stage1"></div>
 
 <!-- PDF Upload -->
 <div class="card mt" id="pdf-upload-card">
@@ -179,203 +477,444 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div id="upload-status" class="mt" style="font-size:12.5px;color:var(--muted);display:none"></div>
   <div id="upload-result" class="mt"></div>
 </div>
+
+</div>{# end x-data #}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const CSRF = '{{ csrf_token }}';
-const FIELD_TAGS = { tiab:'[Title/Abstract]', ti:'[Title]', mesh:'[Mesh]', au:'[Author]', ta:'[Journal]', all:'' };
-let qRows = [{ operator:'AND', field:'tiab', term:'' }];
+const INGEST_URL = '{% url "literature:ingest_paper" %}';
+const INGEST_ALL_URL = '{% url "literature:ingest_all_oa" %}';
+const RUN_SEARCH_URL = '{% url "literature:run_search" %}';
+const REFINE_SEARCH_URL = '{% url "literature:refine_search" %}';
+const AI_SUGGEST_URL = '{% url "literature:ai_suggest" %}';
+const AI_SUGGEST_REFINEMENTS_URL = '{% url "literature:ai_suggest_refinements" %}';
+const EXPAND_SYNONYMS_URL = '{% url "literature:expand_synonyms" %}';
+const SAVE_SEARCH_URL = '{% url "literature:save_search" %}';
 
-function renderRows() {
-  const container = document.getElementById('query-rows');
-  container.innerHTML = '';
-  qRows.forEach((row, idx) => {
-    const div = document.createElement('div');
-    div.className = 'qr';
-    const opHtml = idx === 0
-      ? '<span style="color:var(--euc);font-weight:600;font-size:11px;font-family:var(--mono)">SEARCH</span>'
-      : `<select style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:11px;font-weight:600;color:var(--euc);background:var(--surface)" onchange="qRows[${idx}].operator=this.value">
-           <option${row.operator==='AND'?' selected':''}>AND</option>
-           <option${row.operator==='OR'?' selected':''}>OR</option>
-           <option${row.operator==='NOT'?' selected':''}>NOT</option>
-         </select>`;
-    div.innerHTML = `
-      <span class="q-op">${opHtml}</span>
-      <select style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);min-width:130px"
-              onchange="qRows[${idx}].field=this.value;updatePreview()">
-        <option value="tiab"${row.field==='tiab'?' selected':''}>Title/Abstract</option>
-        <option value="ti"${row.field==='ti'?' selected':''}>Title</option>
-        <option value="mesh"${row.field==='mesh'?' selected':''}>MeSH Term</option>
-        <option value="au"${row.field==='au'?' selected':''}>Author</option>
-        <option value="ta"${row.field==='ta'?' selected':''}>Journal</option>
-        <option value="all"${row.field==='all'?' selected':''}>All Fields</option>
-      </select>
-      <input type="text" value="${row.term.replace(/"/g,'&quot;')}" placeholder="Enter search term…"
-             style="flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:var(--surface)"
-             oninput="qRows[${idx}].term=this.value;updatePreview()">
-      ${qRows.length > 1 ? `<button class="q-remove" onclick="removeRow(${idx})" title="Remove">×</button>` : ''}
-    `;
-    container.appendChild(div);
-  });
-  updatePreview();
+function searchBuilder() {
+  return {
+    // Stage 1
+    rows: [
+      { operator: 'AND', field: 'tiab', term: '', synonymsEnabled: false, expanded: '', expanding: false },
+      { operator: 'AND', field: 'mesh', term: '', synonymsEnabled: false, expanded: '', expanding: false },
+    ],
+    datePreset: 'last5',
+    dateFrom: '',
+    dateTo: '',
+    studyTypes: [],
+    languageEnglish: true,
+    speciesHumans: true,
+    hasAbstract: true,
+    fullTextOnly: false,
+    freeFullTextOnly: false,
+    advancedOpen: false,
+    ageGroup: '',
+    sexFilter: '',
+    searching: false,
+    aiThinking: false,
+
+    // Stage 2
+    searchComplete: false,
+    broadQuery: '',
+    totalCount: 0,
+    countHistory: [],
+    refinementTerms: [],
+    exclusionTerms: [],
+    meshChips: [],
+    journalChips: [],
+    activeChips: {},   // {term: 'and'|'not'}
+    activeJournalChips: {},
+    refineInput: '',
+    excludeInput: '',
+    aiSuggestions: [],
+    aiRefineLoading: false,
+    aiSuggestionsUsed: [],
+
+    get previewQuery() {
+      const TAGS = { tiab:'[Title/Abstract]', ti:'[Title]', mesh:'[MeSH]', au:'[Author]', ta:'[Journal]', affl:'[Affiliation]', all:'' };
+      const parts = [];
+      this.rows.forEach((row, i) => {
+        const t = row.term.trim();
+        if (!t) return;
+        const display = row.synonymsEnabled && row.expanded ? row.expanded : (t.includes(' ') ? `"${t}"` : t) + (TAGS[row.field] || '');
+        const op = i === 0 ? '' : row.operator + ' ';
+        parts.push(op + (display.length > 50 ? `(${display})` : display));
+      });
+      return parts.join(' ');
+    },
+
+    get currentFilters() {
+      return {
+        publication_types: this.studyTypes,
+        language: this.languageEnglish ? 'eng' : '',
+        species: this.speciesHumans ? 'humans' : '',
+        has_abstract: this.hasAbstract,
+        full_text_only: this.fullTextOnly,
+        free_full_text_only: this.freeFullTextOnly,
+        age_group: this.ageGroup,
+        sex: this.sexFilter,
+        date_preset: this.datePreset !== 'custom' ? this.datePreset : '',
+        date_from: this.datePreset === 'custom' ? this.dateFrom : '',
+        date_to: this.datePreset === 'custom' ? this.dateTo : '',
+      };
+    },
+
+    updatePreview() {},  // preview updates reactively via computed property
+
+    addRow() {
+      this.rows.push({ operator: 'AND', field: 'tiab', term: '', synonymsEnabled: false, expanded: '', expanding: false });
+    },
+
+    removeRow(idx) {
+      this.rows.splice(idx, 1);
+    },
+
+    setDatePreset(preset) {
+      this.datePreset = preset;
+    },
+
+    async onSynonymToggle(idx) {
+      const row = this.rows[idx];
+      if (!row.synonymsEnabled) {
+        row.expanded = '';
+        return;
+      }
+      if (!row.term.trim()) return;
+      row.expanding = true;
+      try {
+        const res = await fetch(EXPAND_SYNONYMS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({ term: row.term.trim(), field: row.field }),
+        });
+        const data = await res.json();
+        row.expanded = data.expanded || '';
+      } catch(e) {
+        row.expanded = '';
+      } finally {
+        row.expanding = false;
+      }
+    },
+
+    openAiDialog() {
+      document.getElementById('ai-description').value = '';
+      document.getElementById('ai-explanation').style.display = 'none';
+      document.getElementById('ai-dialog').showModal();
+      setTimeout(() => document.getElementById('ai-description').focus(), 50);
+    },
+
+    loadSavedSearch(query, filters) {
+      this.rows = [{ operator: 'AND', field: 'all', term: query, synonymsEnabled: false, expanded: '', expanding: false }];
+    },
+
+    async runSavedSearchById(id) {
+      this.searching = true;
+      this.searchComplete = false;
+      const res = await fetch(`/literature/search/saved/${id}/run/`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+      });
+      const html = await res.text();
+      this.searching = false;
+      this.searchComplete = true;
+      document.getElementById('search-results').innerHTML = html;
+      document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    async runBroadSearch() {
+      const query = this.previewQuery;
+      if (!query) return;
+      this.searching = true;
+      this.searchComplete = false;
+
+      // Build synonym expansion map for enabled rows
+      const synonymExpansions = {};
+      this.rows.forEach((row, i) => {
+        if (row.synonymsEnabled && row.expanded) synonymExpansions[i] = row.expanded;
+      });
+
+      try {
+        const res = await fetch(RUN_SEARCH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({
+            rows: this.rows,
+            synonym_expansions: synonymExpansions,
+            filters: this.currentFilters,
+          }),
+        });
+        const html = await res.text();
+
+        // Parse count from response (it's in the HTML)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const countEl = doc.querySelector('[data-total-count]');
+        const meshData = doc.querySelector('[data-mesh-chips]');
+        const journalData = doc.querySelector('[data-journal-chips]');
+
+        const count = countEl ? parseInt(countEl.dataset.totalCount) : 0;
+        this.totalCount = count;
+        this.broadQuery = query;
+        this.countHistory = [count];
+        this.meshChips = meshData ? JSON.parse(meshData.dataset.meshChips) : [];
+        this.journalChips = journalData ? JSON.parse(journalData.dataset.journalChips) : [];
+        this.activeChips = {};
+        this.activeJournalChips = {};
+        this.refinementTerms = [];
+        this.exclusionTerms = [];
+        this.aiSuggestions = [];
+
+        document.getElementById('search-results').innerHTML = html;
+        this.searchComplete = true;
+        this.$nextTick(() => {
+          document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } catch(e) {
+        document.getElementById('search-results-stage1').innerHTML =
+          `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Search failed: ${e.message}</div>`;
+      } finally {
+        this.searching = false;
+      }
+    },
+
+    async runRefinedSearch() {
+      if (!this.broadQuery) return;
+      try {
+        const res = await fetch(REFINE_SEARCH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({
+            query: this.broadQuery,
+            refinement_terms: this.refinementTerms,
+            exclusion_terms: this.exclusionTerms,
+            filters: this.currentFilters,
+          }),
+        });
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const countEl = doc.querySelector('[data-total-count]');
+        const newCount = countEl ? parseInt(countEl.dataset.totalCount) : 0;
+        this.totalCount = newCount;
+        if (this.countHistory[this.countHistory.length - 1] !== newCount) {
+          this.countHistory.push(newCount);
+        }
+        document.getElementById('search-results').innerHTML = html;
+      } catch(e) {}
+    },
+
+    addRefinementTerm() {
+      const t = this.refineInput.trim();
+      if (!t || this.refinementTerms.includes(t)) return;
+      this.refinementTerms.push(t);
+      this.refineInput = '';
+      this.runRefinedSearch();
+    },
+
+    removeRefinementTerm(i) {
+      this.refinementTerms.splice(i, 1);
+      this.runRefinedSearch();
+    },
+
+    addExclusionTerm() {
+      const t = this.excludeInput.trim();
+      if (!t || this.exclusionTerms.includes(t)) return;
+      this.exclusionTerms.push(t);
+      this.excludeInput = '';
+      this.runRefinedSearch();
+    },
+
+    removeExclusionTerm(i) {
+      this.exclusionTerms.splice(i, 1);
+      this.runRefinedSearch();
+    },
+
+    resetRefinements() {
+      this.refinementTerms = [];
+      this.exclusionTerms = [];
+      this.activeChips = {};
+      this.activeJournalChips = {};
+      this.countHistory = [this.countHistory[0]];
+      this.totalCount = this.countHistory[0];
+      this.runRefinedSearch();
+    },
+
+    getChipClass(term, type) {
+      const store = type === 'journal' ? this.activeJournalChips : this.activeChips;
+      const state = store[term];
+      if (state === 'and') return 'active-and';
+      if (state === 'not') return 'active-not';
+      return '';
+    },
+
+    toggleChip(term) {
+      const cur = this.activeChips[term];
+      if (!cur) {
+        this.activeChips[term] = 'and';
+        this.refinementTerms = this.refinementTerms.filter(t => t !== term);
+        this.refinementTerms.push(`"${term}"[MeSH]`);
+      } else if (cur === 'and') {
+        this.activeChips[term] = 'not';
+        this.refinementTerms = this.refinementTerms.filter(t => t !== `"${term}"[MeSH]`);
+        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[MeSH]`);
+        this.exclusionTerms.push(`"${term}"[MeSH]`);
+      } else {
+        delete this.activeChips[term];
+        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[MeSH]`);
+      }
+      this.runRefinedSearch();
+    },
+
+    toggleJournalChip(term) {
+      const cur = this.activeJournalChips[term];
+      if (!cur) {
+        this.activeJournalChips[term] = 'and';
+        this.refinementTerms.push(`"${term}"[ta]`);
+      } else if (cur === 'and') {
+        this.activeJournalChips[term] = 'not';
+        this.refinementTerms = this.refinementTerms.filter(t => t !== `"${term}"[ta]`);
+        this.exclusionTerms.push(`"${term}"[ta]`);
+      } else {
+        delete this.activeJournalChips[term];
+        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[ta]`);
+      }
+      this.runRefinedSearch();
+    },
+
+    acceptSuggestion(sug) {
+      const term = sug.term.trim();
+      if (sug.operator === 'NOT') {
+        if (!this.exclusionTerms.includes(term)) this.exclusionTerms.push(term);
+      } else {
+        if (!this.refinementTerms.includes(term)) this.refinementTerms.push(term);
+      }
+      this.aiSuggestionsUsed.push(sug);
+      this.aiSuggestions = this.aiSuggestions.filter(s => s !== sug);
+      this.runRefinedSearch();
+    },
+
+    async runAiSuggestRefinements() {
+      if (!this.broadQuery) return;
+      this.aiRefineLoading = true;
+      try {
+        const res = await fetch(AI_SUGGEST_REFINEMENTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({
+            query: this.broadQuery,
+            result_count: this.totalCount,
+            top_mesh: this.meshChips,
+          }),
+        });
+        const data = await res.json();
+        this.aiSuggestions = data.suggestions || [];
+      } catch(e) {} finally {
+        this.aiRefineLoading = false;
+      }
+    },
+
+    async saveSearch() {
+      const query = this.previewQuery || this.broadQuery;
+      if (!query) return;
+      const name = prompt('Name this search:');
+      if (!name) return;
+      await fetch(SAVE_SEARCH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({
+          name,
+          query,
+          filters: this.currentFilters,
+          refinement_terms: this.refinementTerms,
+          exclusion_terms: this.exclusionTerms,
+          result_count_history: this.countHistory,
+          ai_suggestions_used: this.aiSuggestionsUsed,
+        }),
+      });
+    },
+  };
 }
 
-function updatePreview() {
-  const parts = qRows
-    .filter(r => r.term.trim())
-    .map((r, i) => {
-      const term = r.term.includes(' ') ? `"${r.term}"` : r.term;
-      const tag = FIELD_TAGS[r.field] || '';
-      const expr = tag ? `${term}${tag}` : term;
-      return i === 0 ? expr : `${r.operator} ${expr}`;
-    });
-  const preview = parts.join(' ');
-  const el = document.getElementById('preview-text');
-  el.textContent = preview || 'Add terms above to build your query…';
-  el.style.color = preview ? 'var(--euc)' : 'var(--muted)';
-  document.getElementById('run-search-btn').disabled = !preview;
-  return preview;
-}
-
-function addRow() {
-  qRows.push({ operator:'AND', field:'tiab', term:'' });
-  renderRows();
-}
-
-function removeRow(idx) {
-  qRows.splice(idx, 1);
-  renderRows();
-}
-
-function openAiDialog() {
-  document.getElementById('ai-description').value = '';
-  document.getElementById('ai-dialog').showModal();
-  document.getElementById('ai-description').focus();
-}
-
-document.getElementById('ai-dialog').addEventListener('keydown', e => {
-  if (e.key === 'Enter') runAiSuggest();
-  if (e.key === 'Escape') document.getElementById('ai-dialog').close();
-});
-
-async function runAiSuggest() {
+// AI Suggest dialog handler (outside Alpine to avoid scoping issues with the <dialog>)
+async function runAiSuggestDialog() {
   const desc = document.getElementById('ai-description').value.trim();
   if (!desc) { alert('Please describe your research topic first.'); return; }
-  document.getElementById('ai-dialog').close();
-  document.getElementById('ai-thinking').style.display = 'flex';
-  document.getElementById('ai-suggest-btn').style.display = 'none';
-  const results = document.getElementById('search-results');
-  results.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">Asking AI…</div>';
+  const btn = document.getElementById('ai-dialog-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
   try {
-    const res = await fetch('{% url "literature:ai_suggest" %}', {
+    const res = await fetch(AI_SUGGEST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
       body: JSON.stringify({ description: desc }),
     });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) {
-      results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Server error (status ${res.status}). Response: ${text.slice(0,200)}</div>`;
-      return;
-    }
+    const data = await res.json();
     if (data.rows && data.rows.length) {
-      qRows = data.rows;
-      renderRows();
-      results.innerHTML = `<div style="padding:10px 14px;background:#E8EFE9;border:1px solid #CFDAD0;border-radius:8px;color:var(--euc);font-size:12.5px">${data.rows.length} query rows generated. Edit above then click Run search.</div>`;
+      // Inject rows into Alpine component
+      const comp = Alpine.store ? null : document.querySelector('[x-data]').__x.$data;
+      // Use a simpler event to communicate
+      window.dispatchEvent(new CustomEvent('ai-suggest-result', { detail: data }));
+      // Show explanation if present
+      if (data.explanation) {
+        const expEl = document.getElementById('ai-explanation');
+        expEl.textContent = data.explanation;
+        expEl.style.display = '';
+      }
+      // Apply recommended filters if provided
+      if (data.recommended_filters) {
+        window.dispatchEvent(new CustomEvent('ai-suggest-filters', { detail: data.recommended_filters }));
+      }
+      document.getElementById('ai-dialog').close();
     } else if (data.error) {
-      results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">AI Suggest failed: ${data.error}</div>`;
+      alert('AI Suggest failed: ' + data.error);
     }
   } catch(e) {
-    results.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Error: ${e.message}</div>`;
+    alert('Error: ' + e.message);
   } finally {
-    document.getElementById('ai-thinking').style.display = 'none';
-    document.getElementById('ai-suggest-btn').style.display = '';
+    btn.disabled = false;
+    btn.textContent = 'Generate query';
   }
 }
 
-async function runSearch() {
-  const preview = updatePreview();
-  if (!preview) return;
-  const form = new FormData();
-  form.append('query', preview);
-  form.append('open_access_only', document.getElementById('open-access').checked ? 'true' : 'false');
-  form.append('study_type', document.getElementById('study-type').value);
-  const yFrom = document.getElementById('year-from').value;
-  const yTo = document.getElementById('year-to').value;
-  if (yFrom) form.append('year_from', yFrom);
-  if (yTo) form.append('year_to', yTo);
-  const target = document.getElementById('search-results');
-  target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Searching PubMed…</div>';
-  const res = await fetch('{% url "literature:run_search" %}', {
-    method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: form,
+// Listen for AI suggest results from dialog (communicate with Alpine)
+document.addEventListener('alpine:init', () => {
+  window.addEventListener('ai-suggest-result', e => {
+    const data = e.detail;
+    // Find the Alpine component
+    const el = document.querySelector('[x-data]');
+    if (!el || !el._x_dataStack) return;
+    const comp = el._x_dataStack[0];
+    if (!comp) return;
+    comp.rows = data.rows.map(r => ({
+      operator: r.operator || 'AND',
+      field: r.field || 'tiab',
+      term: r.term || '',
+      synonymsEnabled: r.synonyms_expanded || false,
+      expanded: '',
+      expanding: false,
+    }));
   });
-  target.innerHTML = await res.text();
-}
 
-async function runSavedSearch(id, query) {
-  // Load query into builder for context
-  qRows = [{ operator: 'AND', field: 'all', term: query }];
-  renderRows();
-  const target = document.getElementById('search-results');
-  target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Running saved search…</div>';
-  // Scroll to results
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const form = new FormData();
-  form.append('csrfmiddlewaretoken', CSRF);
-  const res = await fetch(`/literature/search/saved/${id}/run/`, {
-    method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: form,
+  window.addEventListener('ai-suggest-filters', e => {
+    const f = e.detail;
+    const el = document.querySelector('[x-data]');
+    if (!el || !el._x_dataStack) return;
+    const comp = el._x_dataStack[0];
+    if (!comp) return;
+    if (f.study_types) comp.studyTypes = f.study_types;
+    if (f.date_preset) comp.datePreset = f.date_preset;
+    if (f.language_english !== undefined) comp.languageEnglish = f.language_english;
+    if (f.species_humans !== undefined) comp.speciesHumans = f.species_humans;
   });
-  target.innerHTML = await res.text();
-}
+});
 
-async function saveSearch() {
-  const preview = updatePreview();
-  if (!preview) return;
-  const name = prompt('Name this search:');
-  if (!name) return;
-  const res = await fetch('{% url "literature:save_search" %}', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify({ name, query: preview, open_access_only: document.getElementById('open-access').checked, study_type: document.getElementById('study-type').value }),
-  });
-  if (res.ok) {
-    const data = await res.json();
-    addSavedSearchChip(data.id, data.name, preview);
-  }
-}
+document.getElementById('ai-dialog').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runAiSuggestDialog();
+  if (e.key === 'Escape') document.getElementById('ai-dialog').close();
+});
 
-function addSavedSearchChip(id, name, query) {
-  let strip = document.getElementById('saved-searches-strip');
-  if (!strip) {
-    strip = document.createElement('div');
-    strip.id = 'saved-searches-strip';
-    strip.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap';
-    const label = document.createElement('span');
-    label.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0';
-    label.textContent = 'Saved';
-    strip.appendChild(label);
-    document.getElementById('modal-container').after(strip);
-  }
-  const chip = document.createElement('div');
-  chip.style.cssText = 'display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden';
-  chip.innerHTML = `
-    <button onclick="loadSearch('${query.replace(/'/g, "\\'")}')"
-            style="padding:4px 10px 4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap">
-      ${name.length > 24 ? name.slice(0, 24) + '…' : name}
-    </button>
-    <button onclick="runSavedSearch(${id}, '${query.replace(/'/g, "\\'")}')"
-            style="padding:4px 10px 4px 6px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--euc);font-size:11px;font-weight:500;font-family:inherit">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      Run
-    </button>`;
-  strip.appendChild(chip);
-}
-
-// Ingest functions (defined here because search_results partial is loaded via innerHTML which doesn't execute scripts)
-const INGEST_URL = '{% url "literature:ingest_paper" %}';
-const INGEST_ALL_URL = '{% url "literature:ingest_all_oa" %}';
-
+// Ingest functions (defined globally — search_results partial innerHTML doesn't execute scripts)
 async function ingestPaper(pmid, btn) {
   btn.disabled = true; btn.textContent = 'Ingesting…';
   try {
@@ -438,13 +977,5 @@ async function uploadFile(file) {
   document.getElementById('upload-result').innerHTML = await res.text();
   status.style.display = 'none';
 }
-
-function loadSearch(query) {
-  qRows = [{ operator: 'AND', field: 'all', term: query }];
-  renderRows();
-}
-
-// Init
-renderRows();
 </script>
 {% endblock %}

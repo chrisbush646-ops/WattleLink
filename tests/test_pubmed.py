@@ -80,9 +80,10 @@ class TestPubMedClientEsearch:
         mock_resp.json.return_value = SAMPLE_ESEARCH_JSON
 
         with patch("requests.get", return_value=mock_resp) as mock_get:
-            pmids = client.esearch("TNF inhibitors AND RA")
+            count, pmids = client.esearch("TNF inhibitors AND RA")
 
         assert pmids == ["38123456", "38123457", "38123458"]
+        assert count == 3
         mock_get.assert_called_once()
 
     def test_open_access_filter_appended(self):
@@ -110,10 +111,11 @@ class TestPubMedClientEsearch:
     def test_unknown_study_type_not_appended(self):
         client = PubMedClient()
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"esearchresult": {"idlist": []}}
+        mock_resp.json.return_value = {"esearchresult": {"idlist": [], "count": "0"}}
 
         with patch("requests.get", return_value=mock_resp) as mock_get:
-            client.esearch("TNF inhibitors", study_type="unknown")
+            # Pass empty language/species to isolate study type behaviour
+            client.esearch("TNF inhibitors", study_type="unknown", language="", species="")
 
         call_params = mock_get.call_args[1]["params"]
         assert call_params["term"] == "TNF inhibitors"
@@ -124,8 +126,9 @@ class TestPubMedClientEsearch:
         client = PubMedClient()
 
         with patch("requests.get", side_effect=req_module.ConnectionError("timeout")):
-            pmids = client.esearch("TNF inhibitors")
+            count, pmids = client.esearch("TNF inhibitors")
 
+        assert count == 0
         assert pmids == []
 
 

@@ -35,6 +35,7 @@ def extract_claims_task(self, paper_id: int, tenant_id: int):
                 fair_balance=c.get("fair_balance", ""),
                 fair_balance_reference=c.get("fair_balance_reference", ""),
                 fidelity_checklist=c.get("fidelity_checklist", {}),
+                confidence_flags=c.get("confidence_flags", []),
                 status=CoreClaim.Status.AI_DRAFT,
                 ai_generated=True,
             )

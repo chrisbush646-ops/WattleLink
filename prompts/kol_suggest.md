@@ -49,3 +49,6 @@ Return a JSON object with a `candidates` array. Each candidate:
 - Be accurate to your training knowledge — if uncertain about a specific person's current role, use conservative language ("believed to be", "as of last available information")
 - Do NOT invent people who do not exist — only suggest real, publicly-known clinicians
 - Return only the JSON object, no markdown fences
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

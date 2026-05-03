@@ -105,3 +105,6 @@ Return ONLY valid JSON — no prose, no markdown fences, no explanations outside
 - Do not hallucinate citations, statistics, or findings not present in the paper.
 - Rationales must be concise (1–2 sentences) and evidence-anchored.
 - For observational studies, note in D1 (Randomisation process) that randomisation is not applicable and assign "No information" — the relevant RoB concern for observational studies is confounding, which is captured in the GRADE Risk of Bias domain.
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

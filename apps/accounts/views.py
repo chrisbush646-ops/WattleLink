@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .models import PLATFORM_MODULES, Invitation, Tenant, User
+from .models import CURRENT_CONSENT_VERSION, PLATFORM_MODULES, Invitation, Tenant, User
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +267,8 @@ def company_signup(request):
         return render(request, "accounts/signup.html", {"error": "Password must be at least 8 characters.", "post": request.POST})
     if User.all_objects.filter(email__iexact=email).exists():
         return render(request, "accounts/signup.html", {"error": "An account with that email already exists.", "post": request.POST})
+    if not request.POST.get("consent"):
+        return render(request, "accounts/signup.html", {"error": "You must acknowledge the co-pilot terms to continue.", "post": request.POST})
 
     # Create tenant
     base_slug = slugify(company_name) or "tenant"
@@ -287,6 +289,7 @@ def company_signup(request):
         last_name=last_name,
         role=User.Role.ADMIN,
         tenant=tenant,
+        consent_version=CURRENT_CONSENT_VERSION,
     )
     user.set_password(password1)
     user.save(update_fields=["password"])
@@ -469,6 +472,12 @@ def invite_accept(request, token):
             "error": "Password must be at least 8 characters.",
             "post": request.POST,
         })
+    if not request.POST.get("consent"):
+        return render(request, "accounts/invite_accept.html", {
+            "invitation": invitation,
+            "error": "You must acknowledge the co-pilot terms to continue.",
+            "post": request.POST,
+        })
     if User.all_objects.filter(email__iexact=invitation.email).exists():
         return render(request, "accounts/invite_accept.html", {
             "invitation_invalid": True,
@@ -482,6 +491,7 @@ def invite_accept(request, token):
         last_name=last_name,
         role=invitation.role,
         tenant=invitation.tenant,
+        consent_version=CURRENT_CONSENT_VERSION,
     )
     user.set_password(password1)
     user.save(update_fields=["password"])
@@ -498,3 +508,20 @@ def invite_accept(request, token):
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     logger.info("Invitation accepted by %s for tenant %s", invitation.email, invitation.tenant.name)
     return HttpResponseRedirect("/dashboard/")
+
+
+# ── Consent ────────────────────────────────────────────────────────────────────
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def consent_view(request):
+    if request.method == "POST":
+        if request.POST.get("consent") == "1":
+            request.user.consent_version = CURRENT_CONSENT_VERSION
+            request.user.save(update_fields=["consent_version"])
+            next_url = request.GET.get("next", "/dashboard/")
+            if not next_url.startswith("/"):
+                next_url = "/dashboard/"
+            return HttpResponseRedirect(next_url)
+        return render(request, "accounts/consent.html", {"error": True})
+    return render(request, "accounts/consent.html")

@@ -1,10 +1,13 @@
 import logging
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 MAX_PDF_SIZE_MB = 50
 MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
+
+_DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9a-z]+)", re.IGNORECASE)
 
 
 def validate_upload(file) -> None:
@@ -33,3 +36,33 @@ def extract_text(file_path: str) -> str:
             text_parts.append(page.get_text("text"))
 
     return "\n".join(text_parts)
+
+
+def extract_doi_from_pdf(file_path: str) -> str | None:
+    """
+    Extract a DOI from PDF metadata or first-page text.
+    Returns the raw DOI string (unverified) or None if not found.
+    """
+    import fitz  # PyMuPDF
+
+    path = Path(file_path)
+    if not path.exists():
+        return None
+
+    try:
+        with fitz.open(str(path)) as doc:
+            # 1. Check PDF document metadata
+            metadata_doi = (doc.metadata or {}).get("doi", "")
+            if metadata_doi and metadata_doi.strip():
+                return metadata_doi.strip()
+
+            # 2. Regex search of first page text
+            if len(doc) > 0:
+                first_page_text = doc[0].get_text("text")
+                match = _DOI_RE.search(first_page_text)
+                if match:
+                    return match.group(1)
+    except Exception as exc:
+        logger.warning("DOI extraction from PDF failed: %s", exc)
+
+    return None

@@ -54,28 +54,133 @@
 
   {% else %}
 
+  <!-- Validation warnings (coral) -->
+  {% if summary.validation_warnings %}
+  <div style="margin-bottom:12px;border:1px solid #E9CBB9;border-radius:var(--r);background:#FEF2F0;padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B85C3A" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span style="font-size:11px;font-weight:600;color:var(--coral);letter-spacing:.04em;text-transform:uppercase">Validation warnings — review before approving</span>
+    </div>
+    <ul style="margin:0;padding-left:16px">
+      {% for w in summary.validation_warnings %}
+      <li style="font-size:12px;color:#8B4030;line-height:1.6;margin-bottom:3px">{{ w }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- AI confidence flags (wattle) -->
+  {% if summary.confidence_flags %}
+  <div style="margin-bottom:12px;border:1px solid #E7D59A;border-radius:var(--r);background:var(--wattle-soft);padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A6918" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span style="font-size:11px;font-weight:600;color:#8A6918;letter-spacing:.04em;text-transform:uppercase">AI uncertainty flags</span>
+    </div>
+    <ul style="margin:0;padding-left:16px">
+      {% for flag in summary.confidence_flags %}
+      <li style="font-size:12px;color:#6B5010;line-height:1.6;margin-bottom:3px">{{ flag }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <!-- Methodology -->
-  <div style="margin-bottom:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden" x-data="{ open: false, editing: false }">
+  {% with m=summary.methodology %}
+  <div style="margin-bottom:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden" x-data="{ open: false }">
     <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--paper-warm);cursor:pointer" @click="open=!open">
       <span style="font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.04em">Methodology</span>
+      {% if summary.methodology_brief %}
+      <span style="font-size:11px;color:var(--muted);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px">{{ summary.methodology_brief }}</span>
+      {% endif %}
       <div style="flex:1"></div>
       <span style="font-size:10px;color:var(--euc)" x-text="open ? 'Minimise' : 'Explore'">Explore</span>
     </div>
-    <div x-show="open" x-transition style="border-top:1px solid var(--line-soft);padding:12px 14px">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-        <button @click="editing=!editing" style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer" x-text="editing ? 'Done' : 'Edit'"></button>
-      </div>
-      <template x-if="!editing">
-        <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;font-family:var(--sans);background:var(--paper-warm);padding:12px 14px;border-radius:var(--r);border:1px solid var(--line-soft)">
-          {{ summary.methodology|default:"—" }}
+    <div x-show="open" x-transition style="border-top:1px solid var(--line-soft);padding:14px 16px">
+      {% if m %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+        {% if m.study_design %}
+        <div style="grid-column:1/-1;background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Study Design</div>
+          <div style="font-size:13px;color:var(--ink);line-height:1.55">{{ m.study_design }}</div>
         </div>
-      </template>
-      <template x-if="editing">
-        <textarea id="methodology-{{ paper.pk }}"
-                  style="width:100%;font:inherit;font-family:var(--sans);font-size:13px;line-height:1.7;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;resize:vertical;min-height:80px;background:var(--surface)">{{ summary.methodology }}</textarea>
-      </template>
+        {% endif %}
+
+        {% with pop=m.population %}
+        {% if pop %}
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Population</div>
+          {% if pop.sample_size %}<div style="font-size:12px;color:var(--ink);margin-bottom:3px"><span style="color:var(--muted);font-size:10px">N</span> <span style="font-family:var(--mono);font-size:12px;font-weight:600">{{ pop.sample_size }}</span></div>{% endif %}
+          {% if pop.description %}<div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:3px">{{ pop.description }}</div>{% endif %}
+          {% if pop.demographics %}<div style="font-size:11px;color:var(--muted);line-height:1.45">{{ pop.demographics }}</div>{% endif %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Intervention</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.5">{{ m.intervention|default:"—" }}</div>
+          {% if m.comparator %}
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft)">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:3px">Comparator</div>
+            <div style="font-size:12px;color:var(--ink-soft)">{{ m.comparator }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if m.primary_endpoint %}
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Primary Endpoint</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.5">{{ m.primary_endpoint }}</div>
+        </div>
+        {% endif %}
+
+        {% if m.follow_up %}
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Follow-up</div>
+          <div style="font-size:13px;color:var(--ink);font-weight:500">{{ m.follow_up }}</div>
+        </div>
+        {% endif %}
+
+        {% if m.secondary_endpoints %}
+        <div style="grid-column:1/-1;background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Secondary Endpoints</div>
+          <ul style="margin:0;padding-left:14px">
+            {% for ep in m.secondary_endpoints %}
+            <li style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:2px">{{ ep }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if m.statistical_methods %}
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Statistical Methods</div>
+          <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">{{ m.statistical_methods }}</div>
+        </div>
+        {% endif %}
+
+        {% if m.setting %}
+        <div style="background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px">
+          <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Setting</div>
+          <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">{{ m.setting }}</div>
+        </div>
+        {% endif %}
+
+        {% if m.source_reference %}
+        <div style="grid-column:1/-1">
+          <span style="font-size:10px;color:var(--muted)">Source: </span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">{{ m.source_reference }}</span>
+        </div>
+        {% endif %}
+
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:var(--muted);font-style:italic">No methodology data — run AI Summary to populate.</div>
+      {% endif %}
     </div>
   </div>
+  {% endwith %}
 
   <!-- Findings table -->
   <div style="margin-bottom:10px;border:1px solid var(--line-soft);border-radius:8px;overflow:hidden" x-data="{ open: false }">
@@ -105,6 +210,7 @@
               <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
                 {% if row.category == 'Primary' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
                 {% elif row.category == 'Secondary' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+                {% elif row.category == 'Post-hoc' %}background:#F0ECF8;color:#6B4FA8;border:1px solid #D4C8EE
                 {% elif row.category == 'Safety' %}background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9
                 {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
                 {{ row.category }}
@@ -219,12 +325,46 @@
   </div>
   {% endif %}
 
-  <!-- Confirm button -->
+  <!-- Confirm checklist + button -->
   {% if summary.status != 'CONFIRMED' %}
-  <div style="margin-top:12px">
-    <button class="btn btn-p btn-sm" @click="confirmSummary({{ paper.pk }})">
+  <div style="margin-top:12px;padding:12px 14px;background:var(--paper-warm);border:1px solid var(--line-soft);border-radius:var(--r)"
+       x-data="{
+         warningsChecked: false,
+         flagsChecked: false,
+         hasWarnings: {{ summary.validation_warnings|length }} > 0,
+         hasFlags: {{ summary.confidence_flags|length }} > 0,
+         get canConfirm() {
+           return (!this.hasWarnings || this.warningsChecked) && (!this.hasFlags || this.flagsChecked);
+         }
+       }">
+    <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px">Pre-confirmation checklist</div>
+    {% if summary.validation_warnings %}
+    <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;cursor:pointer">
+      <input type="checkbox" x-model="warningsChecked" style="margin-top:2px;accent-color:var(--euc);flex-shrink:0">
+      <span style="font-size:12px;color:var(--ink);line-height:1.5">All validation warnings have been reviewed and addressed</span>
+    </label>
+    {% endif %}
+    {% if summary.confidence_flags %}
+    <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;cursor:pointer">
+      <input type="checkbox" x-model="flagsChecked" style="margin-top:2px;accent-color:var(--euc);flex-shrink:0">
+      <span style="font-size:12px;color:var(--ink);line-height:1.5">All AI uncertainty flags have been verified against the source paper</span>
+    </label>
+    {% endif %}
+    <button class="btn btn-p btn-sm"
+            :disabled="!canConfirm"
+            :style="!canConfirm ? 'opacity:.45;cursor:not-allowed' : ''"
+            @click="canConfirm && confirmSummary({{ paper.pk }})">
       Confirm Summary
     </button>
+    {% if summary.validation_warnings or summary.confidence_flags %}
+    <span x-show="!canConfirm" style="font-size:11px;color:var(--muted);margin-left:8px">Check all items above to enable</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if summary %}
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft)">
+    <em style="font-size:11px;color:var(--muted)">Summary generated by AI. Always cross-reference with the source PDF before sharing.</em>
   </div>
   {% endif %}
 
@@ -248,11 +388,9 @@ function summaryPanel() {
   return {
     running: false,
     confirmSummary(paperPk) {
-      const methodology = document.getElementById(`methodology-${paperPk}`)?.value;
       const execPara = document.getElementById(`exec-para-${paperPk}`)?.value;
 
       const payload = {};
-      if (methodology !== undefined) payload.methodology = methodology;
       if (execPara !== undefined) payload.executive_paragraph = execPara;
 
       fetch(`/summaries/${paperPk}/confirm/`, {

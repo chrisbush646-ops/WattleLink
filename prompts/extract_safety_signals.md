@@ -37,3 +37,6 @@ Return ONLY valid JSON — no preamble, no markdown fences, no explanation:
 
 If no adverse events are reported, or the paper is a review/editorial with no primary safety data, return:
 {"adverse_events": []}
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

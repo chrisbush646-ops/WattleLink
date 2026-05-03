@@ -90,7 +90,11 @@ Return ONLY a valid JSON object. No markdown fences, no prose outside the JSON.
         "no_extrapolation": true,
         "fair_balance_present": true,
         "approved_indication_only": true
-      }
+      },
+      "confidence_flags": [
+        "List any specific figures, passages, or references in this claim you could not verify verbatim in the source text.",
+        "Leave empty array if everything in this claim is directly verifiable."
+      ]
     }
   ]
 }
@@ -109,3 +113,6 @@ Return ONLY a valid JSON object. No markdown fences, no prose outside the JSON.
 8. Each claim must represent a genuinely different fact. Do not rephrase the same finding.
 9. Always attempt extraction for any scientific paper — preclinical, observational, pilot, or RCT.
 10. Set approved_indication_only to false for preclinical findings or populations outside TGA-approved indications.
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

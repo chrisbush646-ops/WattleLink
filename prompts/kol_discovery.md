@@ -38,3 +38,6 @@ Return ONLY a valid JSON object. No markdown fences, no commentary. Shape:
 5. Prioritise corresponding author and senior authors first.
 6. Bias toward Tier 1-3 — only include Tier 4-5 if genuinely relevant.
 7. Return an empty candidates array if no identifiable KOLs are found.
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

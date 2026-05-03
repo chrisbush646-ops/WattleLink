@@ -1,0 +1,95 @@
+{% load citations %}
+{% if success %}
+<div id="awaiting-row-{{ paper.pk }}" class="paper-row is-done" style="opacity:.5;pointer-events:none">
+  <div class="row-head" style="cursor:default">
+    <div style="flex:1;min-width:0">
+      <div class="row-title">{{ paper.title }}</div>
+      <div class="row-meta">
+        {% if paper.authors %}{{ paper.authors|first }}{% if paper.authors|length > 1 %} et al.{% endif %} · {% endif %}
+        {{ paper.journal_short|default:paper.journal|default:"Unknown journal" }}
+        {% if paper.published_date %} · {{ paper.published_date|date:"Y" }}{% endif %}
+      </div>
+    </div>
+    <div class="row-actions">
+      <span class="tag" style="background:#E8EFE9;color:#264032;border:1px solid #CFDAD0">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:4px"><path d="M20 6L9 17l-5-5"/></svg>
+        Uploaded
+      </span>
+      {% if paper.published_date %}
+      <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ paper.published_date|date:"Y" }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div id="awaiting-row-{{ paper.pk }}" class="paper-row" x-data="uploadRow({{ paper.pk }}, true)">
+
+  <div class="row-head" @click="toggle()">
+    <div style="flex:1;min-width:0">
+      <div class="row-title">{{ paper.title }}</div>
+      <div class="row-meta">
+        {% if paper.authors %}{{ paper.authors|first }}{% if paper.authors|length > 1 %} et al.{% endif %} · {% endif %}
+        {{ paper.journal_short|default:paper.journal|default:"Unknown journal" }}
+        {% if paper.published_date %} · {{ paper.published_date|date:"Y" }}{% endif %}
+        {% if paper.doi %} · <span style="font-family:var(--mono);font-size:10px">{{ paper.doi }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="row-actions">
+      <span class="tag tag-amber">Upload failed</span>
+      {% if paper.published_date %}
+      <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ paper.published_date|date:"Y" }}</span>
+      {% endif %}
+      <div style="width:28px;height:28px;border-radius:6px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"
+           :style="open ? 'background:var(--euc);border-color:var(--euc)' : ''">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             :style="open ? 'stroke:#F4F6F2' : ''"
+             style="transition:transform .2s" :style="open ? 'transform:rotate(180deg)' : ''">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="upload-panel" x-show="open" x-transition>
+    {% if error %}
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;padding:10px 12px;background:#FEF2F0;border:1px solid #F0C4BC;border-radius:var(--r);font-size:12.5px;color:#B85C3A">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form hx-post="{% url 'literature:attach_pdf' paper.pk %}"
+          hx-encoding="multipart/form-data"
+          hx-target="#awaiting-row-{{ paper.pk }}"
+          hx-swap="outerHTML"
+          @submit="submitting = true">
+
+      <div class="drop-zone"
+           @dragover.prevent="$el.classList.add('drag-over')"
+           @dragleave="$el.classList.remove('drag-over')"
+           @drop.prevent="$el.classList.remove('drag-over'); handleFile($event.dataTransfer.files[0])">
+        <input type="file" name="pdf" accept=".pdf"
+               @change="handleFile($event.target.files[0])">
+        <div class="drop-zone-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="drop-label" x-text="fileName || 'Choose a PDF or drag it here'">Choose a PDF or drag it here</div>
+        <div class="drop-sub" x-show="!fileName">PDF files only · max 50 MB</div>
+      </div>
+
+      <div class="upload-actions">
+        <button type="submit" class="btn btn-p btn-sm"
+                :disabled="!fileName || submitting"
+                x-text="submitting ? 'Uploading…' : 'Upload PDF'">
+          Upload PDF
+        </button>
+        <button type="button" class="btn btn-g btn-sm" @click="toggle()">Cancel</button>
+        <span x-show="submitting" style="font-size:11.5px;color:var(--muted)">Extracting text, this may take a moment…</span>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endif %}

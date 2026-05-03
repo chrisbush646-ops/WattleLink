@@ -36,6 +36,7 @@ def extract_metadata_from_text(text: str) -> dict:
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1024,
+            temperature=0,
             system=_load_prompt(),
             messages=[{"role": "user", "content": snippet}],
         )
@@ -70,7 +71,6 @@ def extract_metadata_from_text(text: str) -> dict:
         "volume":       (data.get("volume") or "").strip(),
         "issue":        (data.get("issue") or "").strip(),
         "pages":        (data.get("pages") or "").strip(),
-        "doi":          (data.get("doi") or "").strip(),
         "pmcid":        (data.get("pmcid") or "").strip(),
         "pubmed_id":    (data.get("pubmed_id") or "").strip(),
         "study_type":   (data.get("study_type") or "Other").strip(),

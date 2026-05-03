@@ -77,3 +77,6 @@ Return ONLY valid JSON — no prose, no markdown fences.
 - If the Product Information summary is empty or not provided, apply Rule 1 based solely on the clinical data source and flag the absence of PI as a risk.
 - All findings must be specific — reference the exact wording of the claim and the relevant data point.
 - Do not soften red flags. An MSL presenting a non-compliant claim to an HCP creates regulatory and reputational risk for the company.
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

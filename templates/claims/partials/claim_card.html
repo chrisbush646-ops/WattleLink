@@ -78,6 +78,21 @@
     </div>
     {% endif %}
 
+    <!-- AI confidence flags -->
+    {% if claim.confidence_flags %}
+    <div style="margin-bottom:10px;padding:9px 12px;background:var(--wattle-soft);border-radius:var(--r);border:1px solid #E7D59A">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8A6918" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span style="font-size:9.5px;font-weight:600;color:#8A6918;letter-spacing:.1em;text-transform:uppercase">AI uncertainty flags</span>
+      </div>
+      <ul style="margin:0;padding-left:14px">
+        {% for flag in claim.confidence_flags %}
+        <li style="font-size:11.5px;color:#6B5010;line-height:1.6;margin-bottom:2px">{{ flag }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
     <!-- Full claim text -->
     <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Technical Claim</div>
     <template x-if="!editing">

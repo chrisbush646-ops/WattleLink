@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
 
-_THINKING_BUDGET = 6000
-_MAX_TOKENS = 12000
+_MAX_TOKENS = 4096
 
 
 def _load_prompt(filename: str) -> str:
@@ -18,9 +17,12 @@ def _load_prompt(filename: str) -> str:
 
 def extract_claims(paper) -> list[dict]:
     """
-    Call Claude with extended thinking to extract commercially-oriented,
+    Call Claude at temperature=0 to extract commercially-oriented,
     MA Code-compliant core claims from the paper's full text.
     Returns list of claim dicts on success, raises on error.
+
+    Extended thinking is intentionally not used — temperature=0 is required
+    for factual accuracy and is incompatible with thinking mode.
     """
     content = paper.full_text or paper.title
     if not content.strip():
@@ -29,29 +31,29 @@ def extract_claims(paper) -> list[dict]:
     system_prompt = _load_prompt("extract_claims.md")
     client = anthropic.Anthropic()
 
+    user_message = (
+        "Extract core claims from the following clinical paper.\n\n"
+        "IMPORTANT: Only use information that appears in the text below. "
+        "Do not use any external knowledge. "
+        "If information is not present in this text, state 'not reported'.\n\n"
+        "Each claim must cover a DISTINCT endpoint or outcome — do not rephrase the same result twice. "
+        "If the paper only has one strong primary result, return just one claim. "
+        "Only add secondary or safety claims if they report genuinely different data.\n\n"
+        "--- BEGIN PAPER TEXT ---\n"
+        + content
+        + "\n--- END PAPER TEXT ---"
+    )
+
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=_MAX_TOKENS,
-        thinking={"type": "enabled", "budget_tokens": _THINKING_BUDGET},
+        temperature=0,
         system=system_prompt,
-        messages=[{
-            "role": "user",
-            "content": (
-                "Extract core claims from the following clinical paper. "
-                "Each claim must cover a DISTINCT endpoint or outcome — do not rephrase the same result twice. "
-                "If the paper only has one strong primary result, return just one claim. "
-                "Only add secondary or safety claims if they report genuinely different data:\n\n"
-                + content
-            ),
-        }],
+        messages=[{"role": "user", "content": user_message}],
         timeout=180,
     )
 
-    text_block = next((b for b in response.content if b.type == "text"), None)
-    if not text_block:
-        raise ValueError("Claims extraction returned no text block.")
-
-    raw = text_block.text.strip()
+    raw = response.content[0].text.strip()
     if raw.startswith("```"):
         lines = raw.splitlines()
         raw = "\n".join(line for line in lines if not line.startswith("```"))

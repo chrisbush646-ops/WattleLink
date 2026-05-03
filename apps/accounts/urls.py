@@ -9,4 +9,5 @@ urlpatterns = [
     path("platform-admin/<int:pk>/edit/", views.admin_edit_user, name="admin_edit_user"),
     path("platform-admin/<int:pk>/delete/", views.admin_delete_user, name="admin_delete_user"),
     path("team/", views.team_view, name="team"),
+    path("consent/", views.consent_view, name="consent"),
 ]

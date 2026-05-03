@@ -24,6 +24,7 @@ Relevance note: {candidate.relevance_note[:200] if candidate.relevance_note else
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=512,
+        temperature=0,
         system=(PROMPT_PATH / "kol_verification.md").read_text(),
         messages=[{"role": "user", "content": profile}],
     )

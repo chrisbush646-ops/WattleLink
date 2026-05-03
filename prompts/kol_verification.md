@@ -20,3 +20,6 @@ Definitions:
 - POSSIBLY_INACTIVE: You have specific knowledge suggesting retirement, overseas move, career change, or other inactivity
 
 Important disclaimer to include in your note: this assessment is based on AI training data and must be independently verified against current registration records, institutional directories, and recent publication activity before any engagement.
+
+## DOI rule
+Do NOT generate, guess, or infer DOIs. Do NOT include DOIs in your output. DOIs are managed separately through verified external sources. If you need to reference a paper, use the journal name, year, and first author — never a DOI. Leave any DOI field empty.

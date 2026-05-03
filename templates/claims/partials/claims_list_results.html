@@ -133,6 +133,11 @@ function cancelDelete(pk) {
 function confirmDelete(pk) {
   const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
   fetch(`/claims/${pk}/delete/`, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
-    .then(() => document.querySelector(`#delete-wrap-${pk}`).closest('.claim-card-wrap').remove());
+    .then(r => {
+      if (r.ok) {
+        document.querySelector(`#delete-wrap-${pk}`).closest('.claim-card-wrap').remove();
+        document.body.dispatchEvent(new CustomEvent('wlStatsRefresh'));
+      }
+    });
 }
 </script>

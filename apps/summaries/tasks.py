@@ -13,6 +13,7 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
     from apps.literature.models import Paper
     from apps.summaries.models import PaperSummary, FindingsRow
     from apps.summaries.services.ai_summary import run_ai_summary, apply_summary_result
+    from apps.summaries.services.validation import validate_summary
 
     try:
         tenant = Tenant.objects.get(pk=tenant_id)
@@ -28,6 +29,10 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
 
         findings_data = result.get("findings", [])
         row_kwargs = apply_summary_result(summary, findings_data, result)
+
+        warnings = validate_summary(result, paper.full_text or "")
+        summary.validation_warnings = warnings
+
         summary.save()
 
         # Replace all existing findings rows

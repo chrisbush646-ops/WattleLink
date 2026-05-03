@@ -113,6 +113,91 @@ def fetch_pubmed_full_text(self, pubmed_id: str, tenant_id: int):
         raise self.retry(exc=e)
 
 
+@shared_task
+def verify_all_dois(tenant_id: int):
+    """Verify all unverified DOIs for a tenant against CrossRef."""
+    import time
+    from .models import Paper
+    from .services.doi import DOIVerifier
+    from django.utils import timezone
+
+    papers = Paper.all_objects.filter(
+        tenant_id=tenant_id,
+        doi_verified=False,
+    ).exclude(doi="")
+
+    verifier = DOIVerifier()
+    verified = 0
+    failed = 0
+
+    for paper in papers:
+        try:
+            doi = verifier.clean_doi(paper.doi)
+        except ValueError:
+            failed += 1
+            continue
+
+        result = verifier.verify_doi_against_paper(doi, paper.title)
+        paper.doi = doi
+        paper.doi_verified = result["is_valid"]
+        paper.doi_verification_details = result
+        if result["is_valid"]:
+            paper.doi_verified_at = timezone.now()
+            verified += 1
+        else:
+            failed += 1
+        paper.save(update_fields=[
+            "doi", "doi_verified", "doi_verified_at", "doi_verification_details",
+        ])
+        time.sleep(1)  # polite rate limiting
+
+    logger.info(
+        "verify_all_dois: tenant=%d, verified=%d, failed=%d",
+        tenant_id, verified, failed,
+    )
+    return {"verified": verified, "failed": failed}
+
+
+@shared_task
+def find_missing_dois(tenant_id: int):
+    """Search CrossRef for DOIs on papers that have none."""
+    import time
+    from .models import Paper
+    from .services.doi import DOIVerifier
+    from django.utils import timezone
+
+    papers = Paper.all_objects.filter(tenant_id=tenant_id, doi="")
+    verifier = DOIVerifier()
+    found = 0
+
+    for paper in papers:
+        if not paper.title:
+            continue
+        authors_str = (
+            ", ".join(paper.authors) if isinstance(paper.authors, list) else (paper.authors or "")
+        )
+        year = str(paper.published_date.year) if paper.published_date else ""
+        match = verifier.search_doi_by_metadata(paper.title, authors_str, paper.journal, year)
+
+        if match.get("doi") and match.get("confidence") in ("HIGH", "MEDIUM"):
+            paper.doi = match["doi"]
+            paper.doi_verified = True
+            paper.doi_source = Paper.DOISource.CROSSREF
+            paper.doi_verified_at = timezone.now()
+            paper.doi_verification_details = match
+            paper.save(update_fields=[
+                "doi", "doi_verified", "doi_verified_at", "doi_source",
+                "doi_verification_details",
+            ])
+            found += 1
+            logger.info("Found DOI %s for paper %d via CrossRef", match["doi"], paper.pk)
+
+        time.sleep(1)
+
+    logger.info("find_missing_dois: tenant=%d, found=%d", tenant_id, found)
+    return {"found": found}
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def process_uploaded_pdf(self, paper_id: int):
     """Extract text from an uploaded PDF and update the Paper record."""

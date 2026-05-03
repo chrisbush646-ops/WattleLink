@@ -17,27 +17,13 @@
   <!-- Create + list wrapper -->
   <div x-data="signalListPage()">
 
-    <!-- Stats row -->
-    <div style="display:flex;gap:12px;margin-bottom:20px">
-      <div style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Total signals</div>
-        <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ signals|length }}</div>
-      </div>
-      <div style="flex:1;padding:14px 16px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:var(--r)">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);font-weight:500;margin-bottom:4px">Active</div>
-        <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:var(--serif)">{{ active_count|default:"—" }}</div>
-      </div>
-      <div style="flex:1;padding:14px 16px;background:var(--wattle-soft);border:1px solid #E7D59A;border-radius:var(--r)">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8A6918;font-weight:500;margin-bottom:4px">Monitoring</div>
-        <div style="font-size:22px;font-weight:700;color:#8A6918;font-family:var(--serif)">{{ monitoring_count|default:"—" }}</div>
-      </div>
-      <div style="flex:1;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:4px">Papers scanned</div>
-        <div style="font-size:22px;font-weight:700;color:var(--ink);font-family:var(--serif)">{{ scanned_count }}</div>
-        {% if unscanned_count > 0 %}
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">{{ unscanned_count }} unscanned</div>
-        {% endif %}
-      </div>
+    <!-- Stats row — auto-refreshes after any mutation via wlStatsRefresh event -->
+    <div id="safety-stats"
+         style="display:flex;gap:12px;margin-bottom:20px"
+         hx-trigger="wlStatsRefresh from:body"
+         hx-get="{% url 'safety:stats' %}"
+         hx-swap="innerHTML">
+      {% include "safety/partials/signal_stats.html" with total=signals|length active_count=active_count monitoring_count=monitoring_count scanned_count=scanned_count unscanned_count=unscanned_count %}
     </div>
 
     <!-- Scan result banner -->

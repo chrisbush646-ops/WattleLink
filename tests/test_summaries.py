@@ -34,7 +34,7 @@ def summary(db, tenant, paper):
         tenant=tenant,
         paper=paper,
         status=PaperSummary.Status.AI_DRAFT,
-        methodology="Double-blind RCT, 800 patients.",
+        methodology={"study_design": "Double-blind RCT, 800 patients.", "population": {}, "intervention": ""},
         executive_paragraph="Drug X significantly reduced HbA1c.",
         ai_prefilled=True,
     )
@@ -51,7 +51,18 @@ def summary(db, tenant, paper):
 
 
 AI_RESPONSE = {
-    "methodology": "Randomised double-blind placebo-controlled trial, n=800.",
+    "methodology": {
+        "study_design": "Randomised double-blind placebo-controlled trial, n=800.",
+        "population": {"description": "Adults with T2DM", "sample_size": "N=800", "demographics": "Mean age 58"},
+        "intervention": "Drug X 10mg once daily",
+        "comparator": "Placebo",
+        "follow_up": "24 weeks",
+        "primary_endpoint": "HbA1c reduction at 24 weeks",
+        "secondary_endpoints": ["Weight change", "Fasting glucose"],
+        "statistical_methods": "ANCOVA with last observation carried forward",
+        "setting": "Multicentre, 12 countries",
+        "source_reference": "Methods, p.2-3",
+    },
     "findings": [
         {
             "category": "Primary",
@@ -141,7 +152,7 @@ class TestApplySummaryResult:
         s = PaperSummary.all_objects.create(tenant=tenant, paper=paper)
         rows = apply_summary_result(s, AI_RESPONSE["findings"], AI_RESPONSE)
 
-        assert s.methodology == AI_RESPONSE["methodology"]
+        assert s.methodology["study_design"] == AI_RESPONSE["methodology"]["study_design"]
         assert s.executive_paragraph == AI_RESPONSE["executive_paragraph"]
         assert s.safety_summary == AI_RESPONSE["safety_summary"]
         assert s.ai_prefilled is True
@@ -303,13 +314,14 @@ class TestConfirmSummaryView:
 
     def test_saves_edited_methodology(self, client, paper, summary):
         url = reverse("summaries:confirm", args=[paper.pk])
+        new_meth = {"study_design": "New methodology.", "population": {}, "intervention": ""}
         client.post(
             url,
-            data=json.dumps(self._payload(methodology="New methodology.")),
+            data=json.dumps(self._payload(methodology=new_meth)),
             content_type="application/json",
         )
         summary.refresh_from_db()
-        assert summary.methodology == "New methodology."
+        assert summary.methodology["study_design"] == "New methodology."
 
     def test_advances_paper_assessed_to_summarised(self, client, paper, summary):
         assert paper.status == Paper.Status.ASSESSED

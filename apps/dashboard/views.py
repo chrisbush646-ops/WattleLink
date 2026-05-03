@@ -20,6 +20,10 @@ def home_page(request):
     return render(request, "marketing/home.html")
 
 
+def faq(request):
+    return render(request, "marketing/faq.html")
+
+
 def contact(request):
     if request.method == "POST":
         data = {
@@ -115,6 +119,12 @@ def dashboard(request):
         Paper.Status.SUMMARISED: "Needs claims",
     }
 
+    doi_stats = {
+        "verified": Paper.objects.filter(doi_verified=True).count(),
+        "unverified": Paper.objects.filter(doi_verified=False).exclude(doi="").count(),
+        "missing": Paper.objects.filter(doi="").count(),
+    }
+
     return render(request, "dashboard/index.html", {
         "counts": counts,
         "awaiting": awaiting,
@@ -127,6 +137,7 @@ def dashboard(request):
         "kol_counts": kol_counts,
         "next_step_labels": next_step_labels,
         "greeting": greeting,
+        "doi_stats": doi_stats,
     })
 
 

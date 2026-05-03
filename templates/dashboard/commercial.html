@@ -79,7 +79,7 @@
       <div class="sec-title">Latest Approved Summaries</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">Confirmed paper summaries with key findings</div>
     </div>
-    <a href="{% url 'literature:library' %}" class="sec-link">View library →</a>
+    <a href="{% url 'summaries:list' %}" class="sec-link">View summaries →</a>
   </div>
   {% if approved_summaries %}
   {% for s in approved_summaries %}
@@ -92,12 +92,12 @@
       {% endwith %}
       <em>{{ s.paper.journal_short|default:s.paper.journal }}</em>
       {% if s.paper.published_date %} · {{ s.paper.published_date|date:"Y" }}{% endif %}
-      {% if s.paper.doi %} · <span style="font-family:var(--mono);font-size:10.5px">{{ s.paper.doi }}</span>{% endif %}
+      {% if s.paper.doi and s.paper.doi_verified %} · <a href="https://doi.org/{{ s.paper.doi }}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:10.5px;color:var(--euc)">{{ s.paper.doi }}</a>{% endif %}
     </div>
     {% if s.executive_paragraph %}
     <div class="summary-body">{{ s.executive_paragraph|truncatewords:60 }}</div>
-    {% elif s.methodology %}
-    <div class="summary-body">{{ s.methodology|truncatewords:60 }}</div>
+    {% elif s.methodology_brief %}
+    <div class="summary-body" style="font-size:12px;color:var(--muted)">{{ s.methodology_brief }}</div>
     {% endif %}
     <!-- Key findings count by category -->
     {% with findings=s.findings.all %}
@@ -139,7 +139,7 @@
       <div class="sec-title">Approved Claims</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">Reviewed and approved for commercial use</div>
     </div>
-    <a href="{% url 'literature:library' %}" class="sec-link">View in library →</a>
+    <a href="{% url 'claims:list' %}" class="sec-link">View all claims →</a>
   </div>
   {% if approved_claims %}
   {% for claim in approved_claims %}

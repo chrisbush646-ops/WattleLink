@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -21,27 +22,47 @@ logger = logging.getLogger(__name__)
 
 def _fetch_full_text_sync(paper):
     """Fetch full PMC text for an open-access paper synchronously."""
-    if not paper.pmcid or paper.full_text:
-        return
-    import requests
-    import xml.etree.ElementTree as ET
-    PMC_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-    try:
-        resp = requests.get(
-            PMC_URL,
-            params={"db": "pmc", "id": paper.pmcid, "retmode": "xml"},
-            timeout=30,
+    from .services.pubmed import fetch_pmc_full_text
+    fetch_pmc_full_text(paper)
+
+
+def _apply_doi_verification(paper, raw_doi: str, doi_source: str) -> None:
+    """
+    Verify a DOI from an external source and persist the result on the paper.
+    If raw_doi is empty, attempt to find one via CrossRef metadata search.
+    Never blocks the caller — CrossRef failures are logged and marked unverified.
+    """
+    from django.utils import timezone as tz
+    from .services.doi import DOIVerifier
+
+    verifier = DOIVerifier()
+
+    if raw_doi:
+        try:
+            doi = verifier.clean_doi(raw_doi)
+        except ValueError:
+            doi = raw_doi  # store as-is but unverified
+
+        result = verifier.verify_doi(doi)
+        paper.doi = doi
+        paper.doi_verified = result["is_valid"]
+        paper.doi_source = doi_source
+        paper.doi_verification_details = result
+        if result["is_valid"]:
+            paper.doi_verified_at = tz.now()
+    else:
+        # No DOI from source — try CrossRef metadata search
+        authors_str = (
+            ", ".join(paper.authors) if isinstance(paper.authors, list) else (paper.authors or "")
         )
-        resp.raise_for_status()
-        root = ET.fromstring(resp.text)
-        texts = [el.text or "" for el in root.iter() if el.text]
-        full_text = " ".join(texts)[:500_000]
-        if full_text.strip():
-            paper.full_text = full_text
-            paper.save(update_fields=["full_text"])
-            logger.info("Fetched PMC full text for paper %s (%d chars)", paper.pk, len(full_text))
-    except Exception as e:
-        logger.warning("PMC full text fetch failed for paper %s: %s", paper.pk, e)
+        year = str(paper.published_date.year) if paper.published_date else ""
+        match = verifier.search_doi_by_metadata(paper.title, authors_str, paper.journal, year)
+        if match.get("doi") and match.get("confidence") in ("HIGH", "MEDIUM"):
+            paper.doi = match["doi"]
+            paper.doi_verified = True
+            paper.doi_source = Paper.DOISource.CROSSREF
+            paper.doi_verified_at = tz.now()
+            paper.doi_verification_details = match
 
 
 # ── Search & Ingest ──────────────────────────────────────────────────────────
@@ -54,43 +75,229 @@ def search_ingest(request):
     })
 
 
+def _build_filters_from_post(data) -> dict:
+    """Extract structured filter params from POST data dict."""
+    publication_types = data.getlist("publication_types") if hasattr(data, "getlist") else data.get("publication_types", [])
+    return {
+        "publication_types": publication_types,
+        "language": "eng" if data.get("language_english") in ("true", "1", True) else "",
+        "species": "humans" if data.get("species_humans") in ("true", "1", True) else "",
+        "has_abstract": data.get("has_abstract") in ("true", "1", True),
+        "full_text_only": data.get("full_text_only") in ("true", "1", True),
+        "free_full_text_only": data.get("free_full_text_only") in ("true", "1", True),
+        "age_group": data.get("age_group", ""),
+        "sex": data.get("sex", ""),
+        "date_preset": data.get("date_preset", ""),
+        "date_from": data.get("date_from", "").strip(),
+        "date_to": data.get("date_to", "").strip(),
+    }
+
+
+def _annotate_articles(articles, existing_pmids, new_pmids=None, query_rows=None):
+    """Add already_ingested, is_new, and relevance_score to article dicts."""
+    for a in articles:
+        pmid = a.get("pubmed_id", "")
+        a["already_ingested"] = pmid in existing_pmids
+        a["is_new"] = pmid in new_pmids if new_pmids else False
+        if query_rows:
+            title_abs = (a.get("title", "") + " " + a.get("abstract", "")).lower()
+            a["relevance_score"] = sum(
+                1 for r in query_rows
+                if r.get("operator", "AND") != "NOT"
+                and (r.get("term") or "").lower() in title_abs
+            )
+        else:
+            a["relevance_score"] = 0
+
+
 @login_required
 @require_POST
 def run_search(request):
-    query = request.POST.get("query", "").strip()
-    open_access_only = request.POST.get("open_access_only") == "true"
-    study_type = request.POST.get("study_type", "")
+    """
+    Stage 1 broad search. Accepts structured rows JSON or plain query string.
+    Returns search results partial + Stage 2 context (mesh, journals, authors).
+    """
+    body_data = {}
+    try:
+        body_data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    rows = body_data.get("rows") or []
+    synonym_expansions_raw = body_data.get("synonym_expansions") or {}
+    synonym_expansions = {int(k): v for k, v in synonym_expansions_raw.items()}
+
+    # Build query from rows if provided, else fall back to plain query string
+    if rows:
+        from .services.pubmed import build_pubmed_query
+        query = build_pubmed_query(rows, synonym_expansions or None)
+    else:
+        query = (body_data.get("query") or request.POST.get("query", "")).strip()
 
     if not query:
         return render(request, "literature/partials/search_results.html", {
             "error": "Please enter a search query.",
         })
 
-    year_from = request.POST.get("year_from", "").strip()
-    year_to = request.POST.get("year_to", "").strip()
+    # Filters — from JSON body or fallback POST
+    if body_data.get("filters"):
+        filters = body_data["filters"]
+        publication_types = filters.get("publication_types", [])
+    else:
+        filters = _build_filters_from_post(request.POST)
+        publication_types = filters.get("publication_types", [])
+
+    # Legacy compat
+    open_access_only = body_data.get("open_access_only") or request.POST.get("open_access_only") == "true"
 
     client = PubMedClient()
-    pmids = client.esearch(
+    total_count, pmids = client.esearch(
         query=query,
         open_access_only=open_access_only,
-        study_type=study_type,
-        year_from=year_from,
-        year_to=year_to,
+        publication_types=publication_types,
+        language=filters.get("language", "eng"),
+        species=filters.get("species", "humans"),
+        has_abstract=filters.get("has_abstract", False),
+        full_text_only=filters.get("full_text_only", False),
+        free_full_text_only=filters.get("free_full_text_only", False),
+        age_group=filters.get("age_group", ""),
+        sex=filters.get("sex", ""),
+        date_preset=filters.get("date_preset", ""),
+        date_from=filters.get("date_from", ""),
+        date_to=filters.get("date_to", ""),
     )
     articles = client.efetch(pmids)
 
-    # Mark which PMIDs are already in the database for this tenant
     existing_pmids = set(
         Paper.objects.filter(pubmed_id__in=pmids).values_list("pubmed_id", flat=True)
     )
-    for a in articles:
-        a["already_ingested"] = a.get("pubmed_id") in existing_pmids
+    _annotate_articles(articles, existing_pmids, query_rows=rows)
+
+    # Stage 2 context — derive quick filter chips from sample
+    from .services.pubmed import get_mesh_terms_from_results, get_top_journals_from_results
+    mesh_chips = get_mesh_terms_from_results(pmids)
+    journal_chips = get_top_journals_from_results(pmids)
+
+    log_action(request, None, "search_executed", after={
+        "query": query[:200], "total_count": total_count,
+    })
 
     return render(request, "literature/partials/search_results.html", {
         "articles": articles,
         "query": query,
-        "total": len(articles),
+        "total": total_count,
+        "displayed": len(articles),
+        "mesh_chips": mesh_chips,
+        "journal_chips": journal_chips,
     })
+
+
+@login_required
+@require_POST
+def refine_search(request):
+    """
+    Stage 2: re-run a query with AND/NOT refinement terms applied.
+    Returns updated count + results partial.
+    """
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return render(request, "literature/partials/search_results.html", {"error": "Invalid request."})
+
+    base_query = body.get("query", "").strip()
+    refinement_terms = body.get("refinement_terms", [])
+    exclusion_terms = body.get("exclusion_terms", [])
+    filters = body.get("filters", {})
+
+    if not base_query:
+        return render(request, "literature/partials/search_results.html", {"error": "Query required."})
+
+    # Build compound query
+    compound = base_query
+    for term in refinement_terms:
+        if term.strip():
+            compound = f"({compound}) AND {term.strip()}"
+    for term in exclusion_terms:
+        if term.strip():
+            compound = f"({compound}) NOT {term.strip()}"
+
+    client = PubMedClient()
+    total_count, pmids = client.esearch(
+        query=compound,
+        publication_types=filters.get("publication_types", []),
+        language=filters.get("language", "eng"),
+        species=filters.get("species", "humans"),
+        has_abstract=filters.get("has_abstract", False),
+        date_preset=filters.get("date_preset", ""),
+        date_from=filters.get("date_from", ""),
+        date_to=filters.get("date_to", ""),
+    )
+    articles = client.efetch(pmids)
+
+    existing_pmids = set(
+        Paper.objects.filter(pubmed_id__in=pmids).values_list("pubmed_id", flat=True)
+    )
+    _annotate_articles(articles, existing_pmids)
+
+    log_action(request, None, "refinements_applied", after={
+        "base_query": base_query[:200],
+        "refinement_terms": refinement_terms,
+        "exclusion_terms": exclusion_terms,
+        "total_count": total_count,
+    })
+
+    return render(request, "literature/partials/search_results.html", {
+        "articles": articles,
+        "query": compound,
+        "total": total_count,
+        "displayed": len(articles),
+        "is_refined": True,
+    })
+
+
+@login_required
+@require_POST
+def expand_synonyms_view(request):
+    """Expand a single search term with synonyms via AI."""
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    term = body.get("term", "").strip()
+    field = body.get("field", "tiab")
+    if not term:
+        return JsonResponse({"error": "term required"}, status=400)
+
+    from .services.ai_suggest import expand_synonyms
+    expanded = expand_synonyms(term, field)
+    return JsonResponse({"expanded": expanded})
+
+
+@login_required
+@require_POST
+def ai_suggest_refinements_view(request):
+    """Stage 2 AI: suggest refinement terms for a broad query."""
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    query = body.get("query", "").strip()
+    result_count = body.get("result_count", 0)
+    top_mesh = body.get("top_mesh", [])
+
+    if not query:
+        return JsonResponse({"error": "query required"}, status=400)
+
+    from .services.ai_suggest import suggest_refinements
+    suggestions = suggest_refinements(query, result_count, top_mesh)
+
+    log_action(request, None, "ai_suggestion_accepted", after={
+        "query": query[:200], "suggestion_count": len(suggestions),
+    })
+
+    return JsonResponse({"suggestions": suggestions})
 
 
 @login_required
@@ -133,6 +340,10 @@ def ingest_paper(request):
     )
 
     if created:
+        _apply_doi_verification(paper, article.get("doi", ""), Paper.DOISource.PUBMED)
+        paper.save(update_fields=[
+            "doi", "doi_verified", "doi_verified_at", "doi_source", "doi_verification_details",
+        ])
         log_action(request, paper, AuditLog.Action.CREATE, after={"pubmed_id": pubmed_id})
         if article.get("is_open_access") and article.get("pmcid"):
             _fetch_full_text_sync(paper)
@@ -179,6 +390,10 @@ def ingest_all_oa(request):
             },
         )
         if created:
+            _apply_doi_verification(paper, article.get("doi", ""), Paper.DOISource.PUBMED)
+            paper.save(update_fields=[
+                "doi", "doi_verified", "doi_verified_at", "doi_source", "doi_verification_details",
+            ])
             ingested += 1
             _fetch_full_text_sync(paper)
 
@@ -194,7 +409,7 @@ def upload_pdf(request):
             "error": "No file received."
         })
 
-    from .services.pdf import validate_upload, extract_text
+    from .services.pdf import validate_upload
     try:
         validate_upload(uploaded)
     except ValueError as e:
@@ -215,7 +430,9 @@ def upload_pdf(request):
     log_action(request, paper, AuditLog.Action.CREATE,
                after={"filename": uploaded.name, "size": uploaded.size})
 
+    doi_unverified_hint = None
     try:
+        from .services.pdf import extract_text, extract_doi_from_pdf
         text = extract_text(paper.source_file.path)
         paper.full_text = text[:500_000]
         paper.status = Paper.Status.INGESTED
@@ -232,9 +449,24 @@ def upload_pdf(request):
             paper.authors = meta["authors"]
             update_fields.append("authors")
         for field in ("journal", "journal_short", "published_date", "volume",
-                      "issue", "pages", "doi", "pmcid", "pubmed_id", "study_type"):
-            if meta.get(field):
+                      "issue", "pages", "pmcid", "pubmed_id", "study_type"):
+            if meta.get(field) is not None and meta.get(field) != "":
                 setattr(paper, field, meta[field])
+                update_fields.append(field)
+
+        # DOI: extract from PDF metadata/text, verify against CrossRef
+        raw_doi = extract_doi_from_pdf(paper.source_file.path)
+        if raw_doi:
+            _apply_doi_verification(paper, raw_doi, Paper.DOISource.PDF_METADATA)
+            if not paper.doi_verified:
+                doi_unverified_hint = raw_doi
+        else:
+            # No DOI found in PDF — try CrossRef metadata search after save
+            _apply_doi_verification(paper, "", Paper.DOISource.UNSET)
+
+        for field in ("doi", "doi_verified", "doi_verified_at", "doi_source",
+                      "doi_verification_details"):
+            if field not in update_fields:
                 update_fields.append(field)
 
         paper.save(update_fields=list(dict.fromkeys(update_fields)))  # dedupe
@@ -247,7 +479,91 @@ def upload_pdf(request):
     return render(request, "literature/partials/upload_status.html", {
         "paper": paper,
         "message": message,
+        "doi_unverified_hint": doi_unverified_hint,
     })
+
+
+# ── DOI verification views ────────────────────────────────────────────────────
+
+@login_required
+@require_POST
+def verify_doi_view(request, paper_pk):
+    """Verify (or update) the DOI on a paper against CrossRef. Returns doi_field partial."""
+    from django.utils import timezone as tz
+    from .services.doi import DOIVerifier
+
+    paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    verifier = DOIVerifier()
+
+    raw_doi = request.POST.get("doi-input-" + str(paper_pk), "").strip() or paper.doi
+
+    if raw_doi:
+        try:
+            doi = verifier.clean_doi(raw_doi)
+        except ValueError:
+            doi = raw_doi
+
+        result = verifier.verify_doi_against_paper(doi, paper.title)
+        paper.doi = doi
+        paper.doi_verified = result["is_valid"]
+        paper.doi_source = Paper.DOISource.USER_ENTRY
+        paper.doi_verification_details = result
+        if result["is_valid"]:
+            paper.doi_verified_at = tz.now()
+        paper.save(update_fields=[
+            "doi", "doi_verified", "doi_verified_at", "doi_source",
+            "doi_verification_details", "updated_at",
+        ])
+
+    return render(request, "literature/partials/doi_field.html", {"paper": paper})
+
+
+@login_required
+@require_POST
+def search_doi_view(request, paper_pk):
+    """Search CrossRef for a DOI using paper metadata. Returns doi_field partial."""
+    from django.utils import timezone as tz
+    from .services.doi import DOIVerifier
+
+    paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
+    verifier = DOIVerifier()
+
+    authors_str = (
+        ", ".join(paper.authors) if isinstance(paper.authors, list) else (paper.authors or "")
+    )
+    year = str(paper.published_date.year) if paper.published_date else ""
+    match = verifier.search_doi_by_metadata(paper.title, authors_str, paper.journal, year)
+
+    if match.get("doi") and match.get("confidence") in ("HIGH", "MEDIUM"):
+        paper.doi = match["doi"]
+        paper.doi_verified = True
+        paper.doi_source = Paper.DOISource.CROSSREF
+        paper.doi_verified_at = tz.now()
+        paper.doi_verification_details = match
+        paper.save(update_fields=[
+            "doi", "doi_verified", "doi_verified_at", "doi_source",
+            "doi_verification_details", "updated_at",
+        ])
+
+    return render(request, "literature/partials/doi_field.html", {"paper": paper})
+
+
+@login_required
+@require_POST
+def verify_all_dois_view(request):
+    """Trigger the verify_all_dois Celery task for the current tenant."""
+    from .tasks import verify_all_dois
+    verify_all_dois.delay(request.tenant.pk)
+    return JsonResponse({"status": "queued", "message": "DOI verification queued."})
+
+
+@login_required
+@require_POST
+def find_missing_dois_view(request):
+    """Trigger the find_missing_dois Celery task for the current tenant."""
+    from .tasks import find_missing_dois
+    find_missing_dois.delay(request.tenant.pk)
+    return JsonResponse({"status": "queued", "message": "Missing DOI search queued."})
 
 
 @login_required
@@ -260,18 +576,33 @@ def save_search(request):
     if not name or not query:
         return JsonResponse({"error": "name and query required"}, status=400)
 
+    filters = data.get("filters", {})
+    if not filters:
+        filters = {
+            "open_access_only": data.get("open_access_only", False),
+            "study_type": data.get("study_type", ""),
+        }
+
+    refinement_terms = data.get("refinement_terms", [])
+    exclusion_terms = data.get("exclusion_terms", [])
+    count_history = data.get("result_count_history", [])
+    ai_used = data.get("ai_suggestions_used", [])
+
     saved, created = SavedSearch.objects.update_or_create(
         tenant=request.tenant,
         name=name,
         defaults={
             "user": request.user,
             "query": query,
-            "filters": {
-                "open_access_only": data.get("open_access_only", False),
-                "study_type": data.get("study_type", ""),
-            },
+            "filters": filters,
+            "refinement_terms": refinement_terms,
+            "exclusion_terms": exclusion_terms,
+            "result_count_history": count_history,
+            "ai_suggestions_used": ai_used,
         },
     )
+
+    log_action(request, saved, "search_saved", after={"name": name, "query": query[:200]})
     return JsonResponse({"id": saved.id, "created": created, "name": saved.name})
 
 
@@ -288,14 +619,19 @@ def saved_searches(request):
 def run_saved_search(request, pk):
     search = get_object_or_404(SavedSearch, pk=pk, tenant=request.tenant)
 
-    open_access_only = search.filters.get("open_access_only", False)
-    study_type = search.filters.get("study_type", "")
+    f = search.filters or {}
+    open_access_only = f.get("open_access_only", False)
 
     client = PubMedClient()
-    pmids = client.esearch(
+    total_count, pmids = client.esearch(
         query=search.query,
         open_access_only=open_access_only,
-        study_type=study_type,
+        publication_types=f.get("publication_types", []),
+        language=f.get("language", "eng"),
+        species=f.get("species", "humans"),
+        date_preset=f.get("date_preset", ""),
+        date_from=f.get("date_from", ""),
+        date_to=f.get("date_to", ""),
     )
     articles = client.efetch(pmids)
 
@@ -306,19 +642,18 @@ def run_saved_search(request, pk):
     existing_pmids = set(
         Paper.objects.filter(pubmed_id__in=current_pmids).values_list("pubmed_id", flat=True)
     )
-    for a in articles:
-        a["already_ingested"] = a.get("pubmed_id") in existing_pmids
-        a["is_new"] = a.get("pubmed_id") in new_pmids
+    _annotate_articles(articles, existing_pmids, new_pmids=new_pmids)
 
     search.last_run = timezone.now()
-    search.result_count = len(articles)
+    search.result_count = total_count
     search.last_result_pmids = current_pmids
     search.save(update_fields=["last_run", "result_count", "last_result_pmids"])
 
     return render(request, "literature/partials/search_results.html", {
         "articles": articles,
         "query": search.query,
-        "total": len(articles),
+        "total": total_count,
+        "displayed": len(articles),
         "new_count": len(new_pmids),
         "search_name": search.name,
     })
@@ -334,10 +669,10 @@ def ai_suggest(request):
 
     try:
         from .services.ai_suggest import suggest_pubmed_query
-        rows = suggest_pubmed_query(description)
-        if not rows:
+        result = suggest_pubmed_query(description)
+        if not result or not result.get("rows"):
             return JsonResponse({"error": "No query could be generated"}, status=500)
-        return JsonResponse({"rows": rows})
+        return JsonResponse(result)
     except Exception as e:
         logger.error("AI suggest failed: %s", e)
         return JsonResponse({"error": str(e)}, status=500)
@@ -495,3 +830,77 @@ def paper_detail(request, pk):
             ("Approved", Paper.Status.APPROVED),
         ],
     })
+
+
+# ── Awaiting Upload ────────────────────────────────────────────────────────────
+
+@login_required
+def awaiting_upload(request):
+    papers = (
+        Paper.objects
+        .filter(
+            # Failed extraction — file uploaded but text could not be read
+            Q(status=Paper.Status.AWAITING_UPLOAD)
+            |
+            # Paywalled paper ingested from PubMed with no PDF and no PMC fetch path
+            Q(source_file="", source=Paper.Source.MANUAL, pmcid="")
+        )
+        .exclude(status=Paper.Status.APPROVED)
+        .order_by("-created_at")
+    )
+    return render(request, "literature/awaiting_upload.html", {"papers": papers})
+
+
+@login_required
+@require_POST
+def attach_pdf(request, pk):
+    paper = get_object_or_404(Paper, pk=pk, tenant=request.tenant)
+    uploaded = request.FILES.get("pdf")
+
+    if not uploaded:
+        return render(request, "literature/partials/attach_pdf_result.html", {
+            "paper": paper, "error": "No file selected."
+        })
+
+    from .services.pdf import validate_upload, extract_text
+    try:
+        validate_upload(uploaded)
+    except ValueError as e:
+        return render(request, "literature/partials/attach_pdf_result.html", {
+            "paper": paper, "error": str(e)
+        })
+
+    paper.source_file = uploaded
+    paper.status = Paper.Status.AWAITING_UPLOAD
+    paper.save(update_fields=["source_file", "status"])
+    log_action(request, paper, AuditLog.Action.UPDATE,
+               after={"pdf_attached": uploaded.name, "size": uploaded.size})
+
+    try:
+        text = extract_text(paper.source_file.path)
+        paper.full_text = text[:500_000]
+        paper.status = Paper.Status.INGESTED
+
+        from .services.metadata import extract_metadata_from_text
+        meta = extract_metadata_from_text(text)
+
+        update_fields = ["full_text", "status", "source_file"]
+        for field in ("journal", "journal_short", "published_date", "volume",
+                      "issue", "pages", "doi", "pmcid", "study_type"):
+            if meta.get(field) and not getattr(paper, field, None):
+                setattr(paper, field, meta[field])
+                update_fields.append(field)
+
+        paper.save(update_fields=list(dict.fromkeys(update_fields)))
+        return render(request, "literature/partials/attach_pdf_result.html", {
+            "paper": paper,
+            "success": True,
+            "char_count": len(text),
+        })
+    except Exception as exc:
+        logger.error("PDF attach failed for paper %d: %s", paper.pk, exc)
+        paper.status = Paper.Status.AWAITING_UPLOAD
+        paper.save(update_fields=["status"])
+        return render(request, "literature/partials/attach_pdf_result.html", {
+            "paper": paper, "error": f"Text extraction failed: {exc}"
+        })

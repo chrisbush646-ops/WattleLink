@@ -51,27 +51,34 @@
     </template>
   </div>
 
-  <!-- Action buttons -->
-  {% if enquiry.status != 'CLOSED' %}
-  <div style="display:flex;gap:8px">
-    <button @click="save('draft')" class="btn btn-g btn-sm">Save draft</button>
-    <button @click="save('respond')" class="btn btn-p btn-sm">Mark as responded</button>
-    <button hx-post="{% url 'medinfo:close' enquiry.pk %}"
-            hx-target="#enquiry-status-badge"
-            hx-swap="outerHTML"
-            class="btn btn-g btn-sm"
-            style="color:var(--muted)"
-            hx-confirm="Close this enquiry?">
-      Close
-    </button>
-  </div>
-  {% endif %}
+  <!-- Status / action row -->
+  <div id="enquiry-action-row">
+    {% if enquiry.status == 'RESPONDED' %}
+    <div style="margin-bottom:12px;padding:10px 14px;background:#E8EFE9;border-radius:var(--r);border-left:3px solid var(--euc);font-size:12px;color:var(--euc)">
+      ✓ Responded {% if enquiry.responded_by %}by {{ enquiry.responded_by.email }}{% endif %} on {{ enquiry.responded_at|date:"d M Y" }}
+    </div>
+    {% elif enquiry.status == 'CLOSED' %}
+    <div style="margin-bottom:12px;padding:10px 14px;background:var(--line-soft);border-radius:var(--r);font-size:12px;color:var(--muted)">
+      Closed
+    </div>
+    {% endif %}
 
-  {% if enquiry.status == 'RESPONDED' %}
-  <div style="margin-top:12px;font-size:11.5px;color:var(--euc)">
-    ✓ Responded {% if enquiry.responded_by %}by {{ enquiry.responded_by.email }}{% endif %} on {{ enquiry.responded_at|date:"d M Y" }}
+    {% if enquiry.status != 'CLOSED' %}
+    <div style="display:flex;gap:8px" id="enquiry-save-error-wrap">
+      <button @click="save('draft')" :disabled="saving" class="btn btn-g btn-sm">Save draft</button>
+      <button @click="save('respond')" :disabled="saving" class="btn btn-p btn-sm">Mark as responded</button>
+      <button hx-post="{% url 'medinfo:close' enquiry.pk %}"
+              hx-swap="none"
+              hx-on::after-request="if(event.detail.successful) window.location.href='{% url 'medinfo:list' %}'"
+              class="btn btn-g btn-sm"
+              style="color:var(--muted)"
+              hx-confirm="Close this enquiry?">
+        Close
+      </button>
+    </div>
+    <div id="enquiry-save-feedback" style="display:none;margin-top:8px;font-size:12px"></div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <script>
@@ -79,6 +86,7 @@ function enquiryRespond(enquiryPk) {
   return {
     response: {{ enquiry.response|tojson }},
     citations: {{ enquiry.citations|tojson }},
+    saving: false,
     addCitation(val) {
       if (!val) return;
       const [paperId, apa7] = val.split('|');
@@ -87,12 +95,26 @@ function enquiryRespond(enquiryPk) {
       }
     },
     save(action) {
+      this.saving = true;
+      const feedback = document.getElementById('enquiry-save-feedback');
       fetch(`/medinfo/${enquiryPk}/respond/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
         body: JSON.stringify({ response: this.response, citations: this.citations, action }),
-      }).then(r => r.text()).then(html => {
-        document.getElementById(`enquiry-${enquiryPk}`).outerHTML = html;
+      }).then(r => {
+        this.saving = false;
+        if (r.ok) {
+          window.location.href = '{% url "medinfo:list" %}';
+        } else {
+          feedback.textContent = 'Save failed — please try again.';
+          feedback.style.color = 'var(--coral)';
+          feedback.style.display = 'block';
+        }
+      }).catch(() => {
+        this.saving = false;
+        feedback.textContent = 'Network error — please try again.';
+        feedback.style.color = 'var(--coral)';
+        feedback.style.display = 'block';
       });
     },
   };

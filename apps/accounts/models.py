@@ -3,6 +3,8 @@ from django.db import models
 
 from .managers import TenantUserManager, UnfilteredManager
 
+CURRENT_CONSENT_VERSION = 1
+
 PLATFORM_MODULES = [
     ("aisearch",      "AI Search"),
     ("dashboard",     "Dashboard"),
@@ -16,7 +18,7 @@ PLATFORM_MODULES = [
     ("kol_directory", "Accepted KOLs"),
     ("medinfo",       "Medical Information"),
     ("engagement",    "Events"),
-    ("commercial",    "Commercial View"),
+    ("commercial",    "Commercial Dashboard"),
 ]
 
 
@@ -70,6 +72,7 @@ class User(AbstractUser):
         default=dict,
         help_text="Per-module overrides: {module_key: 'editor'|'viewer'|'none'}",
     )
+    consent_version = models.PositiveIntegerField(default=0)
 
     objects = TenantUserManager()
     all_objects = UnfilteredManager()

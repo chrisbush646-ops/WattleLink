@@ -11,4 +11,5 @@ urlpatterns = [
     path("<int:signal_pk>/update/", views.update_signal, name="update"),
     path("<int:signal_pk>/mention/", views.add_mention, name="add_mention"),
     path("mention/<int:mention_pk>/remove/", views.remove_mention, name="remove_mention"),
+    path("stats/", views.signal_stats, name="stats"),
 ]

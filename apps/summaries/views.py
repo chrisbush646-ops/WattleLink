@@ -78,7 +78,27 @@ def run_ai_summary(request, paper_pk):
     """Run AI summarisation synchronously and return the populated summary panel."""
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
 
+    # Ensure full text is available before summarising.
+    # Priority: PDF extraction → PMC fetch → existing full_text (abstract).
+    # The ingest flow stores the abstract in full_text; both PDF extraction
+    # and PMC fetch can get real full-paper text and update the field.
+    _short = len(paper.full_text or "") < 4_000
+    if _short and paper.source_file:
+        try:
+            from apps.literature.services.pdf import extract_text
+            text = extract_text(paper.source_file.path)
+            if len(text) > len(paper.full_text or ""):
+                paper.full_text = text[:500_000]
+                paper.save(update_fields=["full_text"])
+        except Exception as exc:
+            logger.warning("PDF re-extraction failed for paper %s: %s", paper_pk, exc)
+    elif _short and paper.pmcid:
+        from apps.literature.services.pubmed import fetch_pmc_full_text
+        fetch_pmc_full_text(paper)
+    paper.refresh_from_db(fields=["full_text"])
+
     from .services.ai_summary import run_ai_summary as _run_ai, apply_summary_result
+    from .services.validation import validate_summary
 
     ctx = {
         "paper": paper,
@@ -94,6 +114,8 @@ def run_ai_summary(request, paper_pk):
 
         findings_data = result.get("findings", [])
         row_kwargs = apply_summary_result(summary, findings_data, result)
+
+        summary.validation_warnings = validate_summary(result, paper.full_text or "")
         summary.save()
 
         FindingsRow.objects.filter(summary=summary).delete()
@@ -131,7 +153,13 @@ def confirm_summary(request, paper_pk):
         defaults={"tenant": request.tenant},
     )
 
-    summary.methodology = data.get("methodology", summary.methodology)
+    raw_meth = data.get("methodology", None)
+    if raw_meth is not None:
+        if isinstance(raw_meth, dict):
+            summary.methodology = raw_meth
+        elif isinstance(raw_meth, str) and raw_meth.strip():
+            summary.methodology = {"study_design": raw_meth.strip()}
+        # else: leave as-is
     summary.executive_paragraph = data.get("executive_paragraph", summary.executive_paragraph)
     summary.safety_summary = data.get("safety_summary", summary.safety_summary)
     summary.adverse_events = data.get("adverse_events", summary.adverse_events)

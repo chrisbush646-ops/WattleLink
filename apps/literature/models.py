@@ -34,6 +34,13 @@ class Paper(SoftDeleteModel):
         LOW = "Low", "Low"
         VERY_LOW = "Very Low", "Very Low"
 
+    class DOISource(models.TextChoices):
+        PUBMED = "PUBMED", "PubMed"
+        CROSSREF = "CROSSREF", "CrossRef"
+        USER_ENTRY = "USER_ENTRY", "User Entry"
+        PDF_METADATA = "PDF_METADATA", "PDF Metadata"
+        UNSET = "UNSET", "Not Set"
+
     tenant = models.ForeignKey(
         "accounts.Tenant",
         on_delete=models.CASCADE,
@@ -63,6 +70,14 @@ class Paper(SoftDeleteModel):
     source_file = models.FileField(upload_to="papers/", blank=True)
     full_text = models.TextField(blank=True)
     search_vector = SearchVectorField(null=True, blank=True)
+    doi_verified = models.BooleanField(default=False)
+    doi_verified_at = models.DateTimeField(null=True, blank=True)
+    doi_source = models.CharField(
+        max_length=20,
+        choices=DOISource.choices,
+        default=DOISource.UNSET,
+    )
+    doi_verification_details = models.JSONField(default=dict, blank=True)
     safety_scanned_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -90,7 +105,7 @@ class Paper(SoftDeleteModel):
         vol = f", {self.volume}" if self.volume else ""
         issue = f"({self.issue})" if self.issue else ""
         pages = f", {self.pages}" if self.pages else ""
-        doi = f" https://doi.org/{self.doi}" if self.doi else ""
+        doi = f" https://doi.org/{self.doi}" if (self.doi and self.doi_verified) else ""
         return f"{authors} ({year}). {self.title}. {self.journal}{vol}{issue}{pages}.{doi}"
 
     @property
@@ -134,6 +149,10 @@ class SavedSearch(models.Model):
     name = models.CharField(max_length=200)
     query = models.TextField()
     filters = models.JSONField(default=dict)
+    refinement_terms = models.JSONField(default=list)
+    exclusion_terms = models.JSONField(default=list)
+    result_count_history = models.JSONField(default=list)
+    ai_suggestions_used = models.JSONField(default=list)
     last_run = models.DateTimeField(null=True, blank=True)
     result_count = models.IntegerField(default=0)
     last_result_pmids = models.JSONField(default=list)

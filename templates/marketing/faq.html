@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequently Asked Questions — WattleLink</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --euc: #264032;
+      --euc-dark: #1A2E23;
+      --euc-deep: #0F1C15;
+      --wattle: #C89B2A;
+      --wattle-light: #E5BE5A;
+      --coral: #B85C3A;
+      --paper: #F6F2E7;
+      --paper-dark: #EDE8D8;
+      --ink: #1C2B22;
+      --muted: #6B7F74;
+      --line: #D8D3C6;
+      --surface: #FFFFFF;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Geist', system-ui, sans-serif;
+      --r: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+    /* Nav — identical to landing page */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 64px;
+      background: rgba(15, 28, 21, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 0; text-decoration: none; }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      font-size: 13px; color: rgba(255,255,255,0.55);
+      text-decoration: none; transition: color 0.15s; letter-spacing: 0.01em;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-links a.active { color: rgba(255,255,255,0.9); }
+    .nav-cta { display: flex; align-items: center; gap: 12px; }
+    .btn-nav-secondary {
+      font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
+      text-decoration: none; padding: 7px 16px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14); transition: all 0.15s;
+    }
+    .btn-nav-secondary:hover { color: #fff; border-color: rgba(255,255,255,0.32); }
+    .btn-nav-primary {
+      font-size: 13px; font-weight: 500; color: var(--euc-deep);
+      background: var(--wattle-light); text-decoration: none;
+      padding: 7px 18px; border-radius: 8px; transition: all 0.15s;
+    }
+    .btn-nav-primary:hover { background: #fff; }
+
+    /* Page header */
+    .page-header {
+      background: var(--euc-deep);
+      padding: 128px 48px 72px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .page-header-inner { max-width: 1100px; margin: 0 auto; }
+    .page-eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--wattle-light); margin-bottom: 20px;
+    }
+    .page-h1 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 5vw, 58px);
+      font-weight: 300; line-height: 1.06;
+      letter-spacing: -0.03em; color: #F4F6F2; margin-bottom: 20px;
+    }
+    .page-h1 em { font-style: italic; color: var(--wattle-light); }
+    .page-sub { font-size: 15px; line-height: 1.7; color: rgba(244,246,242,0.5); max-width: 540px; }
+
+    /* Content section */
+    .faq-section { padding: 72px 48px 96px; }
+    .faq-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 64px;
+      align-items: start;
+    }
+
+    /* FAQ groups */
+    .faq-group { margin-bottom: 52px; }
+    .faq-group:last-child { margin-bottom: 0; }
+    .faq-group-label {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--wattle);
+      margin-bottom: 20px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* FAQ items */
+    .faq-item { border-bottom: 1px solid var(--line); }
+    .faq-btn {
+      width: 100%; background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 20px; padding: 19px 0;
+      font-family: var(--sans); font-size: 14.5px; font-weight: 500;
+      color: var(--ink); text-align: left; transition: color 0.15s;
+    }
+    .faq-btn:hover { color: var(--euc); }
+    .faq-btn.open { color: var(--euc); }
+    .faq-icon {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border-radius: 50%; border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; background: var(--surface);
+    }
+    .faq-btn.open .faq-icon { background: var(--euc); border-color: var(--euc); }
+    .faq-icon svg { transition: transform 0.2s; }
+    .faq-btn.open .faq-icon svg { transform: rotate(45deg); }
+    .faq-icon svg line { stroke: var(--muted); }
+    .faq-btn.open .faq-icon svg line { stroke: #fff; }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .faq-answer.open { max-height: 900px; }
+    .faq-answer-inner {
+      padding-bottom: 22px;
+      font-size: 14px; line-height: 1.8; color: var(--muted);
+    }
+    .faq-answer-inner p { margin-bottom: 14px; }
+    .faq-answer-inner p:last-child { margin-bottom: 0; }
+    .faq-answer-inner strong { color: var(--ink); font-weight: 500; }
+    .faq-answer-inner a { color: var(--euc); font-weight: 500; text-decoration: none; border-bottom: 1px solid rgba(38,64,50,0.25); }
+    .faq-answer-inner a:hover { border-color: var(--euc); }
+
+    /* Sidebar */
+    .faq-sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+    .sidebar-block {
+      padding: 24px; background: var(--surface);
+      border: 1px solid var(--line); border-radius: 14px;
+    }
+    .sidebar-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 12px; }
+    .sidebar-block h3 { font-family: var(--serif); font-size: 17px; font-weight: 400; color: var(--ink); margin-bottom: 8px; }
+    .sidebar-block p { font-size: 13px; line-height: 1.65; color: var(--muted); }
+    .sidebar-block a.text-link { color: var(--euc); text-decoration: none; font-weight: 500; font-size: 13px; }
+    .sidebar-block a.text-link:hover { text-decoration: underline; }
+
+    /* Talk to us card — dark */
+    .talk-card {
+      background: var(--euc-deep);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .talk-card .sidebar-label { color: rgba(232,239,233,0.4); }
+    .talk-card h3 { color: #F4F6F2; }
+    .talk-card p { color: rgba(232,239,233,0.55); }
+    .sidebar-cta {
+      display: block; width: 100%;
+      background: rgba(255,255,255,0.08);
+      color: #F4F6F2;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: var(--r);
+      padding: 10px 16px; font: inherit; font-size: 13.5px; font-weight: 500;
+      text-align: center; text-decoration: none; cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .talk-card:hover .sidebar-cta {
+      background: var(--euc);
+      border-color: var(--euc);
+    }
+
+    /* Footer */
+    footer { background: var(--euc-deep); padding: 48px; border-top: 1px solid rgba(255,255,255,0.04); }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { font-family: var(--serif); font-size: 17px; font-weight: 400; color: rgba(244,246,242,0.5); }
+    .footer-logo em { font-style: italic; font-weight: 300; color: var(--wattle-light); }
+    footer p { font-size: 12px; color: rgba(244,246,242,0.25); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: rgba(244,246,242,0.35); text-decoration: none; }
+    .footer-links a:hover { color: rgba(244,246,242,0.65); }
+
+    @media (max-width: 960px) {
+      nav { padding: 0 24px; }
+      .nav-links { display: none; }
+      .page-header { padding: 108px 24px 56px; }
+      .faq-section { padding: 48px 24px 72px; }
+      .faq-inner { grid-template-columns: 1fr; gap: 40px; }
+      footer { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation — identical to landing page -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="140" height="40" viewBox="0 0 220 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="64" height="64" rx="14" fill="rgba(255,255,255,0.10)"/>
+      <path d="M10 16 C11 28 14 38 18 46 C20 50 22 50 24 46 C26 40 28 34 34 34 C40 34 42 40 44 46 C46 50 48 50 50 46 C54 38 57 28 58 16 L50 16 C49 26 47 34 45 38 C44 40 43 40 42 38 C40 34 38 28 34 28 C30 28 28 34 26 38 C25 40 24 40 23 38 C21 34 19 26 18 16 Z" fill="#F4F6F2"/>
+      <path d="M33 28 C32 22 30 16 28 12" stroke="#3C5C4A" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="28" cy="12" r="4" fill="#C89B2A"/>
+      <circle cx="28" cy="12" r="2.5" fill="#E5BE5A"/>
+      <text x="80" y="38" fill="#F4F6F2" font-size="28" font-family="Georgia, serif" font-weight="400" letter-spacing="-0.02em">Wattle<tspan font-style="italic" font-weight="300">Link</tspan></text>
+    </svg>
+  </a>
+
+  <div class="nav-links">
+    <a href="/#pipeline">The Pipeline</a>
+    <a href="/#intelligence">Intelligence</a>
+    <a href="/#compliance">Compliance</a>
+    <a href="/faq/" class="active">FAQ</a>
+    <a href="/contact/">Contact</a>
+  </div>
+
+  <div class="nav-cta">
+    <a href="/dashboard/" class="btn-nav-primary">Go to Dashboard &rarr;</a>
+  </div>
+</nav>
+
+<!-- Page header -->
+<div class="page-header">
+  <div class="page-header-inner">
+    <div class="page-eyebrow">Frequently asked questions</div>
+    <h1 class="page-h1">Questions, <em>answered.</em></h1>
+    <p class="page-sub">Everything you need to know about how WattleLink works, where your data lives and how we keep it safe. Can't find what you're after? Get in touch.</p>
+  </div>
+</div>
+
+<!-- FAQ content -->
+<div class="faq-section">
+  <div class="faq-inner">
+
+    <!-- Questions -->
+    <div class="faq-main">
+
+      <!-- General -->
+      <div class="faq-group" id="general">
+        <div class="faq-group-label">General</div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            What is WattleLink?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>WattleLink is a medical affairs intelligence platform built specifically for Australian pharmaceutical teams. It replaces the mix of spreadsheets, shared drives and email threads that most teams rely on to manage published evidence, generate claims, track safety signals and coordinate KOL relationships.</p>
+              <p>The core of the product is a governed pipeline that takes a paper from initial literature search all the way through quality assessment, structured summarisation, AI-assisted claim drafting and human approval. Every step requires human sign-off. The AI assists and drafts; your team decides.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Who is WattleLink designed for?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>WattleLink is built for medical affairs teams at pharmaceutical and biotechnology companies operating in Australia. Medical Science Liaisons, Medical Affairs Managers and their leadership are the primary users of the pipeline and intelligence modules.</p>
+              <p>Commercial teams also have a read-only view of approved content, so marketing and sales colleagues can access confirmed summaries and approved claims without ever seeing draft or unapproved material.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Is WattleLink a medical device?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>No. WattleLink is a workflow tool, not a medical device. It does not generate clinical recommendations, diagnose conditions or provide advice that reaches patients. It is a productivity and governance platform for medical affairs professionals who are responsible for managing evidence and producing compliant claims.</p>
+              <p>Mandatory human approval is built into every step of the process. AI output is always clearly labelled as a draft and cannot be published or shared without an authorised reviewer signing off on it.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- The Pipeline -->
+      <div class="faq-group" id="pipeline">
+        <div class="faq-group-label">The Pipeline</div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            How does the evidence pipeline work?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Papers move through four governed stages: Search and Ingest, Quality Assessment, Summaries, and Core Claims. Each stage has its own tools and each requires explicit human sign-off before a paper moves forward.</p>
+              <p><strong>Search and Ingest</strong> connects directly to PubMed. You can run Boolean queries with AI-assisted term suggestions, and open-access papers are fetched automatically. Paywalled papers can be uploaded as PDFs.</p>
+              <p><strong>Quality Assessment</strong> applies Cochrane GRADE methodology and Risk of Bias scoring. The AI pre-fills assessments based on the full text; a reviewer confirms or adjusts each field before it is locked.</p>
+              <p><strong>Summaries</strong> produce a structured findings table and an executive paragraph, both anchored to specific passages in the source PDF with page references included.</p>
+              <p><strong>Core Claims</strong> are AI-drafted from the confirmed summary and then go through an Approve, Edit or Reject workflow. Every claim must have a fair balance pairing. Claims cannot be approved without one.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Can I upload paywalled PDFs?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Yes. If a paper is not open access, you can upload the PDF directly from your institution's licensed copy. WattleLink will extract the full text and process it through the pipeline in the same way as automatically fetched papers.</p>
+              <p>The original source file is never modified and remains intact for audit and legal purposes.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Does the AI automatically approve claims?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>No. This is a hard rule baked into the product. AI output is always labelled as a draft. A qualified reviewer must explicitly approve each claim before it can be exported or shared. The system will not allow an AI draft to leave the platform without human sign-off.</p>
+              <p>The AI assists by drafting claim text, pre-filling quality assessments and suggesting relevant literature. Every one of those suggestions requires a human to confirm, edit or reject it. The distinction between "AI suggested" and "human approved" is preserved throughout the audit trail.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Data and Security -->
+      <div class="faq-group" id="data">
+        <div class="faq-group-label">Data and Security</div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Where is our data stored?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>All data is stored in the AWS Sydney region (ap-southeast-2). This covers your database, uploaded PDFs, processed documents and all file attachments. Nothing leaves Australian jurisdiction unless your organisation explicitly configures a different region, which we would discuss with you directly before enabling.</p>
+              <p>We chose AWS Sydney because it meets the data residency expectations of Australian pharmaceutical organisations and aligns with the TGA's guidance on digital health infrastructure.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            How is our data protected?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Data is encrypted in transit using TLS 1.2 or higher and encrypted at rest using AES-256. Uploaded PDFs and attachments are stored in private S3 buckets with no public access. Access to those files requires authenticated, time-limited signed URLs generated by the application.</p>
+              <p>The application itself runs in a private VPC. Database access is restricted to the application layer and is not publicly reachable. Regular automated backups are taken and stored in a separate AWS region as a disaster recovery measure.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Is our data shared with other organisations?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>No. WattleLink is a multi-tenant platform, meaning each organisation has its own isolated workspace. Tenant isolation is enforced at the database query level, not just the application layer. Every query is automatically scoped to your organisation's data and there is no mechanism for one tenant's data to be visible to another.</p>
+              <p>We do not use your data to train AI models or share it with third parties for any purpose other than operating the service. The AI features are powered by the Anthropic API and your content is subject to Anthropic's enterprise data handling terms, which do not permit training on customer data.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Who within our organisation can see what?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Access is role-based. <strong>Medical Affairs</strong> users have full access to the pipeline, intelligence modules, and all draft and approved content. <strong>Commercial</strong> users have a read-only view that shows only content confirmed by Medical Affairs. They cannot see AI drafts, papers in progress, or anything pending review. <strong>Administrators</strong> manage team members, roles and workspace settings.</p>
+              <p>This separation is enforced at the view level and the database query level. Commercial users cannot reach draft content even by manipulating URLs or API calls.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compliance and Audit -->
+      <div class="faq-group" id="compliance">
+        <div class="faq-group-label">Compliance and Audit</div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            What does the audit trail record?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Every create, update, approval, rejection and export action is recorded with a timestamp, the user who performed it, and a snapshot of the record's state before and after the change. The audit log is append-only. Records cannot be edited or deleted, and a database level rule prevents any application code from overwriting past entries.</p>
+              <p>This means if you are ever asked to demonstrate that a claim was approved by a qualified reviewer at a specific point in time, or to show the full edit history of a summary, that information is always available and reconstruction-ready.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Can approved claims be changed after the fact?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>Yes, but with full version control. If a claim needs to be updated after approval, a new version is created. The previous approved version is retained in full and remains visible in the version history. You will always be able to see what was approved, who approved it and when, and what changed in subsequent versions.</p>
+              <p>This approach means there is no silent editing of approved content. Every change creates a traceable record.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            Does WattleLink support SAML SSO?
+            <span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="5" y1="1" x2="5" y2="9" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5" x2="9" y2="5" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <p>SAML SSO is on the roadmap and is available to enterprise customers by arrangement. If your organisation uses Okta, Azure AD or another SAML identity provider and SSO is a requirement for your security team, please <a href="/contact/">get in touch</a> and we will work through the configuration with you.</p>
+              <p>In the meantime, WattleLink supports email and password authentication with optional social login. Invited users set their own passwords via a secure token link and there is no ability to sign up without an explicit invitation from a workspace administrator.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end faq-main -->
+
+    <!-- Sidebar -->
+    <aside class="faq-sidebar">
+
+      <div class="sidebar-block talk-card">
+        <div class="sidebar-label">Still have questions?</div>
+        <h3>Talk to us directly</h3>
+        <p>We are happy to walk you through how WattleLink works and answer anything specific to your team's situation.</p>
+        <a href="/contact/" class="sidebar-cta">Get in touch</a>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Request a demo</div>
+        <h3>See it in action</h3>
+        <p>Book a 30-minute walkthrough with someone from our team. We will show you the full pipeline with a realistic set of papers.</p>
+        <a href="/contact/" class="text-link" style="display:inline-block;margin-top:12px">Request a demonstration &rarr;</a>
+      </div>
+
+    </aside>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-logo">Wattle<em>Link</em></span>
+    <p>Medical Affairs Intelligence Platform &middot; Australia</p>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/contact/">Contact</a>
+      <a href="/accounts/login/">Sign in</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleFaq(btn) {
+    var answer = btn.nextElementSibling;
+    var isOpen = btn.classList.contains('open');
+    document.querySelectorAll('.faq-btn.open').forEach(function(b) {
+      b.classList.remove('open');
+      b.nextElementSibling.classList.remove('open');
+    });
+    if (!isOpen) {
+      btn.classList.add('open');
+      answer.classList.add('open');
+    }
+  }
+</script>
+
+</body>
+</html>
