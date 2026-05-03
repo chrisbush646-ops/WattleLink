@@ -393,6 +393,82 @@ def _infer_study_type(article_el) -> str:
     return "Other"
 
 
+_UNPAYWALL_EMAIL = "hello@wattlelink.com.au"
+
+
+def fetch_oa_pdf_via_unpaywall(paper) -> bool:
+    """
+    Query Unpaywall for an open-access PDF URL, download it, and extract full text.
+    Requires paper.doi. Updates paper.full_text in-place and saves if longer text found.
+    Returns True if full_text was updated.
+    """
+    import os
+    import tempfile
+
+    from apps.literature.services.pdf import extract_text as pdf_extract
+
+    if not paper.doi:
+        return False
+    if paper.full_text and len(paper.full_text) >= _ABSTRACT_THRESHOLD:
+        return False
+
+    try:
+        resp = requests.get(
+            f"https://api.unpaywall.org/v2/{paper.doi}",
+            params={"email": _UNPAYWALL_EMAIL},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return False
+        data = resp.json()
+        if not data.get("is_oa"):
+            return False
+
+        # Best OA location first, then first location that has a direct PDF link
+        pdf_url = (data.get("best_oa_location") or {}).get("url_for_pdf")
+        if not pdf_url:
+            for loc in data.get("oa_locations", []):
+                if loc.get("url_for_pdf"):
+                    pdf_url = loc["url_for_pdf"]
+                    break
+
+        if not pdf_url:
+            logger.info("Unpaywall: no PDF URL for DOI %s", paper.doi)
+            return False
+
+        pdf_resp = requests.get(pdf_url, timeout=60, stream=True,
+                                headers={"User-Agent": "WattleLink/1.0 (mailto:hello@wattlelink.com.au)"})
+        if pdf_resp.status_code != 200:
+            return False
+        content_type = pdf_resp.headers.get("content-type", "").lower()
+        if "pdf" not in content_type and not pdf_url.lower().endswith(".pdf"):
+            return False
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            for chunk in pdf_resp.iter_content(chunk_size=65536):
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            text = pdf_extract(tmp_path)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+        if text and len(text) > len(paper.full_text or ""):
+            paper.full_text = text[:500_000]
+            paper.save(update_fields=["full_text"])
+            logger.info("Fetched OA PDF via Unpaywall for paper %s (%d chars)", paper.pk, len(text))
+            return True
+
+    except Exception as exc:
+        logger.warning("Unpaywall fetch failed for paper %s (doi=%s): %s", paper.pk, paper.doi, exc)
+
+    return False
+
+
 def get_mesh_terms_from_results(pmids: list[str], sample: int = 100) -> list[dict]:
     """Return top 10 MeSH terms from a sample of results, sorted by frequency."""
     if not pmids:

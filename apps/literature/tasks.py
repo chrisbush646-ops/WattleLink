@@ -87,7 +87,7 @@ def fetch_pubmed_full_text(self, pubmed_id: str, tenant_id: int):
     except Paper.DoesNotExist:
         return
 
-    if paper.full_text:
+    if paper.full_text and len(paper.full_text) >= 4_000:
         return
 
     # PMC full text fetch — text-mode XML is most reliable

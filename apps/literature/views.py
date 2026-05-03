@@ -21,9 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_full_text_sync(paper):
-    """Fetch full PMC text for an open-access paper synchronously."""
-    from .services.pubmed import fetch_pmc_full_text
+    """
+    Fetch full text for an open-access paper at ingest time.
+    Tries PMC first; falls back to Unpaywall OA PDF if PMC yields nothing substantial.
+    """
+    from .services.pubmed import fetch_pmc_full_text, fetch_oa_pdf_via_unpaywall
     fetch_pmc_full_text(paper)
+    paper.refresh_from_db(fields=["full_text"])
+    if len(paper.full_text or "") < 4_000 and paper.doi:
+        fetch_oa_pdf_via_unpaywall(paper)
 
 
 def _apply_doi_verification(paper, raw_doi: str, doi_source: str) -> None:

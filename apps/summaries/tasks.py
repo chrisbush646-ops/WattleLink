@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 def _ensure_full_text(paper) -> None:
     """
     Make sure paper.full_text contains the richest available text before summarising.
-    Priority: PDF source file → PMC full text → keep existing (abstract).
+    Priority: PDF source file → PMC full text → Unpaywall OA PDF → keep existing (abstract).
     Updates paper.full_text and saves to DB if a longer version is found.
     """
     from apps.literature.services.pdf import extract_text
 
+    # 1. Uploaded PDF is always the highest-fidelity source
     if paper.source_file:
         try:
             text = extract_text(paper.source_file.path)
@@ -24,6 +25,7 @@ def _ensure_full_text(paper) -> None:
         except Exception as exc:
             logger.warning("PDF extraction failed for paper %s: %s", paper.pk, exc)
 
+    # 2. PMC full text (requires PMCID)
     if len(paper.full_text or "") < 4_000 and paper.pmcid:
         try:
             from apps.literature.services.pubmed import fetch_pmc_full_text
@@ -31,6 +33,15 @@ def _ensure_full_text(paper) -> None:
             paper.refresh_from_db(fields=["full_text"])
         except Exception as exc:
             logger.warning("PMC fetch failed for paper %s: %s", paper.pk, exc)
+
+    # 3. Unpaywall OA PDF — covers open access papers without PMCID
+    if len(paper.full_text or "") < 4_000 and paper.doi:
+        try:
+            from apps.literature.services.pubmed import fetch_oa_pdf_via_unpaywall
+            fetch_oa_pdf_via_unpaywall(paper)
+            paper.refresh_from_db(fields=["full_text"])
+        except Exception as exc:
+            logger.warning("Unpaywall fetch failed for paper %s: %s", paper.pk, exc)
 
 
 @app.task(bind=True, max_retries=2, default_retry_delay=30)
