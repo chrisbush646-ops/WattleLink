@@ -398,18 +398,20 @@ _UNPAYWALL_EMAIL = "hello@wattlelink.com.au"
 
 def fetch_oa_pdf_via_unpaywall(paper) -> bool:
     """
-    Query Unpaywall for an open-access PDF URL, download it, and extract full text.
-    Requires paper.doi. Updates paper.full_text in-place and saves if longer text found.
-    Returns True if full_text was updated.
+    Query Unpaywall for an open-access PDF URL, download it, save it to
+    paper.source_file (Django storage), and extract full text.
+    Requires paper.doi. Returns True if anything was updated.
     """
     import os
     import tempfile
+
+    from django.core.files.base import ContentFile
 
     from apps.literature.services.pdf import extract_text as pdf_extract
 
     if not paper.doi:
         return False
-    if paper.full_text and len(paper.full_text) >= _ABSTRACT_THRESHOLD:
+    if paper.source_file and paper.full_text and len(paper.full_text) >= _ABSTRACT_THRESHOLD:
         return False
 
     try:
@@ -449,18 +451,34 @@ def fetch_oa_pdf_via_unpaywall(paper) -> bool:
                 tmp.write(chunk)
             tmp_path = tmp.name
 
+        text = ""
+        save_pdf = not bool(paper.source_file)
         try:
             text = pdf_extract(tmp_path)
+            if save_pdf:
+                with open(tmp_path, "rb") as fh:
+                    paper.source_file.save(
+                        f"oa_{paper.pk}.pdf", ContentFile(fh.read()), save=False
+                    )
         finally:
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
 
+        update_fields = []
+        if save_pdf and paper.source_file:
+            update_fields.append("source_file")
         if text and len(text) > len(paper.full_text or ""):
             paper.full_text = text[:500_000]
-            paper.save(update_fields=["full_text"])
-            logger.info("Fetched OA PDF via Unpaywall for paper %s (%d chars)", paper.pk, len(text))
+            update_fields.append("full_text")
+
+        if update_fields:
+            paper.save(update_fields=update_fields)
+            logger.info(
+                "Saved OA PDF via Unpaywall for paper %s (%d chars, source_file=%s)",
+                paper.pk, len(text), bool(paper.source_file),
+            )
             return True
 
     except Exception as exc:

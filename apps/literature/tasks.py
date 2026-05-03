@@ -87,30 +87,26 @@ def fetch_pubmed_full_text(self, pubmed_id: str, tenant_id: int):
     except Paper.DoesNotExist:
         return
 
-    if paper.full_text and len(paper.full_text) >= 4_000:
+    if paper.source_file and paper.full_text and len(paper.full_text) >= 4_000:
         return
 
-    # PMC full text fetch — text-mode XML is most reliable
-    import requests
-    PMC_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-    if not paper.pmcid:
-        return
+    # 1. PMC full text (XML)
+    if paper.pmcid:
+        try:
+            from .services.pubmed import fetch_pmc_full_text
+            fetch_pmc_full_text(paper)
+            paper.refresh_from_db(fields=["full_text"])
+        except Exception as e:
+            logger.warning("fetch_pubmed_full_text PMC error for %s: %s", pubmed_id, e)
 
-    try:
-        resp = requests.get(
-            PMC_URL,
-            params={"db": "pmc", "id": paper.pmcid, "retmode": "xml"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        import xml.etree.ElementTree as ET
-        root = ET.fromstring(resp.text)
-        texts = [el.text or "" for el in root.iter() if el.text]
-        paper.full_text = " ".join(texts)[:500_000]
-        paper.save(update_fields=["full_text"])
-    except Exception as e:
-        logger.warning("fetch_pubmed_full_text error for %s: %s", pubmed_id, e)
-        raise self.retry(exc=e)
+    # 2. Unpaywall OA PDF — saves file to source_file and extracts text
+    if len(paper.full_text or "") < 4_000 and paper.doi:
+        try:
+            from .services.pubmed import fetch_oa_pdf_via_unpaywall
+            fetch_oa_pdf_via_unpaywall(paper)
+        except Exception as e:
+            logger.warning("fetch_pubmed_full_text Unpaywall error for %s: %s", pubmed_id, e)
+            raise self.retry(exc=e)
 
 
 @shared_task
