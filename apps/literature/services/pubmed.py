@@ -81,8 +81,10 @@ def build_pubmed_query(rows: list[dict], synonym_expansions: dict = None) -> str
             expr = synonym_expansions[i]
         else:
             tag = FIELD_TAGS.get(field, "")
-            quoted = f'"{term}"' if " " in term else term
-            expr = f"{quoted}{tag}"
+            # Only quote multi-word terms that are plain phrases, not boolean expressions
+            is_compound = any(op in term.upper() for op in (" OR ", " AND ", " NOT "))
+            quoted = term if is_compound else (f'"{term}"' if " " in term else term)
+            expr = f"{quoted}{tag}" if not is_compound else f"({term})"
 
         if operator:
             parts.append(f"{operator} ({expr})" if len(expr) > 40 else f"{operator} {expr}")
