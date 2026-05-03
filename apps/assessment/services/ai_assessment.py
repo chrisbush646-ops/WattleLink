@@ -27,7 +27,7 @@ def run_ai_assessment(paper) -> dict:
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
+        max_tokens=4096,
         temperature=0,
         system=system_prompt,
         messages=[{"role": "user", "content": content}],
@@ -51,9 +51,15 @@ def run_ai_assessment(paper) -> dict:
         raise
 
 
+def _t(value, max_len: int) -> str:
+    """Truncate a string to max_len, guarding against None."""
+    s = value or ""
+    return s[:max_len] if len(s) > max_len else s
+
+
 def apply_grade_result(grade_assessment, grade_data: dict) -> None:
     """Map AI JSON → GradeAssessment fields (in-place, does not save)."""
-    grade_assessment.overall_rating = grade_data.get("overall_rating", "")
+    grade_assessment.overall_rating = _t(grade_data.get("overall_rating", ""), 20)
 
     for field_prefix, key in [
         ("rob", "rob"),
@@ -63,21 +69,21 @@ def apply_grade_result(grade_assessment, grade_data: dict) -> None:
         ("publication_bias", "publication_bias"),
     ]:
         domain = grade_data.get(key, {})
-        setattr(grade_assessment, f"{field_prefix}_rating", domain.get("rating", ""))
+        setattr(grade_assessment, f"{field_prefix}_rating", _t(domain.get("rating", ""), 20))
         setattr(grade_assessment, f"{field_prefix}_rationale", domain.get("rationale", ""))
-        setattr(grade_assessment, f"{field_prefix}_page_ref", domain.get("page_ref", ""))
+        setattr(grade_assessment, f"{field_prefix}_page_ref", _t(domain.get("page_ref", ""), 100))
 
     grade_assessment.ai_prefilled = True
 
 
 def apply_rob_result(rob_assessment, rob_data: dict) -> None:
     """Map AI JSON → RobAssessment fields (in-place, does not save)."""
-    rob_assessment.overall_judgment = rob_data.get("overall_judgment", "")
+    rob_assessment.overall_judgment = _t(rob_data.get("overall_judgment", ""), 20)
 
     for prefix in ("d1", "d2", "d3", "d4", "d5"):
         domain = rob_data.get(prefix, {})
-        setattr(rob_assessment, f"{prefix}_judgment", domain.get("judgment", ""))
+        setattr(rob_assessment, f"{prefix}_judgment", _t(domain.get("judgment", ""), 20))
         setattr(rob_assessment, f"{prefix}_rationale", domain.get("rationale", ""))
-        setattr(rob_assessment, f"{prefix}_page_ref", domain.get("page_ref", ""))
+        setattr(rob_assessment, f"{prefix}_page_ref", _t(domain.get("page_ref", ""), 100))
 
     rob_assessment.ai_prefilled = True

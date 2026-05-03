@@ -118,12 +118,13 @@ def apply_summary_result(paper_summary, findings_data: list, data: dict) -> list
 
     rows = []
     for i, f in enumerate(findings_data):
+        raw_qr = f.get("quantitative_result", "")
+        raw_ref = f.get("source_reference") or f.get("page_ref", "")
         rows.append({
             "category": f.get("category", "Other"),
             "finding": f.get("finding", ""),
-            "quantitative_result": f.get("quantitative_result", ""),
-            # New schema uses source_reference; legacy uses page_ref
-            "page_ref": f.get("source_reference") or f.get("page_ref", ""),
+            "quantitative_result": raw_qr[:300] if len(raw_qr) > 300 else raw_qr,
+            "page_ref": raw_ref[:100] if len(raw_ref) > 100 else raw_ref,
             "clinical_significance": f.get("clinical_significance", ""),
             "order": i,
         })
