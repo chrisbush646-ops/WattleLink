@@ -47,7 +47,7 @@ def validate_claim(claim) -> dict:
         model="claude-sonnet-4-6",
         max_tokens=_MAX_TOKENS,
         temperature=0,
-        system=system_prompt,
+        system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
         timeout=180,
     )

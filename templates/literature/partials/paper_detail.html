@@ -73,8 +73,12 @@
           <span>{{ paper.get_source_display }}</span>
         </div>
         <div>
-          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Open Access</div>
-          <span>{% if paper.is_open_access %}Yes{% if paper.pmcid %} (PMC: {{ paper.pmcid }}){% endif %}{% else %}No{% endif %}</span>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">PDF</div>
+          {% if paper.source_file %}
+          <span style="color:var(--euc)">Available{% if paper.pmcid %} · PMC{{ paper.pmcid }}{% endif %}</span>
+          {% else %}
+          <span style="color:var(--muted)">Not available{% if paper.pmcid %} · PMC{{ paper.pmcid }}{% endif %}</span>
+          {% endif %}
         </div>
       </div>
 
@@ -238,8 +242,13 @@
         <button @click="confirmRemove = false" class="btn btn-g btn-sm">Cancel</button>
       </div>
       <div style="flex:1"></div>
-      <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Draft talking points</button>
-      <button class="btn btn-g" style="cursor:not-allowed;opacity:.6" disabled title="Coming soon">Literature review</button>
+      {% if paper.source_file %}
+      <a href="{% url 'literature:serve_pdf' paper.pk %}" target="_blank" rel="noopener"
+         class="btn btn-g" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Open PDF
+      </a>
+      {% endif %}
       <button class="btn btn-p" @click="$el.closest('div[style*=fixed]').remove()">Close</button>
     </div>
   </div>
@@ -253,6 +262,21 @@ function togglePaperClaimForm(pk) {
     el.style.display = showing ? 'none' : 'block';
     if (!showing) document.getElementById('paper-claim-text-' + pk).focus();
   }
+}
+function fireSiblingAI(runUrl, panelId) {
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch(runUrl, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+    .then(r => r.text())
+    .then(html => {
+      const el = document.getElementById(panelId);
+      if (el) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        const newEl = tmp.firstElementChild;
+        if (newEl) { el.replaceWith(newEl); htmx.process(newEl); }
+      }
+    })
+    .catch(() => {});
 }
 function submitPaperClaim(pk) {
   const text = document.getElementById('paper-claim-text-' + pk).value.trim();

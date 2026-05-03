@@ -51,6 +51,10 @@ def contact(request):
 
 @login_required
 def dashboard(request):
+    # Commercial users only see approved content — redirect to their dashboard
+    if request.user.is_commercial:
+        return redirect("dashboard:commercial")
+
     now = timezone.localtime()
     today = now.date()
     hour = now.hour

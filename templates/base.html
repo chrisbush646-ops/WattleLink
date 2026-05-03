@@ -167,7 +167,7 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
         Core Claims
       </a>
 
-      <a href="{% url 'safety:list' %}" class="ni {% block nav_safety %}{% endblock %}">
+<a href="{% url 'safety:list' %}" class="ni {% block nav_safety %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18h.01"/></svg>
         Safety Signals
       </a>
@@ -287,6 +287,35 @@ h1,h2,h3,h4{margin:0;font-weight:500}p{margin:0}button{font:inherit;color:inheri
                autocomplete="off"
                onkeydown="if(event.key==='Enter'&&this.value.trim())globalSearch(this.value.trim())">
       </div>
+
+      <!-- View mode toggle -->
+      {% if user.is_authenticated %}
+      <div style="display:flex;align-items:center;background:var(--line-soft);border-radius:8px;padding:3px;gap:2px;flex-shrink:0">
+        <form method="post" action="{% url 'accounts_app:set_view_mode' %}" style="margin:0">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="team">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit"
+                  style="padding:4px 12px;border-radius:6px;font-size:11.5px;font-weight:500;border:none;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;
+                  {% if view_mode == 'team' %}background:var(--surface);color:var(--euc);box-shadow:0 1px 3px rgba(0,0,0,.08){% else %}background:transparent;color:var(--muted){% endif %}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Team
+          </button>
+        </form>
+        <form method="post" action="{% url 'accounts_app:set_view_mode' %}" style="margin:0">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="personal">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit"
+                  style="padding:4px 12px;border-radius:6px;font-size:11.5px;font-weight:500;border:none;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;
+                  {% if view_mode == 'personal' %}background:var(--surface);color:var(--euc);box-shadow:0 1px 3px rgba(0,0,0,.08){% else %}background:transparent;color:var(--muted){% endif %}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Personal
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
       <div class="top-actions">
         <button class="icon-btn" title="Help">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M10 9a2 2 0 014 0c0 1.5-2 2-2 3M12 16v.01"/></svg>

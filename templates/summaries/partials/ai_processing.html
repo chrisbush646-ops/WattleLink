@@ -6,7 +6,7 @@
      hx-swap="outerHTML">
   <div style="font-size:13px;color:var(--ink)">Running AI summary…</div>
   <div style="font-size:11.5px;color:var(--muted);margin-top:4px">
-    Generating findings, executive paragraph, and safety data. This takes 15–45 seconds.
+    {{ progress_message|default:"Generating findings, executive paragraph, and safety data. This takes 15–45 seconds." }}
   </div>
   <div style="margin-top:12px;display:inline-block;width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--euc);border-radius:50%;animation:spin .7s linear infinite"></div>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>

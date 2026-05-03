@@ -1,5 +1,5 @@
 import pytest
-from apps.accounts.models import Tenant, User
+from apps.accounts.models import CURRENT_CONSENT_VERSION, Tenant, User
 
 
 @pytest.fixture
@@ -15,6 +15,7 @@ def medical_user(db, tenant):
         password="testpass123",
         tenant=tenant,
         role=User.Role.MEDICAL_AFFAIRS,
+        consent_version=CURRENT_CONSENT_VERSION,
     )
     return user
 
@@ -27,5 +28,6 @@ def commercial_user(db, tenant):
         password="testpass123",
         tenant=tenant,
         role=User.Role.COMMERCIAL,
+        consent_version=CURRENT_CONSENT_VERSION,
     )
     return user

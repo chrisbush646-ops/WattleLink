@@ -1,17 +1,63 @@
 <div id="other-card-{{ oe.pk }}"
+     x-data="{showEdit:false}"
      style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-    <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ oe.name }}</div>
-    {% if oe.event_type %}
-    <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">{{ oe.event_type }}</span>
+
+  <!-- View mode -->
+  <div x-show="!showEdit">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:3px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ oe.name }}</div>
+        {% if oe.event_type %}
+        <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">{{ oe.event_type }}</span>
+        {% endif %}
+      </div>
+      <button type="button" @click="showEdit=true"
+              style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:3px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted)">
+      {{ oe.date|date:"d M Y" }}{% if oe.location %} · {{ oe.location }}{% endif %}
+    </div>
+    {% if view_mode == 'team' and oe.created_by %}
+    <div style="font-size:10.5px;color:var(--muted-soft);margin-top:3px;display:flex;align-items:center;gap:3px">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {{ oe.created_by.get_full_name|default:oe.created_by.email }}
+    </div>
+    {% endif %}
+    {% if oe.notes %}
+    <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.4">{{ oe.notes|truncatechars:120 }}</div>
     {% endif %}
   </div>
-  <div style="font-size:11.5px;color:var(--muted)">
-    {{ oe.date|date:"d M Y" }}{% if oe.location %} · {{ oe.location }}{% endif %}
+
+  <!-- Edit form -->
+  <div x-show="showEdit" style="display:none">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Edit Other Event</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">
+      <input id="edit-oe-name-{{ oe.pk }}" value="{{ oe.name }}"
+             placeholder="Event name *"
+             style="font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <div style="display:flex;gap:6px">
+        <input id="edit-oe-date-{{ oe.pk }}" value="{{ oe.date|date:'Y-m-d' }}" type="date"
+               style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+        <input id="edit-oe-location-{{ oe.pk }}" value="{{ oe.location }}"
+               placeholder="Location"
+               style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      </div>
+      <input id="edit-oe-type-{{ oe.pk }}" value="{{ oe.event_type }}"
+             placeholder="Event type (e.g. Symposium, Webinar)"
+             style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <textarea id="edit-oe-notes-{{ oe.pk }}"
+                placeholder="Notes (optional)"
+                style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface);resize:vertical;min-height:42px">{{ oe.notes }}</textarea>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" onclick="updateOtherEvent({{ oe.pk }})" @click="showEdit=false" class="btn btn-p btn-sm">Save</button>
+      <button type="button" @click="showEdit=false" class="btn btn-g btn-sm">Cancel</button>
+    </div>
   </div>
-  {% if oe.notes %}
-  <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.4">{{ oe.notes|truncatechars:120 }}</div>
-  {% endif %}
+
   <!-- KOLs section -->
   <div x-data="{showKolAdd:false,kolPk:''}" style="margin-top:8px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">

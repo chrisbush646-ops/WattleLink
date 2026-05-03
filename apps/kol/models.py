@@ -11,6 +11,11 @@ class KOL(SoftDeleteModel):
         ACTIVE = "ACTIVE", "Active"
         INACTIVE = "INACTIVE", "Inactive"
 
+    class KolType(models.TextChoices):
+        PHYSICIAN = "PHYSICIAN", "Physician KOL"
+        RESEARCH = "RESEARCH", "Research KOL"
+        BOTH = "BOTH", "Research & Physician"
+
     tenant = models.ForeignKey(
         "accounts.Tenant",
         on_delete=models.CASCADE,
@@ -27,6 +32,12 @@ class KOL(SoftDeleteModel):
         max_length=20,
         choices=Status.choices,
         default=Status.CANDIDATE,
+    )
+    kol_type = models.CharField(
+        max_length=20,
+        choices=KolType.choices,
+        default=KolType.PHYSICIAN,
+        help_text="Physician KOL, Research KOL, or both",
     )
     email = models.EmailField(blank=True)
     linkedin = models.URLField(blank=True)

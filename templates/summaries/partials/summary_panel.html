@@ -27,6 +27,12 @@
     <div style="display:flex;gap:6px;align-items:center">
       {% if summary and summary.status == 'CONFIRMED' %}
         <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0;font-weight:500">Confirmed</span>
+        {% if view_mode == 'team' and summary.confirmed_by %}
+        <span style="font-size:10.5px;color:var(--muted-soft);display:inline-flex;align-items:center;gap:3px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{ summary.confirmed_by.get_full_name|default:summary.confirmed_by.email }}
+        </span>
+        {% endif %}
       {% elif summary %}
         <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A;font-weight:500">AI Draft</span>
       {% endif %}
@@ -37,7 +43,7 @@
               hx-swap="outerHTML"
               hx-indicator="#ai-load-{{ paper.pk }}"
               :disabled="running"
-              @click="running=true">
+              @click="running=true; fireSiblingAI('{% url 'assessment:run_ai' paper.pk %}', 'assessment-panel-{{ paper.pk }}')">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
         <span x-text="running ? 'Running…' : 'Run AI Summary'">Run AI Summary</span>
       </button>
@@ -266,7 +272,7 @@
       </div>
       <template x-if="!editing">
         <div style="font-family:var(--serif);font-size:15px;color:var(--ink);line-height:1.8;padding:16px 20px;background:var(--paper-warm);border-radius:var(--r);border-left:3px solid var(--euc)">
-          {{ summary.executive_paragraph|default:"—" }}
+          {{ summary.executive_paragraph|default:"—"|linebreaksbr }}
         </div>
       </template>
       <template x-if="editing">
@@ -286,7 +292,7 @@
     </div>
     <div x-show="open" x-transition style="border-top:1px solid var(--line-soft);padding:12px 14px">
       <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;padding:12px 16px;background:var(--coral-soft);border-radius:var(--r);border-left:3px solid var(--coral)">
-        {{ summary.safety_summary }}
+        {{ summary.safety_summary|linebreaksbr }}
       </div>
       {% if summary.adverse_events %}
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">

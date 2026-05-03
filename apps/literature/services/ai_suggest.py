@@ -129,7 +129,7 @@ def suggest_pubmed_query(description: str) -> dict:
         model="claude-sonnet-4-6",
         max_tokens=2048,
         temperature=0,
-        system=_BOOLEAN_SUGGEST_SYSTEM,
+        system=[{"type": "text", "text": _BOOLEAN_SUGGEST_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{
             "role": "user",
             "content": (
@@ -193,7 +193,7 @@ def expand_synonyms(term: str, field: str) -> str:
             model="claude-sonnet-4-6",
             max_tokens=256,
             temperature=0,
-            system=_EXPAND_SYSTEM,
+            system=[{"type": "text", "text": _EXPAND_SYSTEM, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": f"Term: {term}\nField: {field}"}],
         )
         result = response.content[0].text.strip()
@@ -228,7 +228,7 @@ def suggest_refinements(query: str, result_count: int, top_mesh: list) -> list:
             model="claude-sonnet-4-6",
             max_tokens=1024,
             temperature=0,
-            system=_BOOLEAN_SUGGEST_SYSTEM,
+            system=[{"type": "text", "text": _BOOLEAN_SUGGEST_SYSTEM, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_msg}],
         )
         raw = response.content[0].text.strip()

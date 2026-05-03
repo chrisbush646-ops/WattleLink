@@ -39,6 +39,7 @@ class PaperSummary(SoftDeleteModel):
     ai_prefilled = models.BooleanField(default=False)
     validation_warnings = models.JSONField(default=list, blank=True)
     confidence_flags = models.JSONField(default=list, blank=True)
+    preprocessing_stats = models.JSONField(default=dict, blank=True)
     confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

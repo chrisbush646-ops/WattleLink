@@ -45,6 +45,7 @@ def draft_claim(db, tenant, paper):
             "endpoint_match": True,
             "no_extrapolation": True,
             "fair_balance_present": True,
+            "approved_indication_only": True,
         },
         status=CoreClaim.Status.AI_DRAFT,
     )
@@ -231,14 +232,18 @@ class TestClaimsPanelView:
 class TestRunExtractionView:
     @patch("apps.claims.tasks.extract_claims_task")
     def test_returns_spinner(self, mock_task, client, paper):
-        mock_task.delay.return_value = None
+        fake_task = MagicMock()
+        fake_task.id = "test-extract-task-1234"
+        mock_task.delay.return_value = fake_task
         resp = client.post(reverse("claims:run_extraction", args=[paper.pk]))
         assert resp.status_code == 200
         assert b"Extracting claims" in resp.content
 
     @patch("apps.claims.tasks.extract_claims_task")
     def test_dispatches_task(self, mock_task, client, paper, tenant):
-        mock_task.delay.return_value = None
+        fake_task = MagicMock()
+        fake_task.id = "test-extract-task-5678"
+        mock_task.delay.return_value = fake_task
         client.post(reverse("claims:run_extraction", args=[paper.pk]))
         mock_task.delay.assert_called_once_with(paper.pk, tenant.pk)
 

@@ -6,6 +6,9 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.accounts.decorators import role_required
+from apps.accounts.models import User
+
 from apps.audit.helpers import log_action
 from apps.audit.models import AuditLog
 from apps.literature.models import Paper
@@ -25,8 +28,9 @@ def summaries_list(request):
 
     summaries = (
         PaperSummary.objects
-        .select_related("paper")
+        .select_related("paper", "confirmed_by")
         .prefetch_related("findings")
+        .filter(paper__deleted_at__isnull=True)
         .order_by("-updated_at")
     )
 
@@ -34,12 +38,18 @@ def summaries_list(request):
         summaries = summaries.filter(status=status_filter)
 
     if search:
-        summaries = summaries.filter(paper__title__icontains=search)
+        from django.db.models import Q as _Q
+        summaries = summaries.filter(
+            _Q(paper__title__icontains=search) |
+            _Q(paper__journal__icontains=search) |
+            _Q(paper__study_type__icontains=search)
+        )
 
     lit_reviews = LiteratureReview.objects.select_related("created_by").prefetch_related("papers")
 
-    total = PaperSummary.objects.count()
-    confirmed = PaperSummary.objects.filter(status=PaperSummary.Status.CONFIRMED).count()
+    active = PaperSummary.objects.filter(paper__deleted_at__isnull=True)
+    total = active.count()
+    confirmed = active.filter(status=PaperSummary.Status.CONFIRMED).count()
 
     return render(request, "summaries/summaries_list.html", {
         "summaries": summaries,
@@ -88,16 +98,19 @@ def run_ai_summary(request, paper_pk):
 @login_required
 def ai_summary_status(request, paper_pk):
     """Poll endpoint — returns the processing partial while the task runs, then the full panel."""
-    from celery.result import AsyncResult
     from django.core.cache import cache
 
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
     task_id = cache.get(f"ai_summary_task:{paper_pk}")
 
     if task_id:
-        state = AsyncResult(task_id).state
-        if state in ("PENDING", "STARTED", "RETRY"):
-            return render(request, "summaries/partials/ai_processing.html", {"paper": paper})
+        from apps.ai.services import get_task_progress
+        progress = get_task_progress(task_id)
+        if progress.get("status") not in ("complete", "failed"):
+            return render(request, "summaries/partials/ai_processing.html", {
+                "paper": paper,
+                "progress_message": progress.get("message", "Running AI summary…"),
+            })
         cache.delete(f"ai_summary_task:{paper_pk}")
 
     try:
@@ -115,7 +128,7 @@ def ai_summary_status(request, paper_pk):
     })
 
 
-@login_required
+@role_required(User.Role.MEDICAL_AFFAIRS, User.Role.MEDICAL_LEAD, User.Role.ADMIN, User.Role.EDITOR)
 @require_POST
 def confirm_summary(request, paper_pk):
     """
@@ -125,7 +138,7 @@ def confirm_summary(request, paper_pk):
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
     data = json.loads(request.body)
 
-    summary, _ = PaperSummary.all_objects.get_or_create(
+    summary, _ = PaperSummary.objects.get_or_create(
         paper=paper,
         defaults={"tenant": request.tenant},
     )

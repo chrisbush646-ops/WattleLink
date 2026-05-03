@@ -51,6 +51,12 @@ def discover_kols_task(self, paper_id: int, tenant_id: int):
         for candidate_pk in created_ids:
             verify_kol_candidate_task.delay(candidate_pk)
 
+        if created_ids:
+            from apps.audit.helpers import log_task_action
+            from apps.audit.models import AuditLog
+            log_task_action(tenant, paper, AuditLog.Action.AI_DRAFT,
+                            after={"candidates_created": len(created_ids)})
+
         logger.info(
             "KOL discovery complete for paper %s: %d new candidates",
             paper_id, len(created_ids),
@@ -86,6 +92,11 @@ def verify_kol_candidate_task(self, candidate_pk: int):
             "verification_status", "verification_note",
             "verification_concerns", "verified_at",
         ])
+
+        from apps.audit.helpers import log_task_action
+        from apps.audit.models import AuditLog
+        log_task_action(candidate.tenant, candidate, AuditLog.Action.AI_DRAFT,
+                        after={"verification_status": result["current_status"]})
 
         logger.info(
             "KOL verification complete for candidate %s: %s",

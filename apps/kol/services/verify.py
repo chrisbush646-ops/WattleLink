@@ -25,7 +25,7 @@ Relevance note: {candidate.relevance_note[:200] if candidate.relevance_note else
         model="claude-sonnet-4-6",
         max_tokens=512,
         temperature=0,
-        system=(PROMPT_PATH / "kol_verification.md").read_text(),
+        system=[{"type": "text", "text": (PROMPT_PATH / "kol_verification.md").read_text(), "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": profile}],
     )
 
@@ -33,7 +33,11 @@ Relevance note: {candidate.relevance_note[:200] if candidate.relevance_note else
     if raw.startswith("```"):
         raw = "\n".join(line for line in raw.splitlines() if not line.startswith("```"))
 
-    result = json.loads(raw)
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error("KOL verify JSON parse error for candidate %s: %s — raw: %s", candidate.pk, exc, raw[:400])
+        raise
     return {
         "current_status": result.get("current_status", "UNCERTAIN"),
         "note": result.get("note", ""),

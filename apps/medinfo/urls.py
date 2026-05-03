@@ -10,5 +10,6 @@ urlpatterns = [
     path("<int:enquiry_pk>/update/", views.update_enquiry, name="update"),
     path("<int:enquiry_pk>/respond/", views.save_response, name="respond"),
     path("<int:enquiry_pk>/close/", views.close_enquiry, name="close"),
+    path("<int:enquiry_pk>/remove/", views.remove_enquiry, name="remove"),
     path("stats/", views.enquiry_stats, name="stats"),
 ]

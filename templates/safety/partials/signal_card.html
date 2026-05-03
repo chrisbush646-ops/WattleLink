@@ -39,6 +39,12 @@
         </span>
 
         <div style="flex:1"></div>
+        {% if view_mode == 'team' and signal.created_by %}
+        <span style="font-size:10.5px;color:var(--muted-soft);display:inline-flex;align-items:center;gap:3px;margin-right:4px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{ signal.created_by.get_full_name|default:signal.created_by.email }}
+        </span>
+        {% endif %}
         <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">
           {{ signal.mention_count }} paper{{ signal.mention_count|pluralize }}
         </span>

@@ -16,6 +16,7 @@
 .tw{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
 table.dt th{text-align:left;padding:10px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--paper-warm);border-bottom:1px solid var(--line)}
+.sort-th{cursor:pointer;user-select:none;white-space:nowrap}.sort-th:hover{color:var(--ink)}.sort-th.active{color:var(--euc)}
 table.dt td{padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
 table.dt tbody tr:last-child td{border-bottom:none}
 table.dt tbody tr:hover td{background:var(--paper-warm)}
@@ -106,9 +107,15 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
       <tr>
         <th style="width:42%">Paper &amp; Pipeline</th>
         <th>Journal</th>
-        <th>Published</th>
+        <th class="sort-th {% if sort_col == 'published_date' %}active{% endif %}"
+            onclick="sortLibrary('published_date')">
+          Published<span id="sort-arrow-published_date" class="sort-arrow">{% if sort_col == 'published_date' %}{% if sort_dir == 'asc' %} ↑{% else %} ↓{% endif %}{% endif %}</span>
+        </th>
         <th>GRADE</th>
-        <th>Updated</th>
+        <th class="sort-th {% if sort_col == 'updated_at' or not sort_col %}active{% endif %}"
+            onclick="sortLibrary('updated_at')">
+          Updated<span id="sort-arrow-updated_at" class="sort-arrow">{% if sort_col == 'updated_at' or not sort_col %}{% if sort_dir == 'asc' %} ↑{% else %} ↓{% endif %}{% endif %}</span>
+        </th>
         <th>Claims</th>
         <th></th>
       </tr>
@@ -118,4 +125,35 @@ table.dt tbody tr:hover td{background:var(--paper-warm)}
     </tbody>
   </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var _libSort = '{{ sort_col|default:"updated_at" }}';
+var _libDir = '{{ sort_dir|default:"desc" }}';
+
+function sortLibrary(col) {
+  var newDir = (_libSort === col) ? (_libDir === 'asc' ? 'desc' : 'asc') : 'desc';
+  _libSort = col;
+  _libDir = newDir;
+
+  document.querySelectorAll('.sort-arrow').forEach(function(el) { el.textContent = ''; });
+  document.querySelectorAll('.sort-th').forEach(function(el) { el.classList.remove('active'); });
+  var arrow = document.getElementById('sort-arrow-' + col);
+  if (arrow) { arrow.textContent = newDir === 'asc' ? ' ↑' : ' ↓'; arrow.closest('.sort-th').classList.add('active'); }
+
+  var params = new URLSearchParams();
+  var q = document.querySelector('[name="q"]');
+  var status = document.querySelector('[name="status_filter"]');
+  if (q && q.value) params.set('q', q.value);
+  if (status && status.value) params.set('status', status.value);
+  params.set('sort', col);
+  params.set('dir', newDir);
+
+  htmx.ajax('GET', '{% url "literature:library" %}?' + params.toString(), {
+    target: '#paper-table',
+    swap: 'innerHTML'
+  });
+}
+</script>
 {% endblock %}

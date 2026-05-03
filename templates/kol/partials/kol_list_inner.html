@@ -2,10 +2,10 @@
   {% include "kol/partials/kol_card.html" with kol=kol tier_range=tier_range status_choices=status_choices %}
 {% empty %}
 <div style="padding:32px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
-  {% if location_filter or specialty_filter or status_filter or tier_filter %}
+  {% if location_filter or specialty_filter or status_filter or tier_filter or type_filter or q %}
   <div style="font-size:13px;color:var(--muted)">No KOLs match these filters.</div>
   <div style="font-size:11.5px;color:var(--muted);margin-top:4px">
-    Try adjusting location, specialty, or status.
+    Try adjusting type, status, location, or specialty.
   </div>
   {% else %}
   <div style="font-size:13px;color:var(--muted)">No KOLs yet.</div>

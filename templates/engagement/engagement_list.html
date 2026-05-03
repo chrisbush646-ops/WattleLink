@@ -19,9 +19,22 @@ document.addEventListener('alpine:init', () => {
 {% with at=active_tab %}
 <div style="max-width:1060px;margin:0 auto">
 
-  <div style="margin-bottom:20px">
-    <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Engagement</h1>
-    <div style="font-size:12px;color:var(--muted)">Conferences, advisory boards, round tables, and other events.</div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:0 0 4px">Engagement</h1>
+      <div style="font-size:12px;color:var(--muted)">Conferences, advisory boards, round tables, and other events.</div>
+    </div>
+    <form method="get" style="display:flex;align-items:center;gap:0;flex-shrink:0">
+      <div style="position:relative">
+        <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--muted);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search events…"
+               style="font-size:12.5px;padding:7px 12px 7px 30px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);width:220px"
+               onkeydown="if(event.key==='Enter'){this.closest('form').submit()}">
+      </div>
+      {% if q %}
+      <a href="{% url 'engagement:list' %}" style="margin-left:6px;font-size:11px;color:var(--muted);text-decoration:none;padding:4px 8px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)">Clear</a>
+      {% endif %}
+    </form>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 284px;gap:20px;align-items:start">
@@ -67,7 +80,7 @@ document.addEventListener('alpine:init', () => {
               <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
             </div>
           </div>
-          <div id="conf-list-inner">{% include "engagement/partials/conference_list_inner.html" with conferences=conferences %}</div>
+          <div id="conf-list-inner">{% include "engagement/partials/conference_list_inner.html" with upcoming_conferences=upcoming_conferences past_conferences=past_conferences %}</div>
         </div>
       </div>
 
@@ -90,7 +103,7 @@ document.addEventListener('alpine:init', () => {
               <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
             </div>
           </div>
-          <div id="rt-list-inner">{% include "engagement/partials/round_table_list_inner.html" with round_tables=round_tables %}</div>
+          <div id="rt-list-inner">{% include "engagement/partials/round_table_list_inner.html" with upcoming_round_tables=upcoming_round_tables past_round_tables=past_round_tables %}</div>
         </div>
       </div>
 
@@ -113,7 +126,7 @@ document.addEventListener('alpine:init', () => {
               <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
             </div>
           </div>
-          <div id="ab-list-inner">{% include "engagement/partials/advisory_board_list_inner.html" with advisory_boards=advisory_boards %}</div>
+          <div id="ab-list-inner">{% include "engagement/partials/advisory_board_list_inner.html" with upcoming_advisory_boards=upcoming_advisory_boards past_advisory_boards=past_advisory_boards %}</div>
         </div>
       </div>
 
@@ -138,7 +151,7 @@ document.addEventListener('alpine:init', () => {
               <button @click="showForm=false" class="btn btn-g btn-sm">Cancel</button>
             </div>
           </div>
-          <div id="other-list-inner">{% include "engagement/partials/other_event_list_inner.html" with other_events=other_events %}</div>
+          <div id="other-list-inner">{% include "engagement/partials/other_event_list_inner.html" with upcoming_other_events=upcoming_other_events past_other_events=past_other_events %}</div>
         </div>
       </div>
 
@@ -203,6 +216,20 @@ document.addEventListener('alpine:init', () => {
 {% endwith %}
 
 <script>
+const ENGAGEMENT_URLS = {
+  createConference: '{% url "engagement:create_conference" %}',
+  createRoundtable: '{% url "engagement:create_round_table" %}',
+  createAdvisoryBoard: '{% url "engagement:create_advisory_board" %}',
+  createOtherEvent: '{% url "engagement:create_other_event" %}',
+  addKolToEvent: (type, pk) => `/engagement/event/${type}/${pk}/kol/add/`,
+  removeKolFromEvent: (type, pk, kolPk) => `/engagement/event/${type}/${pk}/kol/${kolPk}/remove/`,
+  suggestConferences: '{% url "engagement:suggest_conferences" %}',
+  updateConference: pk => `/engagement/conference/${pk}/update/`,
+  updateRoundtable: pk => `/engagement/roundtable/${pk}/update/`,
+  updateAdvisoryBoard: pk => `/engagement/advisory-board/${pk}/update/`,
+  updateOtherEvent: pk => `/engagement/other-event/${pk}/update/`,
+};
+
 const TAB_IDS = { conferences: 'conf-tab', roundtables: 'rt-tab', advisory: 'advisory-tab', other: 'other-tab' };
 
 function engagementTabSwitch(tab) {
@@ -259,8 +286,8 @@ function confPage() {
     form: { name: '', location: '', start_date: '', end_date: '', status: 'UPCOMING' },
     create() {
       if (!this.form.name || !this.form.start_date) return;
-      fetch('/engagement/conference/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
-        .then(r => r.text()).then(html => { document.getElementById('conf-list-inner').innerHTML = html; });
+      fetch(ENGAGEMENT_URLS.createConference, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
+        .then(r => r.text()).then(html => { const el = document.getElementById('conf-list-inner'); el.innerHTML = html; if (window.Alpine) Alpine.initTree(el); });
       _pushEvent('conference', this.form.name, this.form.start_date, this.form.end_date);
       this.showForm = false; this.form = { name: '', location: '', start_date: '', end_date: '', status: 'UPCOMING' };
     },
@@ -274,8 +301,8 @@ function rtPage() {
     create() {
       if (!this.form.name || !this.form.date) return;
       const themes = this.form.themes_raw.split(',').map(t => t.trim()).filter(Boolean);
-      fetch('/engagement/roundtable/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, discussion_themes: themes }) })
-        .then(r => r.text()).then(html => { document.getElementById('rt-list-inner').innerHTML = html; });
+      fetch(ENGAGEMENT_URLS.createRoundtable, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, discussion_themes: themes }) })
+        .then(r => r.text()).then(html => { const el = document.getElementById('rt-list-inner'); el.innerHTML = html; if (window.Alpine) Alpine.initTree(el); });
       _pushEvent('roundtable', this.form.name, this.form.date, null);
       this.showForm = false; this.form = { name: '', date: '', location: '', themes_raw: '' };
     },
@@ -289,8 +316,8 @@ function abPage() {
     create() {
       if (!this.form.name || !this.form.date) return;
       const agenda_items = this.form.agenda_raw.split(',').map(t => t.trim()).filter(Boolean);
-      fetch('/engagement/advisory-board/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, agenda_items }) })
-        .then(r => r.text()).then(html => { document.getElementById('ab-list-inner').innerHTML = html; });
+      fetch(ENGAGEMENT_URLS.createAdvisoryBoard, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify({ ...this.form, agenda_items }) })
+        .then(r => r.text()).then(html => { const el = document.getElementById('ab-list-inner'); el.innerHTML = html; if (window.Alpine) Alpine.initTree(el); });
       _pushEvent('advisory', this.form.name, this.form.date, null);
       this.showForm = false; this.form = { name: '', date: '', location: '', agenda_raw: '' };
     },
@@ -303,12 +330,80 @@ function otherPage() {
     form: { name: '', date: '', location: '', event_type: '' },
     create() {
       if (!this.form.name || !this.form.date) return;
-      fetch('/engagement/other-event/create/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
-        .then(r => r.text()).then(html => { document.getElementById('other-list-inner').innerHTML = html; });
+      fetch(ENGAGEMENT_URLS.createOtherEvent, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' }, body: JSON.stringify(this.form) })
+        .then(r => r.text()).then(html => { const el = document.getElementById('other-list-inner'); el.innerHTML = html; if (window.Alpine) Alpine.initTree(el); });
       _pushEvent('other', this.form.name, this.form.date, null);
       this.showForm = false; this.form = { name: '', date: '', location: '', event_type: '' };
     },
   };
+}
+
+function _csrfToken() {
+  return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+function updateConference(pk) {
+  const payload = {
+    name: document.getElementById(`edit-conf-name-${pk}`)?.value.trim() || '',
+    location: document.getElementById(`edit-conf-location-${pk}`)?.value || '',
+    status: document.getElementById(`edit-conf-status-${pk}`)?.value || 'UPCOMING',
+    start_date: document.getElementById(`edit-conf-start-${pk}`)?.value || '',
+    end_date: document.getElementById(`edit-conf-end-${pk}`)?.value || '',
+    notes: document.getElementById(`edit-conf-notes-${pk}`)?.value || '',
+  };
+  if (!payload.name) return;
+  fetch(ENGAGEMENT_URLS.updateConference(pk), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    body: JSON.stringify(payload),
+  }).then(r => r.text()).then(html => _replaceEventCard('conference', pk, html));
+}
+
+function updateRoundTable(pk) {
+  const payload = {
+    name: document.getElementById(`edit-rt-name-${pk}`)?.value.trim() || '',
+    date: document.getElementById(`edit-rt-date-${pk}`)?.value || '',
+    location: document.getElementById(`edit-rt-location-${pk}`)?.value || '',
+    themes_raw: document.getElementById(`edit-rt-themes-${pk}`)?.value || '',
+  };
+  if (!payload.name) return;
+  fetch(ENGAGEMENT_URLS.updateRoundtable(pk), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    body: JSON.stringify(payload),
+  }).then(r => r.text()).then(html => _replaceEventCard('roundtable', pk, html));
+}
+
+function updateAdvisoryBoard(pk) {
+  const payload = {
+    name: document.getElementById(`edit-ab-name-${pk}`)?.value.trim() || '',
+    date: document.getElementById(`edit-ab-date-${pk}`)?.value || '',
+    location: document.getElementById(`edit-ab-location-${pk}`)?.value || '',
+    agenda_raw: document.getElementById(`edit-ab-agenda-${pk}`)?.value || '',
+    notes: document.getElementById(`edit-ab-notes-${pk}`)?.value || '',
+  };
+  if (!payload.name) return;
+  fetch(ENGAGEMENT_URLS.updateAdvisoryBoard(pk), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    body: JSON.stringify(payload),
+  }).then(r => r.text()).then(html => _replaceEventCard('advisory', pk, html));
+}
+
+function updateOtherEvent(pk) {
+  const payload = {
+    name: document.getElementById(`edit-oe-name-${pk}`)?.value.trim() || '',
+    date: document.getElementById(`edit-oe-date-${pk}`)?.value || '',
+    location: document.getElementById(`edit-oe-location-${pk}`)?.value || '',
+    event_type: document.getElementById(`edit-oe-type-${pk}`)?.value || '',
+    notes: document.getElementById(`edit-oe-notes-${pk}`)?.value || '',
+  };
+  if (!payload.name) return;
+  fetch(ENGAGEMENT_URLS.updateOtherEvent(pk), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken() },
+    body: JSON.stringify(payload),
+  }).then(r => r.text()).then(html => _replaceEventCard('other', pk, html));
 }
 
 function _replaceEventCard(type, pk, html) {
@@ -321,7 +416,7 @@ function _replaceEventCard(type, pk, html) {
 }
 
 function addKolToEvent(type, eventPk, kolPk) {
-  fetch(`/engagement/event/${type}/${eventPk}/kol/add/`, {
+  fetch(ENGAGEMENT_URLS.addKolToEvent(type, eventPk), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
     body: JSON.stringify({ kol_pk: kolPk }),
@@ -329,7 +424,7 @@ function addKolToEvent(type, eventPk, kolPk) {
 }
 
 function removeKolFromEvent(type, eventPk, kolPk) {
-  fetch(`/engagement/event/${type}/${eventPk}/kol/${kolPk}/remove/`, {
+  fetch(ENGAGEMENT_URLS.removeKolFromEvent(type, eventPk, kolPk), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
   }).then(r => r.text()).then(html => _replaceEventCard(type, eventPk, html));
@@ -340,7 +435,7 @@ function suggestConf() {
     loading: false,
     fetch() {
       this.loading = true;
-      window.fetch('/engagement/conferences/suggest/')
+      window.fetch(ENGAGEMENT_URLS.suggestConferences)
         .then(r => r.text()).then(html => { document.getElementById('conf-suggestions').innerHTML = html; this.loading = false; })
         .catch(() => { this.loading = false; });
     },

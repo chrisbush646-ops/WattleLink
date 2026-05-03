@@ -28,7 +28,19 @@
           {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
           {{ kol.get_status_display }}
         </span>
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+          {% if kol.kol_type == 'RESEARCH' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+          {% elif kol.kol_type == 'BOTH' %}background:rgba(184,92,58,.08);color:var(--coral);border:1px solid #E8C8C0
+          {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+          {{ kol.get_kol_type_display }}
+        </span>
         <div style="flex:1"></div>
+        {% if view_mode == 'team' and kol.created_by %}
+        <span style="font-size:10.5px;color:var(--muted-soft);display:inline-flex;align-items:center;gap:3px;margin-right:4px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{ kol.created_by.get_full_name|default:kol.created_by.email }}
+        </span>
+        {% endif %}
         <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ kol.paper_links.count }} paper{{ kol.paper_links.count|pluralize }}</span>
         <button @click="editing = !editing"
                 style="font-size:10px;color:var(--euc);background:none;border:none;cursor:pointer"
@@ -47,7 +59,7 @@
 
       <template x-if="editing">
         <div style="margin-top:8px" x-data="kolEdit({{ kol.pk }})" x-init="$nextTick(() => htmx.process($el))">
-          <div style="display:flex;gap:8px;margin-bottom:6px">
+          <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">
             <select x-model="tier"
                     style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
               {% for t in tier_range %}<option value="{{ t }}">Tier {{ t }}</option>{% endfor %}
@@ -55,6 +67,10 @@
             <select x-model="status"
                     style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
               {% for val, label in status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <select x-model="kolType"
+                    style="font-size:11px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+              {% for val, label in kol_type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
             </select>
           </div>
           <input x-model="institution" placeholder="Institution"
@@ -137,6 +153,7 @@ function kolEdit(kolPk) {
   return {
     tier: {{ kol.tier }},
     status: '{{ kol.status }}',
+    kolType: '{{ kol.kol_type }}',
     institution: {{ kol.institution|tojson }},
     specialty: {{ kol.specialty|tojson }},
     bio: {{ kol.bio|tojson }},
@@ -148,7 +165,7 @@ function kolEdit(kolPk) {
       fetch(`/kol/${kolPk}/update/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
-        body: JSON.stringify({ tier: this.tier, status: this.status, institution: this.institution, specialty: this.specialty, bio: this.bio, notes: this.notes }),
+        body: JSON.stringify({ tier: this.tier, status: this.status, kol_type: this.kolType, institution: this.institution, specialty: this.specialty, bio: this.bio, notes: this.notes }),
       }).then(r => r.text()).then(html => { document.getElementById(`kol-${kolPk}`).outerHTML = html; });
     },
     suggestPapers(pk) {

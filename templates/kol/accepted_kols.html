@@ -38,8 +38,11 @@
     <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Add KOL</div>
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <input x-model="form.name" placeholder="Full name *" style="flex:2;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
-      <select x-model="form.tier" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+      <select x-model="form.tier" style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
         {% for t in tier_range %}<option value="{{ t }}">Tier {{ t }}</option>{% endfor %}
+      </select>
+      <select x-model="form.kol_type" style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+        {% for val, label in kol_type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -55,18 +58,43 @@
 
   <!-- Filter bar -->
   <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
-    <!-- Status tabs -->
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Status</span>
+    <!-- Type filter row -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Type</span>
+      <button type="button" @click="setType('')"
+              :style="activeType === '' ? 'background:var(--ink);color:#fff;border-color:var(--ink)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+        All
+      </button>
+      <button type="button" @click="setType('PHYSICIAN')"
+              :style="activeType === 'PHYSICIAN' ? 'background:var(--muted);color:#fff;border-color:var(--muted)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+        Physician
+      </button>
+      <button type="button" @click="setType('RESEARCH')"
+              :style="activeType === 'RESEARCH' ? 'background:var(--sky);color:#fff;border-color:var(--sky)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+        Research
+      </button>
+      <button type="button" @click="setType('BOTH')"
+              :style="activeType === 'BOTH' ? 'background:var(--coral);color:#fff;border-color:var(--coral)' : ''"
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+        Research &amp; Physician
+      </button>
+    </div>
+
+    <!-- Status filter row -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Status</span>
       <button type="button" @click="setStatus('')"
               :style="activeStatus === '' ? 'background:var(--euc);color:#fff;border-color:var(--euc)' : ''"
-              style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         All
       </button>
       {% for val, label in status_choices %}
       <button type="button" @click="setStatus('{{ val }}')"
               :style="activeStatus === '{{ val }}' ? 'background:var(--euc);color:#fff;border-color:var(--euc)' : ''"
-              style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
+              style="font-size:11px;padding:3px 11px;border-radius:20px;background:var(--paper-warm);color:var(--muted);border:1px solid var(--line);cursor:pointer;transition:all .12s">
         {{ label }}
       </button>
       {% endfor %}
@@ -75,6 +103,7 @@
     <!-- Search inputs -->
     <form id="dir-filters" style="display:flex;gap:8px;flex-wrap:wrap">
       <input type="hidden" name="status" value="{{ status_filter }}">
+      <input type="hidden" name="type" value="{{ type_filter }}">
       <input type="hidden" name="tier" value="{{ tier_filter }}">
 
       <!-- Name search -->
@@ -107,11 +136,11 @@
                style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
       </div>
 
-      {% if search_filter or location_filter or specialty_filter or tier_filter %}
+      {% if search_filter or location_filter or specialty_filter or tier_filter or type_filter %}
       <button type="button"
               hx-get="{% url 'kol:directory' %}{% if status_filter %}?status={{ status_filter }}{% endif %}"
               hx-target="#kol-list-inner"
-              onclick="document.querySelectorAll('#dir-filters input[name=q], #dir-filters input[name=location], #dir-filters input[name=specialty]').forEach(el => el.value = ''); document.querySelector('#dir-filters input[name=tier]').value = '';"
+              @click="activeType = ''; document.querySelectorAll('#dir-filters input[name=q], #dir-filters input[name=location], #dir-filters input[name=specialty], #dir-filters input[name=type]').forEach(el => el.value = ''); document.querySelector('#dir-filters input[name=tier]').value = '';"
               style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap">
         Clear filters
       </button>
@@ -121,7 +150,7 @@
 
   <!-- KOL list -->
   <div id="kol-list-inner">
-    {% include "kol/partials/kol_list_inner.html" with kols=kols tier_range=tier_range status_choices=status_choices %}
+    {% include "kol/partials/kol_list_inner.html" with kols=kols tier_range=tier_range status_choices=status_choices kol_type_choices=kol_type_choices %}
   </div>
 
 </div>
@@ -132,7 +161,8 @@ function directoryPage() {
     showCreate: false,
     activeTier: {% if tier_filter %}{{ tier_filter }}{% else %}null{% endif %},
     activeStatus: '{{ status_filter }}',
-    form: { name: '', tier: 3, institution: '', specialty: '', bio: '' },
+    activeType: '{{ type_filter }}',
+    form: { name: '', tier: 3, kol_type: 'PHYSICIAN', institution: '', specialty: '', bio: '' },
     _applyFilters() {
       const params = new URLSearchParams();
       document.querySelectorAll('#dir-filters input').forEach(el => {
@@ -152,6 +182,12 @@ function directoryPage() {
       if (hidden) hidden.value = val;
       this._applyFilters();
     },
+    setType(val) {
+      this.activeType = val;
+      const hidden = document.querySelector('#dir-filters input[name=type]');
+      if (hidden) hidden.value = val;
+      this._applyFilters();
+    },
     createKol() {
       if (!this.form.name.trim()) return;
       fetch('/kol/create/', {
@@ -161,7 +197,7 @@ function directoryPage() {
       }).then(r => r.text()).then(html => {
         document.getElementById('kol-list-inner').innerHTML = html;
         this.showCreate = false;
-        this.form = { name: '', tier: 3, institution: '', specialty: '', bio: '' };
+        this.form = { name: '', tier: 3, kol_type: 'PHYSICIAN', institution: '', specialty: '', bio: '' };
       });
     },
   };

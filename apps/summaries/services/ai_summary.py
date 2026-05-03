@@ -5,6 +5,8 @@ from pathlib import Path
 
 import anthropic
 
+from apps.literature.services.text_processing import prepare_text_for_ai
+
 logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
@@ -194,7 +196,8 @@ def _run_methodology_call(client: anthropic.Anthropic, text: str) -> dict:
         model="claude-sonnet-4-6",
         max_tokens=2048,
         temperature=0,
-        system=_METHODOLOGY_SYSTEM,
+        system=[{"type": "text", "text": _METHODOLOGY_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
         timeout=120,
     )
@@ -226,7 +229,8 @@ def _run_findings_call(
         model="claude-sonnet-4-6",
         max_tokens=8192,
         temperature=0,
-        system=_FINDINGS_SYSTEM,
+        system=[{"type": "text", "text": _FINDINGS_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
         timeout=180,
     )
@@ -259,16 +263,22 @@ def _run_two_call_summary(client: anthropic.Anthropic, content: str) -> dict:
 def run_ai_summary(paper) -> dict:
     """
     Call Claude at temperature=0 to produce a structured MSL briefing note.
-    Papers over ~12,000 tokens are processed via two sequential calls
-    (methodology extraction, then findings extraction) to avoid context
-    limits and improve accuracy on long full-text papers.
+
+    Preprocesses the full text to remove boilerplate before any AI call.
+    Papers over ~12,000 tokens (after preprocessing) are processed via two
+    sequential calls (methodology extraction, then findings extraction).
 
     Extended thinking is intentionally not used — temperature=0 is required
     for factual accuracy and is incompatible with thinking mode.
     """
-    content = paper.full_text or paper.title
-    if not content.strip():
+    raw_content = paper.full_text or paper.title
+    if not raw_content.strip():
         raise ValueError(f"Paper {paper.pk} has no text to summarise.")
+
+    content, preprocessing_stats = prepare_text_for_ai(raw_content)
+    if not content.strip():
+        content = raw_content  # fallback: preprocessing removed everything
+        preprocessing_stats = {}
 
     client = anthropic.Anthropic()
 
@@ -277,7 +287,9 @@ def run_ai_summary(paper) -> dict:
             "Paper %s: ~%d tokens — using two-call summary path",
             paper.pk, _estimate_tokens(content),
         )
-        return _run_two_call_summary(client, content)
+        result = _run_two_call_summary(client, content)
+        result["preprocessing_stats"] = preprocessing_stats
+        return result
 
     # ── Single-call path (papers ≤ 12,000 tokens) ────────────────────────────
     system_prompt = _load_prompt("summarise_paper.md")
@@ -294,12 +306,15 @@ def run_ai_summary(paper) -> dict:
         model="claude-sonnet-4-6",
         max_tokens=8192,
         temperature=0,
-        system=system_prompt,
+        system=[{"type": "text", "text": system_prompt,
+                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
         timeout=180,
     )
     try:
-        return _parse_json_response(response.content[0].text)
+        result = _parse_json_response(response.content[0].text)
+        result["preprocessing_stats"] = preprocessing_stats
+        return result
     except json.JSONDecodeError as e:
         logger.error("AI summary JSON parse error: %s\nRaw: %s", e,
                      response.content[0].text[:500])

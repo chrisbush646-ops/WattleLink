@@ -75,6 +75,12 @@
         {% if paper.published_date %}
         <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">{{ paper.published_date|date:"Y" }}</span>
         {% endif %}
+        <button hx-post="{% url 'literature:remove' paper.pk %}"
+                hx-confirm="Remove this paper and all associated data? This cannot be undone."
+                @click.stop
+                style="padding:3px 10px;border:1px solid var(--coral-soft);border-radius:20px;font:inherit;font-size:11px;cursor:pointer;background:var(--surface);color:var(--coral)">
+          Remove
+        </button>
         <div style="width:28px;height:28px;border-radius:6px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s"
              :style="open ? 'background:var(--euc);border-color:var(--euc)' : ''">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"

@@ -5,7 +5,7 @@
 {% elif articles %}
 
 {# Machine-readable count + chips for Alpine to read #}
-<span data-total-count="{{ total }}" style="display:none"></span>
+<span data-total-count="{{ total }}" data-current-page="{{ current_page|default:1 }}" data-page-size="{{ page_size|default:20 }}" style="display:none"></span>
 {% load citations %}
 {% if mesh_chips %}<span data-mesh-chips='{{ mesh_chips|tojson }}' style="display:none"></span>{% endif %}
 {% if journal_chips %}<span data-journal-chips='{{ journal_chips|tojson }}' style="display:none"></span>{% endif %}
@@ -14,7 +14,7 @@
   <div style="font-family:var(--serif);font-size:16px;font-weight:400;color:var(--ink)">
     {% if search_name %}{{ search_name }}{% elif is_refined %}Refined results{% else %}Search Results{% endif %}
     <span style="font-family:var(--mono);font-size:13px;color:var(--muted);margin-left:6px">
-      {{ displayed|default:articles|length }} shown of {{ total }} total
+      Showing papers {{ page_range_start }}–{{ page_range_end }} of {{ total }}
     </span>
     {% if new_count %}
     <span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px;background:#FFF3CD;color:#8A6918;border:1px solid #E7D59A;border-radius:20px;font-family:var(--sans);font-size:10px;font-weight:600;padding:2px 8px;letter-spacing:.04em">
@@ -24,20 +24,6 @@
     {% endif %}
   </div>
   <div style="display:flex;gap:6px;align-items:center">
-    <!-- Sort strip -->
-    <span style="font-size:11px;color:var(--muted)">Sort:</span>
-    <button onclick="sortResults('relevance')" id="sort-relevance"
-            style="padding:3px 9px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:11px;cursor:pointer;background:var(--euc);color:white;border-color:var(--euc)">
-      Relevance
-    </button>
-    <button onclick="sortResults('date_desc')" id="sort-date-desc"
-            style="padding:3px 9px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:11px;cursor:pointer;background:var(--surface);color:var(--ink)">
-      Date ↓
-    </button>
-    <button onclick="sortResults('date_asc')" id="sort-date-asc"
-            style="padding:3px 9px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:11px;cursor:pointer;background:var(--surface);color:var(--ink)">
-      Date ↑
-    </button>
     <button class="btn btn-p btn-sm" onclick="ingestAllOA()" id="ingest-all-btn">
       Ingest all open access
     </button>
@@ -48,20 +34,22 @@
   <table class="dt" id="results-table">
     <thead>
       <tr>
-        <th style="width:42%">Paper</th>
-        <th>Journal</th>
-        <th>Date</th>
-        <th>Access</th>
-        <th>Relevance</th>
+        <th style="width:40%;cursor:pointer;user-select:none;white-space:nowrap" onclick="sortTable('title')" id="th-title">Paper <span id="sort-icon-title" style="color:var(--muted);font-size:10px"></span></th>
+        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortTable('journal')" id="th-journal">Journal <span id="sort-icon-journal" style="color:var(--muted);font-size:10px"></span></th>
+        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortTable('date')" id="th-date">Date <span id="sort-icon-date" style="color:var(--muted);font-size:10px">↓</span></th>
+        <th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortTable('access')" id="th-access">Access <span id="sort-icon-access" style="color:var(--muted);font-size:10px"></span></th>
         <th>Action</th>
+        <th style="width:60px"></th>
       </tr>
     </thead>
     <tbody>
       {% for article in articles %}
       <tr id="result-row-{{ article.pubmed_id }}"
           data-date="{{ article.published_date|date:'Y-m-d'|default:'' }}"
-          data-relevance="{{ article.relevance_score|default:0 }}"
-          {% if article.is_open_access and not article.already_ingested %}data-oa-pmid="{{ article.pubmed_id }}"{% endif %}>
+          data-title="{{ article.title|lower }}"
+          data-journal="{{ article.journal_short|default:article.journal|lower }}"
+          data-access="{{ article.is_open_access|yesno:'a,b' }}"
+          {% if article.is_open_access and not article.already_ingested and not article.awaiting_upload %}data-oa-pmid="{{ article.pubmed_id }}"{% endif %}>
         <td>
           <div style="display:flex;align-items:flex-start;gap:6px">
             {% if article.is_new %}
@@ -88,29 +76,78 @@
           {% if article.is_open_access %}
           <span class="tag green">Open Access</span>
           {% else %}
-          <span class="tag">Paywalled</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if article.relevance_score > 0 %}
-          <span style="font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:10px;
-            {% if article.relevance_score >= 3 %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
-            {% elif article.relevance_score == 2 %}background:var(--wattle-soft);color:#8A6918;border:1px solid #E7D59A
-            {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
-            ★{{ article.relevance_score }}
-          </span>
-          {% else %}
-          <span style="color:var(--line);font-size:12px">—</span>
+          <span class="tag" style="background:#FEF3E2;color:#9A6000;border-color:#F0D9A8">Paywalled</span>
           {% endif %}
         </td>
         <td>
           {% if article.already_ingested %}
           <span class="tag green">In database</span>
+          {% elif article.awaiting_upload %}
+          <span class="tag" style="background:#FFF3CD;color:#8A6918;border-color:#E7D59A">Awaiting upload</span>
           {% elif article.is_open_access %}
           <button class="btn btn-g btn-sm" onclick="ingestPaper('{{ article.pubmed_id }}', this)">Ingest</button>
           {% else %}
           <button class="btn btn-g btn-sm" onclick="flagForUpload('{{ article.pubmed_id }}', this)">Flag for upload</button>
           {% endif %}
+        </td>
+        <td style="text-align:center">
+          <button id="view-btn-{{ article.pubmed_id }}"
+                  onclick="toggleDetail('{{ article.pubmed_id }}')"
+                  style="padding:3px 10px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:11px;cursor:pointer;background:var(--surface);color:var(--ink);white-space:nowrap">
+            View
+          </button>
+        </td>
+      </tr>
+      <tr id="detail-row-{{ article.pubmed_id }}" style="display:none">
+        <td colspan="6" style="padding:0;border-bottom:1px solid var(--line);background:var(--paper-warm)">
+          <div style="padding:16px 20px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <div style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Abstract</div>
+              {% if article.doi %}
+              <a href="https://doi.org/{{ article.doi }}" target="_blank" rel="noopener"
+                 style="font-family:var(--mono);font-size:10px;color:var(--euc);text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {{ article.doi }}
+              </a>
+              {% endif %}
+            </div>
+            <div style="font-family:var(--serif);font-size:13px;color:var(--ink);line-height:1.65;max-height:260px;overflow-y:auto">
+              {% if article.abstract %}
+                {{ article.abstract|linebreaksbr }}
+              {% else %}
+                <span style="color:var(--muted);font-style:italic">No abstract available.</span>
+              {% endif %}
+            </div>
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+              {% if article.already_ingested %}
+                {% if article.already_ingested_pk %}
+                <a href="{% url 'literature:paper_detail' article.already_ingested_pk %}"
+                   style="font-size:12px;color:var(--euc);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  View in library
+                </a>
+                {% else %}
+                <span class="tag green">In database</span>
+                {% endif %}
+              {% elif article.awaiting_upload %}
+                <div id="upload-area-{{ article.pubmed_id }}">
+                  <button class="btn btn-g btn-sm" onclick="showUploadForm('{{ article.pubmed_id }}')">
+                    Upload PDF
+                  </button>
+                </div>
+              {% elif article.is_open_access %}
+                <button class="btn btn-p btn-sm" onclick="ingestPaper('{{ article.pubmed_id }}', this)">
+                  Download PDF &amp; ingest
+                </button>
+              {% else %}
+                <div id="upload-area-{{ article.pubmed_id }}">
+                  <button class="btn btn-g btn-sm" onclick="showUploadForm('{{ article.pubmed_id }}')">
+                    Upload PDF
+                  </button>
+                </div>
+              {% endif %}
+            </div>
+          </div>
         </td>
       </tr>
       {% endfor %}
@@ -118,32 +155,7 @@
   </table>
 </div>
 
-<script>
-function sortResults(mode) {
-  const tbody = document.querySelector('#results-table tbody');
-  if (!tbody) return;
-  const rows = Array.from(tbody.querySelectorAll('tr'));
-  rows.sort((a, b) => {
-    if (mode === 'date_desc') {
-      return (b.dataset.date || '').localeCompare(a.dataset.date || '');
-    } else if (mode === 'date_asc') {
-      return (a.dataset.date || '').localeCompare(b.dataset.date || '');
-    } else {
-      return parseInt(b.dataset.relevance || 0) - parseInt(a.dataset.relevance || 0);
-    }
-  });
-  rows.forEach(r => tbody.appendChild(r));
-  // Update sort button styles
-  ['relevance','date-desc','date-asc'].forEach(k => {
-    const btn = document.getElementById('sort-' + k);
-    if (!btn) return;
-    const active = k === mode.replace('_', '-');
-    btn.style.background = active ? 'var(--euc)' : 'var(--surface)';
-    btn.style.color = active ? 'white' : 'var(--ink)';
-    btn.style.borderColor = active ? 'var(--euc)' : 'var(--line)';
-  });
-}
-</script>
+<div id="results-pagination"></div>
 
 {% else %}
 <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">

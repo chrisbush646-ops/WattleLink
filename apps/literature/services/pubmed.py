@@ -116,7 +116,8 @@ class PubMedClient:
     def esearch(
         self,
         query: str,
-        max_results: int = 200,
+        max_results: int = 20,
+        retstart: int = 0,
         # Legacy compat
         open_access_only: bool = False,
         study_type: str = "",
@@ -181,6 +182,7 @@ class PubMedClient:
             "db": "pubmed",
             "term": full_query,
             "retmax": max_results,
+            "retstart": retstart,
             "retmode": "json",
             "usehistory": "n",
         }
@@ -393,7 +395,72 @@ def _infer_study_type(article_el) -> str:
     return "Other"
 
 
+_PMC_OA_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi"
 _UNPAYWALL_EMAIL = "hello@wattlelink.com.au"
+
+
+def check_oa_via_esummary(pmids: list) -> frozenset:
+    """
+    Return the set of PMIDs PubMed considers to have free full text, using
+    the same 'free full text[filter]' that PubMed applies on its own search
+    results page. A single esearch call checks all PMIDs in the batch.
+    Falls back to empty frozenset on API error.
+    """
+    if not pmids:
+        return frozenset()
+    uid_clause = " OR ".join(f"{p}[uid]" for p in pmids)
+    try:
+        resp = requests.get(
+            ESEARCH_URL,
+            params={
+                "db": "pubmed",
+                "term": f"({uid_clause}) AND free full text[filter]",
+                "retmax": len(pmids),
+                "retmode": "json",
+            },
+            timeout=20,
+            headers={"User-Agent": "WattleLink/1.0 (mailto:hello@wattlelink.com.au)"},
+        )
+        if resp.status_code != 200:
+            logger.warning("OA esearch filter check HTTP %d", resp.status_code)
+            return frozenset()
+        return frozenset(resp.json().get("esearchresult", {}).get("idlist", []))
+    except Exception as exc:
+        logger.warning("OA esearch filter check failed: %s", exc)
+        return frozenset()
+
+
+def check_pmc_oa_batch(pmcids: list) -> frozenset:
+    """
+    Return PMCIDs (with or without 'PMC' prefix) confirmed in the PMC OA subset.
+    Falls back to empty frozenset on API error so callers can handle gracefully.
+    """
+    if not pmcids:
+        return frozenset()
+    prefixed = [p if str(p).upper().startswith("PMC") else f"PMC{p}" for p in pmcids if p]
+    if not prefixed:
+        return frozenset()
+    try:
+        resp = requests.get(
+            _PMC_OA_URL,
+            params={"id": ",".join(prefixed)},
+            timeout=15,
+            headers={"User-Agent": "WattleLink/1.0 (mailto:hello@wattlelink.com.au)"},
+        )
+        if resp.status_code != 200:
+            logger.warning("PMC OA batch check HTTP %d", resp.status_code)
+            return frozenset()
+        root = ET.fromstring(resp.text)
+        oa: set = set()
+        for record in root.iter("record"):
+            rid = record.get("id", "")
+            numeric = rid[3:] if rid.upper().startswith("PMC") else rid
+            oa.add(numeric)
+            oa.add(rid)
+        return frozenset(oa)
+    except Exception as exc:
+        logger.warning("PMC OA batch check failed: %s", exc)
+        return frozenset()
 
 
 def fetch_oa_pdf_via_unpaywall(paper) -> bool:
@@ -487,6 +554,65 @@ def fetch_oa_pdf_via_unpaywall(paper) -> bool:
     return False
 
 
+def fetch_pmc_pdf(paper) -> bool:
+    """
+    Download the PDF for a PMC paper directly from NCBI and save to paper.source_file.
+    Returns True if the PDF was saved.
+    """
+    import os
+    import tempfile
+
+    from django.core.files.base import ContentFile
+
+    from apps.literature.services.pdf import extract_text as pdf_extract
+
+    if not paper.pmcid or paper.source_file:
+        return False
+
+    pmcid = paper.pmcid if paper.pmcid.upper().startswith("PMC") else f"PMC{paper.pmcid}"
+    url = _PMC_PDF_URL.format(pmcid=pmcid)
+
+    try:
+        resp = requests.get(
+            url,
+            timeout=60,
+            stream=True,
+            headers={"User-Agent": "WattleLink/1.0 (mailto:hello@wattlelink.com.au)"},
+            allow_redirects=True,
+        )
+        if resp.status_code != 200:
+            return False
+        if "pdf" not in resp.headers.get("content-type", "").lower():
+            return False
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            for chunk in resp.iter_content(chunk_size=65536):
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            text = pdf_extract(tmp_path)
+            with open(tmp_path, "rb") as fh:
+                paper.source_file.save(f"pmc_{paper.pk}.pdf", ContentFile(fh.read()), save=False)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+        update_fields = ["source_file"]
+        if text and len(text) > len(paper.full_text or ""):
+            paper.full_text = text[:500_000]
+            update_fields.append("full_text")
+        paper.save(update_fields=update_fields)
+        logger.info("Saved PMC PDF for paper %s (%s)", paper.pk, pmcid)
+        return True
+
+    except Exception as exc:
+        logger.warning("PMC PDF fetch failed for paper %s (%s): %s", paper.pk, pmcid, exc)
+    return False
+
+
 def get_mesh_terms_from_results(pmids: list[str], sample: int = 100) -> list[dict]:
     """Return top 10 MeSH terms from a sample of results, sorted by frequency."""
     if not pmids:
@@ -530,6 +656,7 @@ def get_top_authors_from_results(pmids: list[str], sample: int = 100) -> list[di
 
 PMC_EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 _ABSTRACT_THRESHOLD = 4_000
+_PMC_PDF_URL = "https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/"
 
 
 def fetch_pmc_full_text(paper) -> bool:

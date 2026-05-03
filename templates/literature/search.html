@@ -49,17 +49,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .st-cb:hover{border-color:var(--euc-l)}
 .st-cb input{accent-color:var(--euc);flex-shrink:0}
 /* Chip strip */
-.chip-strip{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px 3px 10px;border:1px solid var(--line);border-radius:20px;font-size:11.5px;color:var(--ink);background:var(--surface);cursor:pointer;transition:all .12s}
-.chip:hover{border-color:var(--euc);background:#E8EFE9;color:var(--euc)}
-.chip.active-and{border-color:var(--euc);background:#E8EFE9;color:var(--euc)}
-.chip.active-not{border-color:var(--coral);background:var(--coral-soft);color:var(--coral)}
-/* Refinement tag */
-.ref-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:20px;font-size:11.5px}
-.ref-tag.and-tag{background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0}
-.ref-tag.not-tag{background:var(--coral-soft);color:var(--coral);border:1px solid #E9CBB9}
-/* Funnel counter */
-.funnel-step{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-family:var(--mono)}
 /* AI suggestion card */
 .ai-sug{padding:10px 12px;border:1px solid var(--line-soft);border-radius:8px;background:var(--paper-warm);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
 </style>
@@ -72,7 +61,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div>
     <div class="eyebrow" style="margin-bottom:5px">Search &amp; Ingest</div>
     <h1 class="pt">Cast the <em>net</em></h1>
-    <p class="ps">Start broad — build a high-recall query, run it, then refine to the most clinically relevant papers.</p>
+    <p class="ps">Build a PubMed query to find relevant papers, then ingest them into the library.</p>
   </div>
   <div class="pa">
     <button class="btn btn-g"
@@ -93,12 +82,20 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <div id="saved-searches-strip" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">
   <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0">Saved</span>
   {% for s in saved_searches %}
-  <div style="display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden">
+  <div id="saved-search-{{ s.id }}" style="display:inline-flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);overflow:hidden">
     <button @click="runSavedSearchById({{ s.id }})"
             style="padding:4px 12px;font-size:12px;color:var(--ink);background:none;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:5px"
             title="Run: {{ s.query }}">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--euc)" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       {{ s.name|truncatechars:28 }}
+    </button>
+    <button hx-post="{% url 'literature:delete_saved_search' s.id %}"
+            hx-target="#saved-search-{{ s.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Remove saved search &ldquo;{{ s.name }}&rdquo;?"
+            style="padding:4px 8px;background:none;border:none;border-left:1px solid var(--line);cursor:pointer;color:var(--muted);font-size:13px;line-height:1;display:flex;align-items:center"
+            title="Remove">
+      ×
     </button>
   </div>
   {% endfor %}
@@ -124,14 +121,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </dialog>
 
 <!-- ═══════════════════════════════════════════════════
-     STAGE 1 — QUERY BUILDER
+     QUERY BUILDER
 ═══════════════════════════════════════════════════ -->
 <div class="qb">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
     <div>
-      <div class="eyebrow" style="margin-bottom:3px">Stage 1 — Broad Search</div>
       <div class="card-t">Boolean Query Builder</div>
-      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">Build a broad, high-recall query. Narrow it in Stage 2.</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
       <div x-show="aiThinking" class="ai-thinking">
@@ -317,148 +312,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     STAGE 2 — REFINEMENT PANEL (shown after search)
-═══════════════════════════════════════════════════ -->
-<div x-show="searchComplete" x-transition style="margin-bottom:16px">
-  <!-- Result count banner -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-    <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--ink)">
-      Found <span x-text="totalCount" style="font-style:italic;color:var(--euc)">0</span> papers
-    </div>
-    <!-- Funnel counter -->
-    <template x-if="countHistory.length > 1">
-      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-        <template x-for="(count, i) in countHistory" :key="i">
-          <div class="funnel-step">
-            <span x-text="count" :style="i === countHistory.length - 1 ? 'font-weight:600;color:var(--euc)' : 'color:var(--muted)'"></span>
-            <template x-if="i < countHistory.length - 1">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </template>
-          </div>
-        </template>
-      </div>
-    </template>
-    <div style="flex:1"></div>
-    <button class="btn btn-g btn-sm" @click="resetRefinements()">Reset refinements</button>
-  </div>
-
-  <!-- Refinement panel card -->
-  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="eyebrow">Stage 2 — Refine</div>
-      <button class="btn btn-g btn-sm" @click="runAiSuggestRefinements()" :disabled="aiRefineLoading">
-        <template x-if="aiRefineLoading">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:aispin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-        </template>
-        <template x-if="!aiRefineLoading">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-        </template>
-        AI Suggest Refinements
-      </button>
-    </div>
-
-    <!-- AI refinement suggestions -->
-    <template x-if="aiSuggestions.length > 0">
-      <div style="margin-bottom:12px">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">AI suggestions</div>
-        <template x-for="(sug, i) in aiSuggestions" :key="i">
-          <div class="ai-sug">
-            <div style="flex:1">
-              <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink);margin-bottom:3px"
-                   x-text="(sug.operator === 'NOT' ? 'NOT ' : 'AND ') + sug.term"></div>
-              <div style="font-size:11.5px;color:var(--muted);line-height:1.5" x-text="sug.rationale"></div>
-              <div style="font-size:10.5px;color:var(--euc);margin-top:2px" x-text="sug.estimated_impact"></div>
-            </div>
-            <div style="display:flex;gap:5px;flex-shrink:0">
-              <button class="btn btn-g btn-sm" @click="acceptSuggestion(sug)">Accept</button>
-              <button style="padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;font-size:11px;color:var(--muted)"
-                      @click="aiSuggestions.splice(i,1)">Dismiss</button>
-            </div>
-          </div>
-        </template>
-      </div>
-    </template>
-
-    <!-- Quick filter chips: MeSH -->
-    <template x-if="meshChips.length > 0">
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Top MeSH terms</div>
-        <div class="chip-strip">
-          <template x-for="chip in meshChips" :key="chip.term">
-            <button class="chip"
-                    :class="getChipClass(chip.term)"
-                    @click="toggleChip(chip.term)"
-                    x-text="chip.term + ' (' + chip.count + ')'">
-            </button>
-          </template>
-        </div>
-      </div>
-    </template>
-
-    <!-- Quick filter chips: Journals -->
-    <template x-if="journalChips.length > 0">
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Top journals</div>
-        <div class="chip-strip">
-          <template x-for="chip in journalChips" :key="chip.term">
-            <button class="chip"
-                    :class="getChipClass(chip.term, 'journal')"
-                    @click="toggleJournalChip(chip.term)"
-                    x-text="chip.term + ' (' + chip.count + ')'">
-            </button>
-          </template>
-        </div>
-      </div>
-    </template>
-
-    <!-- Refinement + Exclusion inputs -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
-      <div>
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Add terms to narrow (AND)</div>
-        <div style="display:flex;gap:6px">
-          <input type="text" x-model="refineInput" placeholder="e.g. long-term[tiab]"
-                 @keydown.enter="addRefinementTerm()"
-                 style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface)">
-          <button class="btn btn-g btn-sm" @click="addRefinementTerm()">Add</button>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
-          <template x-for="(term, i) in refinementTerms" :key="i">
-            <span class="ref-tag and-tag">
-              <span x-text="'AND ' + term" style="font-family:var(--mono);font-size:10.5px"></span>
-              <button @click="removeRefinementTerm(i)"
-                      style="margin-left:2px;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px;line-height:1">×</button>
-            </span>
-          </template>
-        </div>
-      </div>
-      <div>
-        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px">Exclude terms (NOT)</div>
-        <div style="display:flex;gap:6px">
-          <input type="text" x-model="excludeInput" placeholder="e.g. pediatric[tiab]"
-                 @keydown.enter="addExclusionTerm()"
-                 style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;background:var(--surface)">
-          <button class="btn btn-g btn-sm" @click="addExclusionTerm()">Add</button>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
-          <template x-for="(term, i) in exclusionTerms" :key="i">
-            <span class="ref-tag not-tag">
-              <span x-text="'NOT ' + term" style="font-family:var(--mono);font-size:10.5px"></span>
-              <button @click="removeExclusionTerm(i)"
-                      style="margin-left:2px;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px;line-height:1">×</button>
-            </span>
-          </template>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Results area -->
-  <div id="search-results"></div>
-</div>
-
-<!-- Stage 1 results placeholder (shown before stage 2 is active) -->
-<div x-show="!searchComplete" id="search-results-stage1"></div>
+<!-- Search results -->
+<div id="search-results" style="margin-bottom:16px"></div>
 
 <!-- PDF Upload -->
 <div class="card mt" id="pdf-upload-card">
@@ -482,10 +337,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 const CSRF = '{{ csrf_token }}';
 const INGEST_URL = '{% url "literature:ingest_paper" %}';
 const INGEST_ALL_URL = '{% url "literature:ingest_all_oa" %}';
+const FLAG_FOR_UPLOAD_URL = '{% url "literature:flag_for_upload" %}';
+const UPLOAD_FROM_SEARCH_URL = '{% url "literature:upload_from_search" %}';
 const RUN_SEARCH_URL = '{% url "literature:run_search" %}';
-const REFINE_SEARCH_URL = '{% url "literature:refine_search" %}';
 const AI_SUGGEST_URL = '{% url "literature:ai_suggest" %}';
-const AI_SUGGEST_REFINEMENTS_URL = '{% url "literature:ai_suggest_refinements" %}';
 const EXPAND_SYNONYMS_URL = '{% url "literature:expand_synonyms" %}';
 const SAVE_SEARCH_URL = '{% url "literature:save_search" %}';
 
@@ -511,22 +366,7 @@ function searchBuilder() {
     searching: false,
     aiThinking: false,
 
-    // Stage 2
-    searchComplete: false,
     broadQuery: '',
-    totalCount: 0,
-    countHistory: [],
-    refinementTerms: [],
-    exclusionTerms: [],
-    meshChips: [],
-    journalChips: [],
-    activeChips: {},   // {term: 'and'|'not'}
-    activeJournalChips: {},
-    refineInput: '',
-    excludeInput: '',
-    aiSuggestions: [],
-    aiRefineLoading: false,
-    aiSuggestionsUsed: [],
 
     get previewQuery() {
       const TAGS = { tiab:'[Title/Abstract]', ti:'[Title]', mesh:'[MeSH]', au:'[Author]', ta:'[Journal]', affl:'[Affiliation]', all:'' };
@@ -620,7 +460,12 @@ function searchBuilder() {
         });
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const html = await res.text();
-        if (resultsEl) resultsEl.innerHTML = html;
+        if (resultsEl) {
+          resultsEl.innerHTML = html;
+          _lastSearchUrl = `/literature/search/saved/${id}/run/`;
+          _lastSearchBody = {};
+          initPagination();
+        }
         this.searchComplete = true;
       } catch(e) {
         if (resultsEl) resultsEl.innerHTML = `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Search failed: ${e.message}</div>`;
@@ -654,170 +499,23 @@ function searchBuilder() {
         const html = await res.text();
 
         // Parse count from response (it's in the HTML)
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const countEl = doc.querySelector('[data-total-count]');
-        const meshData = doc.querySelector('[data-mesh-chips]');
-        const journalData = doc.querySelector('[data-journal-chips]');
-
-        const count = countEl ? parseInt(countEl.dataset.totalCount) : 0;
-        this.totalCount = count;
         this.broadQuery = query;
-        this.countHistory = [count];
-        this.meshChips = meshData ? JSON.parse(meshData.dataset.meshChips) : [];
-        this.journalChips = journalData ? JSON.parse(journalData.dataset.journalChips) : [];
-        this.activeChips = {};
-        this.activeJournalChips = {};
-        this.refinementTerms = [];
-        this.exclusionTerms = [];
-        this.aiSuggestions = [];
-
+        _lastSearchUrl = RUN_SEARCH_URL;
+        _lastSearchBody = {
+          rows: this.rows,
+          synonym_expansions: synonymExpansions,
+          filters: this.currentFilters,
+        };
         document.getElementById('search-results').innerHTML = html;
-        this.searchComplete = true;
+        initPagination();
         this.$nextTick(() => {
           document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       } catch(e) {
-        document.getElementById('search-results-stage1').innerHTML =
+        document.getElementById('search-results').innerHTML =
           `<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Search failed: ${e.message}</div>`;
       } finally {
         this.searching = false;
-      }
-    },
-
-    async runRefinedSearch() {
-      if (!this.broadQuery) return;
-      try {
-        const res = await fetch(REFINE_SEARCH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-          body: JSON.stringify({
-            query: this.broadQuery,
-            refinement_terms: this.refinementTerms,
-            exclusion_terms: this.exclusionTerms,
-            filters: this.currentFilters,
-          }),
-        });
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const countEl = doc.querySelector('[data-total-count]');
-        const newCount = countEl ? parseInt(countEl.dataset.totalCount) : 0;
-        this.totalCount = newCount;
-        if (this.countHistory[this.countHistory.length - 1] !== newCount) {
-          this.countHistory.push(newCount);
-        }
-        document.getElementById('search-results').innerHTML = html;
-      } catch(e) {}
-    },
-
-    addRefinementTerm() {
-      const t = this.refineInput.trim();
-      if (!t || this.refinementTerms.includes(t)) return;
-      this.refinementTerms.push(t);
-      this.refineInput = '';
-      this.runRefinedSearch();
-    },
-
-    removeRefinementTerm(i) {
-      this.refinementTerms.splice(i, 1);
-      this.runRefinedSearch();
-    },
-
-    addExclusionTerm() {
-      const t = this.excludeInput.trim();
-      if (!t || this.exclusionTerms.includes(t)) return;
-      this.exclusionTerms.push(t);
-      this.excludeInput = '';
-      this.runRefinedSearch();
-    },
-
-    removeExclusionTerm(i) {
-      this.exclusionTerms.splice(i, 1);
-      this.runRefinedSearch();
-    },
-
-    resetRefinements() {
-      this.refinementTerms = [];
-      this.exclusionTerms = [];
-      this.activeChips = {};
-      this.activeJournalChips = {};
-      this.countHistory = [this.countHistory[0]];
-      this.totalCount = this.countHistory[0];
-      this.runRefinedSearch();
-    },
-
-    getChipClass(term, type) {
-      const store = type === 'journal' ? this.activeJournalChips : this.activeChips;
-      const state = store[term];
-      if (state === 'and') return 'active-and';
-      if (state === 'not') return 'active-not';
-      return '';
-    },
-
-    toggleChip(term) {
-      const cur = this.activeChips[term];
-      if (!cur) {
-        this.activeChips[term] = 'and';
-        this.refinementTerms = this.refinementTerms.filter(t => t !== term);
-        this.refinementTerms.push(`"${term}"[MeSH]`);
-      } else if (cur === 'and') {
-        this.activeChips[term] = 'not';
-        this.refinementTerms = this.refinementTerms.filter(t => t !== `"${term}"[MeSH]`);
-        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[MeSH]`);
-        this.exclusionTerms.push(`"${term}"[MeSH]`);
-      } else {
-        delete this.activeChips[term];
-        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[MeSH]`);
-      }
-      this.runRefinedSearch();
-    },
-
-    toggleJournalChip(term) {
-      const cur = this.activeJournalChips[term];
-      if (!cur) {
-        this.activeJournalChips[term] = 'and';
-        this.refinementTerms.push(`"${term}"[ta]`);
-      } else if (cur === 'and') {
-        this.activeJournalChips[term] = 'not';
-        this.refinementTerms = this.refinementTerms.filter(t => t !== `"${term}"[ta]`);
-        this.exclusionTerms.push(`"${term}"[ta]`);
-      } else {
-        delete this.activeJournalChips[term];
-        this.exclusionTerms = this.exclusionTerms.filter(t => t !== `"${term}"[ta]`);
-      }
-      this.runRefinedSearch();
-    },
-
-    acceptSuggestion(sug) {
-      const term = sug.term.trim();
-      if (sug.operator === 'NOT') {
-        if (!this.exclusionTerms.includes(term)) this.exclusionTerms.push(term);
-      } else {
-        if (!this.refinementTerms.includes(term)) this.refinementTerms.push(term);
-      }
-      this.aiSuggestionsUsed.push(sug);
-      this.aiSuggestions = this.aiSuggestions.filter(s => s !== sug);
-      this.runRefinedSearch();
-    },
-
-    async runAiSuggestRefinements() {
-      if (!this.broadQuery) return;
-      this.aiRefineLoading = true;
-      try {
-        const res = await fetch(AI_SUGGEST_REFINEMENTS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-          body: JSON.stringify({
-            query: this.broadQuery,
-            result_count: this.totalCount,
-            top_mesh: this.meshChips,
-          }),
-        });
-        const data = await res.json();
-        this.aiSuggestions = data.suggestions || [];
-      } catch(e) {} finally {
-        this.aiRefineLoading = false;
       }
     },
 
@@ -833,10 +531,6 @@ function searchBuilder() {
           name,
           query,
           filters: this.currentFilters,
-          refinement_terms: this.refinementTerms,
-          exclusion_terms: this.exclusionTerms,
-          result_count_history: this.countHistory,
-          ai_suggestions_used: this.aiSuggestionsUsed,
         }),
       });
     },
@@ -865,7 +559,8 @@ async function runAiSuggestDialog() {
       // Show explanation if present
       if (data.explanation) {
         const expEl = document.getElementById('ai-explanation');
-        expEl.textContent = data.explanation;
+        const esc = data.explanation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        expEl.innerHTML = esc.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
         expEl.style.display = '';
       }
       // Apply recommended filters if provided
@@ -920,7 +615,166 @@ document.getElementById('ai-dialog').addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('ai-dialog').close();
 });
 
-// Ingest functions (defined globally — search_results partial innerHTML doesn't execute scripts)
+// All interaction functions defined globally — search_results partial innerHTML doesn't execute scripts
+
+var _sortCol = 'date';
+var _sortDir = 'desc';
+var _sortCols = ['title', 'journal', 'date', 'access'];
+var _lastSearchUrl = null;
+var _lastSearchBody = null;
+
+function initPagination() {
+  var span = document.querySelector('#search-results [data-total-count]');
+  var bar = document.getElementById('results-pagination');
+  if (!span || !bar) return;
+
+  var total = parseInt(span.dataset.totalCount) || 0;
+  var current = parseInt(span.dataset.currentPage) || 1;
+  var pageSize = parseInt(span.dataset.pageSize) || 20;
+  var totalPages = Math.ceil(total / pageSize);
+
+  if (totalPages <= 1) { bar.innerHTML = ''; return; }
+
+  // Build visible page set: always first 2, last 2, and current ±2
+  var show = {};
+  for (var p = 1; p <= Math.min(2, totalPages); p++) show[p] = true;
+  for (var p = Math.max(1, totalPages - 1); p <= totalPages; p++) show[p] = true;
+  for (var p = Math.max(1, current - 2); p <= Math.min(totalPages, current + 2); p++) show[p] = true;
+
+  var sorted = Object.keys(show).map(Number).sort(function(a, b) { return a - b; });
+
+  // Insert ellipsis markers where gaps exist
+  var pages = [];
+  for (var i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) pages.push('…');
+    pages.push(sorted[i]);
+  }
+
+  var bs = 'padding:5px 11px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer;border:1px solid ';
+  var html = '<div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:14px 0;flex-wrap:wrap">';
+
+  html += '<button onclick="showPage(' + (current - 1) + ')" ' + (current <= 1 ? 'disabled ' : '') +
+    'style="' + bs + 'var(--line);background:var(--surface);color:' + (current <= 1 ? 'var(--muted)' : 'var(--ink)') + '">← Prev</button>';
+
+  pages.forEach(function(p) {
+    if (p === '…') {
+      html += '<span style="padding:5px 4px;font-size:12px;color:var(--muted)">…</span>';
+    } else {
+      var active = p === current;
+      html += '<button onclick="showPage(' + p + ')" style="' + bs +
+        (active ? 'var(--euc);background:var(--euc);color:white' : 'var(--line);background:var(--surface);color:var(--ink)') +
+        '">' + p + '</button>';
+    }
+  });
+
+  html += '<button onclick="showPage(' + (current + 1) + ')" ' + (current >= totalPages ? 'disabled ' : '') +
+    'style="' + bs + 'var(--line);background:var(--surface);color:' + (current >= totalPages ? 'var(--muted)' : 'var(--ink)') + '">Next →</button>';
+
+  html += '<span style="font-size:11px;color:var(--muted);margin-left:6px">Page ' + current + ' of ' + totalPages + '</span>';
+
+  html += '</div>';
+  bar.innerHTML = html;
+}
+
+async function showPage(n) {
+  if (!_lastSearchUrl) return;
+  var resultsEl = document.getElementById('search-results');
+  if (!resultsEl) return;
+  resultsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Loading…</div>';
+  try {
+    var body = Object.assign({}, _lastSearchBody || {}, { page: n });
+    var res = await fetch(_lastSearchUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify(body),
+    });
+    var html = await res.text();
+    resultsEl.innerHTML = html;
+    initPagination();
+    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    resultsEl.innerHTML = '<div style="padding:14px;background:var(--coral-soft);border:1px solid #E9CBB9;border-radius:8px;color:var(--coral);font-size:13px">Failed to load page: ' + e.message + '</div>';
+  }
+}
+
+function sortTable(col) {
+  if (_sortCol === col) {
+    _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _sortCol = col;
+    _sortDir = col === 'date' ? 'desc' : 'asc';
+  }
+  var tbody = document.querySelector('#results-table tbody');
+  if (!tbody) return;
+  var rows = Array.from(tbody.querySelectorAll('tr[id^="result-row-"]'));
+  rows.sort(function(a, b) {
+    var av = a.dataset[col] || '';
+    var bv = b.dataset[col] || '';
+    var cmp = av.localeCompare(bv);
+    return _sortDir === 'asc' ? cmp : -cmp;
+  });
+  rows.forEach(function(r) {
+    var pmid = r.id.replace('result-row-', '');
+    var detail = document.getElementById('detail-row-' + pmid);
+    tbody.appendChild(r);
+    if (detail) tbody.appendChild(detail);
+  });
+  _sortCols.forEach(function(c) {
+    var icon = document.getElementById('sort-icon-' + c);
+    if (icon) icon.textContent = c === _sortCol ? (_sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    var th = document.getElementById('th-' + c);
+    if (th) th.style.color = c === _sortCol ? 'var(--ink)' : '';
+  });
+}
+
+function _removeDetailRow(pmid) {
+  const detail = document.getElementById('detail-row-' + pmid);
+  if (detail) detail.remove();
+}
+
+function toggleDetail(pmid) {
+  const row = document.getElementById('detail-row-' + pmid);
+  const btn = document.getElementById('view-btn-' + pmid);
+  if (!row) return;
+  const hidden = row.style.display === 'none' || row.style.display === '';
+  row.style.display = hidden ? 'table-row' : 'none';
+  if (btn) btn.textContent = hidden ? 'Hide' : 'View';
+}
+
+function showUploadForm(pmid) {
+  const area = document.getElementById('upload-area-' + pmid);
+  if (!area) return;
+  area.innerHTML = `
+    <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="file" accept=".pdf" style="display:none" onchange="uploadFromSearch('${pmid}', this)">
+      <span class="btn btn-g btn-sm" onclick="this.previousElementSibling.click()">Choose PDF…</span>
+      <span id="upload-fname-${pmid}" style="font-size:11px;color:var(--muted)"></span>
+    </label>`;
+}
+
+async function uploadFromSearch(pmid, fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const area = document.getElementById('upload-area-' + pmid);
+  if (area) area.innerHTML = `<span style="font-size:12px;color:var(--muted)">Uploading ${file.name}…</span>`;
+  const form = new FormData();
+  form.append('pubmed_id', pmid);
+  form.append('pdf', file);
+  try {
+    const res = await fetch(UPLOAD_FROM_SEARCH_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF },
+      body: form,
+    });
+    const html = await res.text();
+    _removeDetailRow(pmid);
+    const row = document.getElementById('result-row-' + pmid);
+    if (row) row.outerHTML = html;
+  } catch(e) {
+    if (area) area.innerHTML = `<span style="color:var(--coral);font-size:12px">Upload failed: ${e.message}</span>`;
+  }
+}
+
 async function ingestPaper(pmid, btn) {
   btn.disabled = true; btn.textContent = 'Ingesting…';
   try {
@@ -930,8 +784,10 @@ async function ingestPaper(pmid, btn) {
       body: JSON.stringify({ pubmed_id: pmid }),
     });
     const html = await res.text();
+    _removeDetailRow(pmid);
     const row = document.getElementById('result-row-' + pmid);
     if (row) row.outerHTML = html;
+    // if response included a new detail row (AWAITING_UPLOAD), it's now in the DOM
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Ingest';
     alert('Ingest failed: ' + e.message);
@@ -939,8 +795,21 @@ async function ingestPaper(pmid, btn) {
 }
 
 async function flagForUpload(pmid, btn) {
-  btn.disabled = true; btn.textContent = 'Flagged';
-  btn.className = 'tag gold';
+  btn.disabled = true; btn.textContent = 'Flagging…';
+  try {
+    const res = await fetch(FLAG_FOR_UPLOAD_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ pubmed_id: pmid }),
+    });
+    const html = await res.text();
+    _removeDetailRow(pmid);
+    const row = document.getElementById('result-row-' + pmid);
+    if (row) row.outerHTML = html;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Flag for upload';
+    alert('Could not flag paper: ' + e.message);
+  }
 }
 
 async function ingestAllOA() {

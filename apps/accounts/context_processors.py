@@ -4,5 +4,6 @@ def user_permissions(request):
         return {
             "can_edit": user.can_edit,
             "is_platform_admin": user.is_admin_role,
+            "view_mode": request.session.get("view_mode", "team"),
         }
-    return {"can_edit": False, "is_platform_admin": False}
+    return {"can_edit": False, "is_platform_admin": False, "view_mode": "team"}

@@ -20,6 +20,12 @@
         {{ enquiry.get_status_display }}
       </span>
       <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">{{ enquiry.created_at|date:"d M Y" }}</span>
+      {% if view_mode == 'team' and enquiry.created_by %}
+      <span style="font-size:10.5px;color:var(--muted-soft);display:inline-flex;align-items:center;gap:3px">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        {{ enquiry.created_by.get_full_name|default:enquiry.created_by.email }}
+      </span>
+      {% endif %}
       <div style="flex:1"></div>
       <button type="button" @click="expanded = !expanded; if (!expanded) editing = false"
               style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-weight:500"
@@ -27,6 +33,15 @@
       <button type="button" @click="editing = !editing; if (editing) expanded = true"
               style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500"
               x-text="editing ? 'Done' : 'Edit'">Edit</button>
+      <button type="button"
+              hx-post="{% url 'medinfo:remove' enquiry.pk %}"
+              hx-target="#enquiry-{{ enquiry.pk }}"
+              hx-swap="outerHTML"
+              hx-confirm="Remove this enquiry? This cannot be undone."
+              @click.stop
+              style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--coral-soft);background:var(--surface);color:var(--coral);cursor:pointer;font-weight:500">
+        Remove
+      </button>
       <a href="{% url 'medinfo:detail' enquiry.pk %}"
          style="font-size:11px;color:var(--euc);text-decoration:none" x-show="!editing">Respond →</a>
     </div>

@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.accounts.decorators import role_required
+from apps.accounts.models import User
 from apps.audit.helpers import log_action
 from apps.audit.models import AuditLog
 from apps.literature.models import Paper
@@ -126,58 +128,17 @@ def claims_panel(request, paper_pk):
 @login_required
 @require_POST
 def run_extraction(request, paper_pk):
-    """Run AI claim extraction synchronously and return the populated claims panel."""
+    """Dispatch AI claim extraction as a background task and return the processing indicator."""
+    from django.core.cache import cache
+    from .tasks import extract_claims_task
+
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
-
-    from .services.extraction import extract_claims as _extract
-
-    try:
-        claims_data = _extract(paper)
-
-        CoreClaim.all_objects.filter(paper=paper, status=CoreClaim.Status.AI_DRAFT).delete()
-
-        CoreClaim.all_objects.bulk_create([
-            CoreClaim(
-                tenant=request.tenant,
-                paper=paper,
-                commercial_headline=c.get("commercial_headline", ""),
-                claim_text=c.get("claim_text", ""),
-                endpoint_type=c.get("endpoint_type", CoreClaim.EndpointType.OTHER),
-                source_passage=c.get("source_passage", ""),
-                source_reference=c.get("source_reference", ""),
-                fair_balance=c.get("fair_balance", ""),
-                fair_balance_reference=c.get("fair_balance_reference", ""),
-                fidelity_checklist=c.get("fidelity_checklist", {}),
-                status=CoreClaim.Status.AI_DRAFT,
-                ai_generated=True,
-            )
-            for c in claims_data
-        ])
-
-        log_action(request, paper, AuditLog.Action.AI_DRAFT,
-                   after={"claims_extracted": len(claims_data)})
-
-    except Exception as exc:
-        logger.error("Claim extraction failed for paper %s: %s", paper_pk, exc)
-        claims = list(CoreClaim.all_objects.filter(paper=paper, deleted_at__isnull=True))
-        approved_count = sum(1 for c in claims if c.status == CoreClaim.Status.APPROVED)
-        return render(request, "claims/partials/claims_panel.html", {
-            "paper": paper,
-            "claims": claims,
-            "approved_count": approved_count,
-            "error": str(exc),
-        })
-
-    claims = list(CoreClaim.all_objects.filter(paper=paper, deleted_at__isnull=True))
-    approved_count = sum(1 for c in claims if c.status == CoreClaim.Status.APPROVED)
-    return render(request, "claims/partials/claims_panel.html", {
-        "paper": paper,
-        "claims": claims,
-        "approved_count": approved_count,
-    })
+    task = extract_claims_task.delay(paper.pk, request.tenant.pk)
+    cache.set(f"ai_claims_task:{paper_pk}", task.id, timeout=3600)
+    return render(request, "claims/partials/ai_processing.html", {"paper": paper})
 
 
-@login_required
+@role_required(User.Role.MEDICAL_AFFAIRS, User.Role.MEDICAL_LEAD, User.Role.ADMIN, User.Role.EDITOR)
 @require_POST
 def approve_claim(request, claim_pk):
     """Approve a claim — advances paper to CLAIMS_GENERATED if first approval."""
@@ -208,20 +169,26 @@ def approve_claim(request, claim_pk):
     return render(request, tmpl, {"claim": claim})
 
 
-@login_required
+@role_required(User.Role.MEDICAL_AFFAIRS, User.Role.MEDICAL_LEAD, User.Role.ADMIN, User.Role.EDITOR)
 @require_POST
 def reject_claim(request, claim_pk):
-    """Soft-delete a claim immediately — no reason required."""
+    """Reject a claim with a mandatory reason. Returns 200 with unchanged claim if reason is empty."""
     claim = get_object_or_404(CoreClaim.all_objects, pk=claim_pk, tenant=request.tenant)
+    data = json.loads(request.body) if request.body else {}
+    reason = data.get("reason", "").strip()
+
+    if not reason:
+        return render(request, "claims/partials/claim_card.html", {"claim": claim})
+
     before = {"status": claim.status}
-    claim.deleted_at = timezone.now()
     claim.status = CoreClaim.Status.REJECTED
+    claim.rejection_reason = reason
     claim.reviewed_by = request.user
     claim.reviewed_at = timezone.now()
-    claim.save(update_fields=["deleted_at", "status", "reviewed_by", "reviewed_at", "updated_at"])
+    claim.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at", "updated_at"])
     log_action(request, claim, AuditLog.Action.REJECT,
-               before=before, after={"status": claim.status})
-    return HttpResponse("")
+               before=before, after={"status": claim.status, "reason": reason[:200]})
+    return render(request, "claims/partials/claim_card.html", {"claim": claim})
 
 
 @login_required

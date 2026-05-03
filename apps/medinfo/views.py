@@ -90,17 +90,20 @@ def _analyse_enquiry_trends(enquiries_qs):
 @login_required
 def enquiry_stats(request):
     """Lightweight partial returning just the stat counts — used by the auto-refresh mechanism."""
+    base = Enquiry.objects.filter(tenant=request.tenant)
     counts = {
-        "open": Enquiry.objects.filter(status=Enquiry.Status.OPEN).count(),
-        "draft": Enquiry.objects.filter(status=Enquiry.Status.DRAFT).count(),
-        "responded": Enquiry.objects.filter(status=Enquiry.Status.RESPONDED).count(),
+        "open": base.filter(status=Enquiry.Status.OPEN).count(),
+        "draft": base.filter(status=Enquiry.Status.DRAFT).count(),
+        "responded": base.filter(status=Enquiry.Status.RESPONDED).count(),
     }
     return render(request, "medinfo/partials/enquiry_stats.html", {"counts": counts})
 
 
 @login_required
 def enquiry_list(request):
-    enquiries = Enquiry.objects.select_related("created_by", "assigned_to")
+    enquiries = Enquiry.objects.filter(tenant=request.tenant).select_related("created_by", "assigned_to")
+    if request.session.get("view_mode") == "personal":
+        enquiries = enquiries.filter(created_by=request.user)
     status_filter = request.GET.get("status", "")
     q = request.GET.get("q", "").strip()
     if status_filter:
@@ -111,13 +114,13 @@ def enquiry_list(request):
     if request.headers.get("HX-Request"):
         return render(request, "medinfo/partials/enquiry_list_inner.html", {"enquiries": enquiries})
 
+    base = Enquiry.objects.filter(tenant=request.tenant)
     counts = {
-        "open": Enquiry.objects.filter(status=Enquiry.Status.OPEN).count(),
-        "draft": Enquiry.objects.filter(status=Enquiry.Status.DRAFT).count(),
-        "responded": Enquiry.objects.filter(status=Enquiry.Status.RESPONDED).count(),
+        "open": base.filter(status=Enquiry.Status.OPEN).count(),
+        "draft": base.filter(status=Enquiry.Status.DRAFT).count(),
+        "responded": base.filter(status=Enquiry.Status.RESPONDED).count(),
     }
-    all_enquiries = Enquiry.objects.all()
-    top_topics, trending = _analyse_enquiry_trends(all_enquiries)
+    top_topics, trending = _analyse_enquiry_trends(base)
     max_topic_count = top_topics[0][1] if top_topics else 1
     return render(request, "medinfo/enquiry_list.html", {
         "enquiries": enquiries,
@@ -204,3 +207,13 @@ def close_enquiry(request, enquiry_pk):
     enquiry.save(update_fields=["status", "updated_at"])
     log_action(request, enquiry, AuditLog.Action.UPDATE, after={"status": enquiry.status})
     return render(request, "medinfo/partials/enquiry_card.html", {"enquiry": enquiry, "source_choices": Enquiry.Source.choices})
+
+
+@login_required
+@require_POST
+def remove_enquiry(request, enquiry_pk):
+    enquiry = get_object_or_404(Enquiry, pk=enquiry_pk, tenant=request.tenant)
+    log_action(request, enquiry, AuditLog.Action.DELETE, before={"question": enquiry.question[:80]})
+    enquiry.delete()
+    from django.http import HttpResponse
+    return HttpResponse("")

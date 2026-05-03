@@ -1,7 +1,27 @@
-{% for oe in other_events %}
+{% if upcoming_other_events or past_other_events %}
+
+{% if upcoming_other_events %}
+<div style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--euc);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #CFDAD0">
+  Upcoming <span style="font-family:var(--mono);font-weight:400;color:var(--muted)">{{ upcoming_other_events|length }}</span>
+</div>
+{% for oe in upcoming_other_events %}
   {% include "engagement/partials/other_event_card.html" with oe=oe kol_choices=kol_choices %}
-{% empty %}
+{% endfor %}
+{% endif %}
+
+{% if past_other_events %}
+<div style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:{% if upcoming_other_events %}20px{% else %}0{% endif %};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line)">
+  Past <span style="font-family:var(--mono);font-weight:400">{{ past_other_events|length }}</span>
+</div>
+<div style="opacity:.7">
+{% for oe in past_other_events %}
+  {% include "engagement/partials/other_event_card.html" with oe=oe kol_choices=kol_choices %}
+{% endfor %}
+</div>
+{% endif %}
+
+{% else %}
 <div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
   <div style="font-size:13px;color:var(--muted)">No other events yet.</div>
 </div>
-{% endfor %}
+{% endif %}

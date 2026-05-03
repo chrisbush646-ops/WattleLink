@@ -12,7 +12,16 @@ from apps.audit.models import AuditLog
 from apps.kol.models import KOL
 from apps.literature.models import Paper
 
+from django.utils import timezone
+
 from .models import AdvisoryBoard, Conference, OtherEvent, RoundTable
+
+
+def _split_by_date(qs, date_field="date"):
+    today = timezone.localdate()
+    upcoming = qs.filter(**{f"{date_field}__gte": today}).order_by(date_field)
+    past = qs.filter(**{f"{date_field}__lt": today}).order_by(f"-{date_field}")
+    return upcoming, past
 
 _MODEL_MAP = {
     'conference': Conference,
@@ -55,10 +64,18 @@ def _kol_choices(request):
 
 @login_required
 def engagement_list(request):
-    conferences = Conference.objects.prefetch_related("kols", "papers")
-    round_tables = RoundTable.objects.prefetch_related("kols")
-    advisory_boards = AdvisoryBoard.objects.prefetch_related("kols")
-    other_events = OtherEvent.objects.prefetch_related("kols")
+    private = request.session.get("view_mode") == "personal"
+    _user_filter = {"created_by": request.user} if private else {}
+    q = request.GET.get("q", "").strip()
+    conferences = Conference.objects.filter(**_user_filter).select_related("created_by").prefetch_related("kols", "papers")
+    round_tables = RoundTable.objects.filter(**_user_filter).select_related("created_by").prefetch_related("kols")
+    advisory_boards = AdvisoryBoard.objects.filter(**_user_filter).select_related("created_by").prefetch_related("kols")
+    other_events = OtherEvent.objects.filter(**_user_filter).select_related("created_by").prefetch_related("kols")
+    if q:
+        conferences = conferences.filter(name__icontains=q)
+        round_tables = round_tables.filter(name__icontains=q)
+        advisory_boards = advisory_boards.filter(name__icontains=q)
+        other_events = other_events.filter(name__icontains=q)
 
     conf_events = [
         {'date': c.start_date.isoformat(), 'end_date': c.end_date.isoformat() if c.end_date else None, 'name': c.name, 'type': 'conference'}
@@ -85,11 +102,20 @@ def engagement_list(request):
         ("other", "Other Events", other_events.count()),
     ]
 
+    upcoming_conferences, past_conferences = _split_by_date(conferences, "start_date")
+    upcoming_round_tables, past_round_tables = _split_by_date(round_tables)
+    upcoming_advisory_boards, past_advisory_boards = _split_by_date(advisory_boards)
+    upcoming_other_events, past_other_events = _split_by_date(other_events)
+
     return render(request, "engagement/engagement_list.html", {
-        "conferences": conferences,
-        "round_tables": round_tables,
-        "advisory_boards": advisory_boards,
-        "other_events": other_events,
+        "upcoming_conferences": upcoming_conferences,
+        "past_conferences": past_conferences,
+        "upcoming_round_tables": upcoming_round_tables,
+        "past_round_tables": past_round_tables,
+        "upcoming_advisory_boards": upcoming_advisory_boards,
+        "past_advisory_boards": past_advisory_boards,
+        "upcoming_other_events": upcoming_other_events,
+        "past_other_events": past_other_events,
         "conf_status_choices": Conference.Status.choices,
         "conf_events_json": json.dumps(conf_events),
         "rt_events_json": json.dumps(rt_events),
@@ -98,6 +124,7 @@ def engagement_list(request):
         "active_tab": active_tab,
         "tab_items": tab_items,
         "kol_choices": _kol_choices(request),
+        "q": q,
     })
 
 
@@ -123,10 +150,11 @@ def suggest_conferences(request):
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1200,
-            system=(
+            temperature=0,
+            system=[{"type": "text", "text": (
                 "You are a medical affairs assistant. Suggest relevant medical conferences "
                 "for an Australian pharmaceutical MSL team. Return only valid JSON, no markdown."
-            ),
+            ), "cache_control": {"type": "ephemeral"}}],
             messages=[{
                 "role": "user",
                 "content": (
@@ -174,8 +202,12 @@ def create_conference(request):
     )
     log_action(request, conf, AuditLog.Action.CREATE, after={"name": conf.name})
     conferences = Conference.objects.prefetch_related("kols", "papers")
-    return render(request, "engagement/partials/conference_list_inner.html",
-                  {"conferences": conferences, "kol_choices": _kol_choices(request)})
+    upcoming_conferences, past_conferences = _split_by_date(conferences, "start_date")
+    return render(request, "engagement/partials/conference_list_inner.html", {
+        "upcoming_conferences": upcoming_conferences,
+        "past_conferences": past_conferences,
+        "kol_choices": _kol_choices(request),
+    })
 
 
 @login_required
@@ -187,10 +219,69 @@ def update_conference(request, conf_pk):
     conf.location = data.get("location", conf.location)
     conf.status = data.get("status", conf.status)
     conf.notes = data.get("notes", conf.notes)
+    if data.get("start_date"):
+        conf.start_date = data["start_date"]
+    if "end_date" in data:
+        conf.end_date = data["end_date"] or None
     conf.save()
-    log_action(request, conf, AuditLog.Action.UPDATE, after={"status": conf.status})
+    log_action(request, conf, AuditLog.Action.UPDATE, after={"name": conf.name, "status": conf.status})
     return render(request, "engagement/partials/conference_card.html",
                   {"conf": conf, "kol_choices": _kol_choices(request)})
+
+
+@login_required
+@require_POST
+def update_round_table(request, rt_pk):
+    rt = get_object_or_404(RoundTable, pk=rt_pk, tenant=request.tenant)
+    data = json.loads(request.body)
+    rt.name = data.get("name", rt.name)
+    rt.location = data.get("location", rt.location)
+    rt.notes = data.get("notes", rt.notes)
+    if data.get("date"):
+        rt.date = data["date"]
+    themes_raw = data.get("themes_raw")
+    if themes_raw is not None:
+        rt.discussion_themes = [t.strip() for t in themes_raw.split(",") if t.strip()]
+    rt.save()
+    log_action(request, rt, AuditLog.Action.UPDATE, after={"name": rt.name})
+    return render(request, "engagement/partials/round_table_card.html",
+                  {"rt": rt, "kol_choices": _kol_choices(request)})
+
+
+@login_required
+@require_POST
+def update_advisory_board(request, ab_pk):
+    ab = get_object_or_404(AdvisoryBoard, pk=ab_pk, tenant=request.tenant)
+    data = json.loads(request.body)
+    ab.name = data.get("name", ab.name)
+    ab.location = data.get("location", ab.location)
+    ab.notes = data.get("notes", ab.notes)
+    if data.get("date"):
+        ab.date = data["date"]
+    agenda_raw = data.get("agenda_raw")
+    if agenda_raw is not None:
+        ab.agenda_items = [t.strip() for t in agenda_raw.split(",") if t.strip()]
+    ab.save()
+    log_action(request, ab, AuditLog.Action.UPDATE, after={"name": ab.name})
+    return render(request, "engagement/partials/advisory_board_card.html",
+                  {"ab": ab, "kol_choices": _kol_choices(request)})
+
+
+@login_required
+@require_POST
+def update_other_event(request, oe_pk):
+    oe = get_object_or_404(OtherEvent, pk=oe_pk, tenant=request.tenant)
+    data = json.loads(request.body)
+    oe.name = data.get("name", oe.name)
+    oe.location = data.get("location", oe.location)
+    oe.event_type = data.get("event_type", oe.event_type)
+    oe.notes = data.get("notes", oe.notes)
+    if data.get("date"):
+        oe.date = data["date"]
+    oe.save()
+    log_action(request, oe, AuditLog.Action.UPDATE, after={"name": oe.name})
+    return render(request, "engagement/partials/other_event_card.html",
+                  {"oe": oe, "kol_choices": _kol_choices(request)})
 
 
 @login_required
@@ -213,8 +304,12 @@ def create_round_table(request):
     )
     log_action(request, rt, AuditLog.Action.CREATE, after={"name": rt.name})
     round_tables = RoundTable.objects.prefetch_related("kols")
-    return render(request, "engagement/partials/round_table_list_inner.html",
-                  {"round_tables": round_tables, "kol_choices": _kol_choices(request)})
+    upcoming_round_tables, past_round_tables = _split_by_date(round_tables)
+    return render(request, "engagement/partials/round_table_list_inner.html", {
+        "upcoming_round_tables": upcoming_round_tables,
+        "past_round_tables": past_round_tables,
+        "kol_choices": _kol_choices(request),
+    })
 
 
 @login_required
@@ -237,8 +332,12 @@ def create_advisory_board(request):
     )
     log_action(request, ab, AuditLog.Action.CREATE, after={"name": ab.name})
     advisory_boards = AdvisoryBoard.objects.prefetch_related("kols")
-    return render(request, "engagement/partials/advisory_board_list_inner.html",
-                  {"advisory_boards": advisory_boards, "kol_choices": _kol_choices(request)})
+    upcoming_advisory_boards, past_advisory_boards = _split_by_date(advisory_boards)
+    return render(request, "engagement/partials/advisory_board_list_inner.html", {
+        "upcoming_advisory_boards": upcoming_advisory_boards,
+        "past_advisory_boards": past_advisory_boards,
+        "kol_choices": _kol_choices(request),
+    })
 
 
 @login_required
@@ -261,8 +360,12 @@ def create_other_event(request):
     )
     log_action(request, oe, AuditLog.Action.CREATE, after={"name": oe.name})
     other_events = OtherEvent.objects.prefetch_related("kols")
-    return render(request, "engagement/partials/other_event_list_inner.html",
-                  {"other_events": other_events, "kol_choices": _kol_choices(request)})
+    upcoming_other_events, past_other_events = _split_by_date(other_events)
+    return render(request, "engagement/partials/other_event_list_inner.html", {
+        "upcoming_other_events": upcoming_other_events,
+        "past_other_events": past_other_events,
+        "kol_choices": _kol_choices(request),
+    })
 
 
 @login_required
@@ -275,6 +378,8 @@ def add_kol_to_event(request, event_type, event_pk):
     data = json.loads(request.body)
     kol = get_object_or_404(KOL, pk=data.get("kol_pk"), tenant=request.tenant)
     event.kols.add(kol)
+    log_action(request, event, AuditLog.Action.UPDATE,
+               after={"added_kol_pk": kol.pk, "kol_name": kol.name})
     ctx_key = _CARD_CTX_KEY[event_type]
     return render(request, _CARD_TEMPLATE_MAP[event_type],
                   {ctx_key: event, "kol_choices": _kol_choices(request)})
@@ -289,6 +394,8 @@ def remove_kol_from_event(request, event_type, event_pk, kol_pk):
     event = get_object_or_404(model, pk=event_pk, tenant=request.tenant)
     kol = get_object_or_404(KOL, pk=kol_pk, tenant=request.tenant)
     event.kols.remove(kol)
+    log_action(request, event, AuditLog.Action.UPDATE,
+               before={"removed_kol_pk": kol.pk, "kol_name": kol.name})
     ctx_key = _CARD_CTX_KEY[event_type]
     return render(request, _CARD_TEMPLATE_MAP[event_type],
                   {ctx_key: event, "kol_choices": _kol_choices(request)})

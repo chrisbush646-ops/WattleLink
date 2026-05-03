@@ -84,16 +84,48 @@
 
   <!-- Filter bar -->
   <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500">Status</span>
-      <a href="?" hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+    <!-- KOL Type filter row -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Type</span>
+      <a href="?{% if status_filter %}status={{ status_filter }}&{% endif %}{% if q %}q={{ q }}&{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
+         {% if not type_filter %}background:var(--ink);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        All
+      </a>
+      <a href="?type=PHYSICIAN{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
+         {% if type_filter == 'PHYSICIAN' %}background:var(--muted);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        Physician
+      </a>
+      <a href="?type=RESEARCH{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
+         {% if type_filter == 'RESEARCH' %}background:var(--sky);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        Research
+      </a>
+      <a href="?type=BOTH{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
+         {% if type_filter == 'BOTH' %}background:var(--coral);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
+        Research &amp; Physician
+      </a>
+    </div>
+
+    <!-- Status filter row -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;width:38px;flex-shrink:0">Status</span>
+      <a href="?{% if type_filter %}type={{ type_filter }}&{% endif %}{% if q %}q={{ q }}&{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
          {% if not status_filter %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
         All
       </a>
       {% for val, label in status_choices %}
-      <a href="?status={{ val }}" hx-get="{% url 'kol:list' %}?status={{ val }}" hx-target="#kol-list-inner" hx-include="#kol-filters"
-         style="font-size:11px;padding:3px 10px;border-radius:20px;text-decoration:none;
+      <a href="?status={{ val }}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+         hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+         style="font-size:11px;padding:3px 11px;border-radius:20px;text-decoration:none;
          {% if status_filter == val %}background:var(--euc);color:#fff{% else %}background:var(--paper-warm);color:var(--muted);border:1px solid var(--line){% endif %}">
         {{ label }}
       </a>
@@ -104,27 +136,36 @@
     <!-- Search inputs -->
     <form id="kol-filters" style="display:flex;gap:8px;flex-wrap:wrap">
       <input type="hidden" name="status" value="{{ status_filter }}">
-      <div style="position:relative;flex:1;min-width:160px">
+      <input type="hidden" name="type" value="{{ type_filter }}">
+      <div style="position:relative;flex:2;min-width:200px">
+        <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input name="q" value="{{ q }}"
+               placeholder="Search by name, specialty, institution…"
+               hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
+               hx-trigger="keyup changed delay:350ms"
+               style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
+      </div>
+      <div style="position:relative;flex:1;min-width:140px">
         <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
         <input name="location" value="{{ location_filter }}"
-               placeholder="Location or state…"
+               placeholder="Location…"
                hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
                hx-trigger="keyup changed delay:350ms"
                style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
       </div>
-      <div style="position:relative;flex:1;min-width:160px">
+      <div style="position:relative;flex:1;min-width:140px">
         <svg style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/></svg>
         <input name="specialty" value="{{ specialty_filter }}"
-               placeholder="Specialty or area…"
+               placeholder="Specialty…"
                hx-get="{% url 'kol:list' %}" hx-target="#kol-list-inner" hx-include="#kol-filters"
                hx-trigger="keyup changed delay:350ms"
                style="width:100%;font-size:12px;padding:6px 10px 6px 26px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-warm)">
       </div>
-      {% if location_filter or specialty_filter or tier_filter %}
+      {% if q or location_filter or specialty_filter or tier_filter %}
       <button type="button"
               hx-get="{% url 'kol:list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}"
               hx-target="#kol-list-inner"
-              @click="document.querySelectorAll('#kol-filters input[name=location], #kol-filters input[name=specialty], #kol-filters select[name=tier]').forEach(el => el.value = '')"
+              @click="document.querySelectorAll('#kol-filters input[name=q], #kol-filters input[name=location], #kol-filters input[name=specialty], #kol-filters select[name=tier]').forEach(el => el.value = '')"
               style="font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap">
         Clear filters
       </button>
@@ -138,8 +179,11 @@
     <div style="font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Add KOL</div>
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <input x-model="form.name" placeholder="Full name *" style="flex:2;font-size:13px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
-      <select x-model="form.tier" style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+      <select x-model="form.tier" style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
         {% for t in tier_range %}<option value="{{ t }}">Tier {{ t }}</option>{% endfor %}
+      </select>
+      <select x-model="form.kol_type" style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:7px 10px;background:var(--surface)">
+        {% for val, label in kol_type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -156,11 +200,67 @@
   <div id="kol-list-inner">
     {% include "kol/partials/kol_list_inner.html" with kols=kols tier_range=tier_range status_choices=status_choices %}
   </div>
+
+  <!-- Removed KOLs -->
+  {% if deleted_kols %}
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--line);border-radius:10px"
+       x-data="{ open: false }">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer" @click="open=!open">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--muted);flex-shrink:0"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      <span style="font-size:12px;font-weight:600;color:var(--muted)">Removed KOLs</span>
+      <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(0,0,0,.06);color:var(--muted);font-weight:500">{{ deleted_kols|length }}</span>
+      <div style="flex:1"></div>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);transition:transform .2s" :style="open ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div x-show="open" x-transition style="padding:0 16px 16px;border-top:1px solid var(--line)">
+      <p style="font-size:11.5px;color:var(--muted);margin:10px 0 12px;line-height:1.5">KOLs that have been removed. Restore to return them to the directory, or delete permanently to remove all records.</p>
+      {% for kol in deleted_kols %}
+      <div id="removed-kol-{{ kol.pk }}"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--paper-warm);border:1px solid var(--line);border-radius:var(--r);margin-bottom:6px">
+        <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;background:rgba(0,0,0,.06);color:var(--muted);border:1px solid var(--line)">
+          T{{ kol.tier }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--muted);font-family:var(--serif)">{{ kol.name }}</div>
+          <div style="font-size:11px;color:var(--muted)">
+            {% if kol.institution %}{{ kol.institution }}{% endif %}
+            {% if kol.specialty %} · {{ kol.specialty }}{% endif %}
+            {% if kol.deleted_at %} · Removed {{ kol.deleted_at|date:"j M Y" }}{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button
+            hx-post="{% url 'kol:restore_kol' kol.pk %}"
+            hx-target="#removed-kol-{{ kol.pk }}"
+            hx-swap="outerHTML"
+            style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500">
+            Restore
+          </button>
+          <button
+            hx-post="{% url 'kol:permanently_delete_kol' kol.pk %}"
+            hx-target="#removed-kol-{{ kol.pk }}"
+            hx-swap="outerHTML"
+            hx-confirm="Permanently delete {{ kol.name }}? This cannot be undone."
+            style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid #E8C8C0;background:#FEF7F5;color:var(--coral);cursor:pointer;font-weight:500">
+            Delete Permanently
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
 <script>
+const KOL_URLS = {
+  candidateList: '{% url "kol:candidates" %}',
+  createKol: '{% url "kol:create" %}',
+};
+
 function kolTabSwitch(tab) {
-  fetch('/kol/candidates/?tab=' + tab)
+  fetch(KOL_URLS.candidateList + '?tab=' + tab)
     .then(r => r.text())
     .then(html => {
       const el = document.getElementById('kol-candidates-container');
@@ -171,17 +271,17 @@ function kolTabSwitch(tab) {
 function kolListPage() {
   return {
     showCreate: false,
-    form: { name: '', tier: 3, institution: '', specialty: '', bio: '' },
+    form: { name: '', tier: 3, kol_type: 'PHYSICIAN', institution: '', specialty: '', bio: '' },
     createKol() {
       if (!this.form.name.trim()) return;
-      fetch('/kol/create/', {
+      fetch(KOL_URLS.createKol, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
         body: JSON.stringify(this.form),
       }).then(r => r.text()).then(html => {
         document.getElementById('kol-list-inner').innerHTML = html;
         this.showCreate = false;
-        this.form = { name: '', tier: 3, institution: '', specialty: '', bio: '' };
+        this.form = { name: '', tier: 3, kol_type: 'PHYSICIAN', institution: '', specialty: '', bio: '' };
       });
     },
   };

@@ -40,9 +40,9 @@ LOCAL_APPS = [
     "apps.kol",
     "apps.medinfo",
     "apps.engagement",
-    "apps.export",
     "apps.drafting",
     "apps.aisearch",
+    "apps.ai",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -142,6 +142,8 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_SOFT_TIME_LIMIT = 300   # 5 min soft limit — task gets SoftTimeLimitExceeded
+CELERY_TASK_TIME_LIMIT = 360        # 6 min hard kill
 
 # Cache
 CACHES = {

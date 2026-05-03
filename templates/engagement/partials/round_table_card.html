@@ -1,16 +1,59 @@
 <div id="roundtable-card-{{ rt.pk }}"
+     x-data="{showEdit:false}"
      style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px">
-  <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px">{{ rt.name }}</div>
-  <div style="font-size:11.5px;color:var(--muted)">
-    {{ rt.date|date:"d M Y" }}{% if rt.location %} · {{ rt.location }}{% endif %}
+
+  <!-- View mode -->
+  <div x-show="!showEdit">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:3px">
+      <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ rt.name }}</div>
+      <button type="button" @click="showEdit=true"
+              style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:3px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted)">
+      {{ rt.date|date:"d M Y" }}{% if rt.location %} · {{ rt.location }}{% endif %}
+    </div>
+    {% if view_mode == 'team' and rt.created_by %}
+    <div style="font-size:10.5px;color:var(--muted-soft);margin-top:3px;display:flex;align-items:center;gap:3px">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {{ rt.created_by.get_full_name|default:rt.created_by.email }}
+    </div>
+    {% endif %}
+    {% if rt.discussion_themes %}
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">
+      {% for theme in rt.discussion_themes %}
+      <span style="font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--paper-warm);border:1px solid var(--line-soft);color:var(--ink-soft)">{{ theme }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
-  {% if rt.discussion_themes %}
-  <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">
-    {% for theme in rt.discussion_themes %}
-    <span style="font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--paper-warm);border:1px solid var(--line-soft);color:var(--ink-soft)">{{ theme }}</span>
-    {% endfor %}
+
+  <!-- Edit form -->
+  <div x-show="showEdit" style="display:none">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Edit Round Table</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">
+      <input id="edit-rt-name-{{ rt.pk }}" value="{{ rt.name }}"
+             placeholder="Meeting name *"
+             style="font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <div style="display:flex;gap:6px">
+        <input id="edit-rt-date-{{ rt.pk }}" value="{{ rt.date|date:'Y-m-d' }}" type="date"
+               style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+        <input id="edit-rt-location-{{ rt.pk }}" value="{{ rt.location }}"
+               placeholder="Location"
+               style="flex:1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      </div>
+      <input id="edit-rt-themes-{{ rt.pk }}" value="{{ rt.discussion_themes|join:', ' }}"
+             placeholder="Discussion themes (comma-separated)"
+             style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" onclick="updateRoundTable({{ rt.pk }})" @click="showEdit=false" class="btn btn-p btn-sm">Save</button>
+      <button type="button" @click="showEdit=false" class="btn btn-g btn-sm">Cancel</button>
+    </div>
   </div>
-  {% endif %}
+
   <!-- KOLs section -->
   <div x-data="{showKolAdd:false,kolPk:''}" style="margin-top:8px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">

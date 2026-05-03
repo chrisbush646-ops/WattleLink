@@ -67,12 +67,28 @@ def _render_candidate_list(request, tab="pending", toast=None):
 
 @login_required
 def kol_list(request):
+    private = request.session.get("view_mode") == "personal"
     kols = KOL.objects.select_related("created_by").prefetch_related("paper_links")
+    if private:
+        kols = kols.filter(created_by=request.user)
+    q = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "")
+    type_filter = request.GET.get("type", "")
     tier_filter = request.GET.get("tier", "")
     location_filter = request.GET.get("location", "").strip()
     specialty_filter = request.GET.get("specialty", "").strip()
 
+    if q:
+        from django.db.models import Q as _Q
+        kols = kols.filter(
+            _Q(name__icontains=q) |
+            _Q(specialty__icontains=q) |
+            _Q(institution__icontains=q) |
+            _Q(location__icontains=q) |
+            _Q(bio__icontains=q)
+        )
+    if type_filter:
+        kols = kols.filter(kol_type=type_filter)
     if status_filter:
         kols = kols.filter(status=status_filter)
     if tier_filter:
@@ -85,6 +101,7 @@ def kol_list(request):
     pending_candidates = _candidate_list_ctx(request)
     candidate_counts = _candidate_counts(request)
     total_candidate_count = sum(candidate_counts.values())
+    deleted_kols = KOL.all_objects.filter(tenant=request.tenant, deleted_at__isnull=False).order_by("-deleted_at")
 
     ctx = {
         "kols": kols,
@@ -92,11 +109,15 @@ def kol_list(request):
         "pending_count": candidate_counts["pending"],
         "candidate_counts": candidate_counts,
         "total_candidate_count": total_candidate_count,
+        "deleted_kols": deleted_kols,
+        "q": q,
         "status_filter": status_filter,
+        "type_filter": type_filter,
         "tier_filter": tier_filter,
         "location_filter": location_filter,
         "specialty_filter": specialty_filter,
         "status_choices": KOL.Status.choices,
+        "kol_type_choices": KOL.KolType.choices,
         "tier_range": range(1, 6),
     }
 
@@ -109,12 +130,15 @@ def kol_list(request):
 def kol_directory(request):
     """Accepted KOLs directory — no AI panels, full tier/status/location filtering."""
     kols = KOL.objects.select_related("created_by").prefetch_related("paper_links")
-    status_filter = request.GET.get("status", "")
-    tier_filter   = request.GET.get("tier", "")
+    status_filter    = request.GET.get("status", "")
+    type_filter      = request.GET.get("type", "")
+    tier_filter      = request.GET.get("tier", "")
     location_filter  = request.GET.get("location", "").strip()
     specialty_filter = request.GET.get("specialty", "").strip()
     search_filter    = request.GET.get("q", "").strip()
 
+    if type_filter:
+        kols = kols.filter(kol_type=type_filter)
     if status_filter:
         kols = kols.filter(status=status_filter)
     if tier_filter:
@@ -126,8 +150,6 @@ def kol_directory(request):
     if search_filter:
         kols = kols.filter(name__icontains=search_filter)
 
-    # Tier counts for KPI bar
-    from django.db.models import Count
     tier_counts = {
         i: KOL.objects.filter(tenant=request.tenant, tier=i).count()
         for i in range(1, 6)
@@ -136,11 +158,13 @@ def kol_directory(request):
     ctx = {
         "kols": kols,
         "status_filter": status_filter,
+        "type_filter": type_filter,
         "tier_filter": tier_filter,
         "location_filter": location_filter,
         "specialty_filter": specialty_filter,
         "search_filter": search_filter,
         "status_choices": KOL.Status.choices,
+        "kol_type_choices": KOL.KolType.choices,
         "tier_range": range(1, 6),
         "tier_counts": tier_counts,
         "total_kols": KOL.objects.filter(tenant=request.tenant).count(),
@@ -182,6 +206,9 @@ def create_kol(request):
     if not name:
         return render(request, "kol/partials/kol_form_error.html", {"error": "Name is required."})
 
+    kol_type = data.get("kol_type", KOL.KolType.PHYSICIAN)
+    if kol_type not in KOL.KolType.values:
+        kol_type = KOL.KolType.PHYSICIAN
     kol = KOL.objects.create(
         tenant=request.tenant,
         name=name,
@@ -190,6 +217,7 @@ def create_kol(request):
         tier=int(data.get("tier", 3)),
         location=data.get("location", ""),
         bio=data.get("bio", ""),
+        kol_type=kol_type,
         status=KOL.Status.CANDIDATE,
         created_by=request.user,
     )
@@ -199,6 +227,7 @@ def create_kol(request):
         "kols": kols,
         "tier_range": range(1, 6),
         "status_choices": KOL.Status.choices,
+        "kol_type_choices": KOL.KolType.choices,
     })
 
 
@@ -280,9 +309,11 @@ def delete_kol(request, kol_pk):
 def update_kol(request, kol_pk):
     kol = get_object_or_404(KOL, pk=kol_pk, tenant=request.tenant)
     data = json.loads(request.body)
-    before = {"status": kol.status, "tier": kol.tier}
+    before = {"status": kol.status, "tier": kol.tier, "kol_type": kol.kol_type}
     kol.status = data.get("status", kol.status)
     kol.tier = int(data.get("tier", kol.tier))
+    kol_type = data.get("kol_type", kol.kol_type)
+    kol.kol_type = kol_type if kol_type in KOL.KolType.values else kol.kol_type
     kol.institution = data.get("institution", kol.institution)
     kol.specialty = data.get("specialty", kol.specialty)
     kol.location = data.get("location", kol.location)
@@ -297,6 +328,7 @@ def update_kol(request, kol_pk):
         "kol": kol,
         "tier_range": range(1, 6),
         "status_choices": KOL.Status.choices,
+        "kol_type_choices": KOL.KolType.choices,
     })
 
 
@@ -364,13 +396,16 @@ def link_paper(request, kol_pk):
     if not paper_pk:
         return render(request, "kol/partials/kol_form_error.html", {"error": "Paper is required."})
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
-    KOLPaperLink.objects.get_or_create(
+    _, created = KOLPaperLink.objects.get_or_create(
         kol=kol, paper=paper,
         defaults={
             "relevance_note": data.get("relevance_note", ""),
             "is_author": data.get("is_author", False),
         },
     )
+    if created:
+        log_action(request, kol, AuditLog.Action.UPDATE,
+                   after={"linked_paper_pk": paper.pk, "paper_title": paper.title[:120]})
     paper_links = kol.paper_links.select_related("paper")
     return render(request, "kol/partials/paper_links_table.html", {
         "kol": kol, "paper_links": paper_links
@@ -382,7 +417,11 @@ def link_paper(request, kol_pk):
 def unlink_paper(request, link_pk):
     link = get_object_or_404(KOLPaperLink, pk=link_pk, kol__tenant=request.tenant)
     kol = link.kol
+    paper_title = link.paper.title[:120]
+    paper_pk = link.paper.pk
     link.delete()
+    log_action(request, kol, AuditLog.Action.UPDATE,
+               before={"unlinked_paper_pk": paper_pk, "paper_title": paper_title})
     paper_links = kol.paper_links.select_related("paper")
     return render(request, "kol/partials/paper_links_table.html", {
         "kol": kol, "paper_links": paper_links
@@ -392,69 +431,122 @@ def unlink_paper(request, link_pk):
 # ── KOL Talking Points ───────────────────────────────────────────────────────
 
 _TALKING_POINTS_SYSTEM = """You are an expert medical affairs strategist supporting MSLs (Medical Science Liaisons) in Australia.
-Your task is to generate specific, evidence-based talking points for an MSL meeting with a Key Opinion Leader (KOL).
+Your task is to generate specific, evidence-based talking points for an upcoming MSL meeting with a Key Opinion Leader (KOL).
 
-Each talking point must:
-- Be directly relevant to the KOL's research specialty and linked publications
-- Be a concrete, discussion-opening statement or question — not generic
-- Reference specific evidence where possible (study names, endpoints, mechanisms)
-- Be appropriate for a scientific exchange between peers (not promotional)
-- Be 1-3 sentences long
+## Priority order for source content
 
-Return ONLY a JSON object in this exact format:
+1. **Stored library papers (most recent first)** — cite these precisely with author, year, journal, and specific endpoint or finding.
+2. **Recent Australian developments you know about** — TGA approvals or safety updates, PBAC decisions, PBS listings/restrictions or delisting, RACGP/specialist college guideline updates, Australian conference presentations (COSA, CSANZ, ANZAN, RACP Congress, Endocrine Society of Australia ASM, ANZSN, ANZCHOG), recent Australian medical media (MJA, Australian Prescriber, NPS MedicineWise, Healthed, Australian Medical Observer, ABC Health, The Guardian Australia Health & Science).
+3. **Global landmark studies** directly relevant to this KOL's work — use as supporting context for an Australian discussion.
+
+## Rules for each talking point
+
+- Must be directly relevant to the KOL's research specialty and specific interests — NOT generic
+- Opens a scientific peer-to-peer discussion — NOT promotional in tone
+- References a specific data point, endpoint, mechanism, or Australian context
+- 1–3 sentences. Concrete and precise.
+- `source_note` must be specific: paper reference (Author et al., Journal, Year) OR Australian context description (e.g. "TGA approval Oct 2024", "PBAC November 2024 meeting", "MJA editorial March 2025", "CSANZ 2024 abstract")
+
+Return ONLY a JSON object in this exact format (no preamble, no text outside the JSON):
 {
   "talking_points": [
-    {"text": "...", "source_note": "Based on [paper/topic]"},
+    {"text": "...", "source_note": "..."},
     ...
   ]
 }
 
-Generate 6-8 talking points. No preamble, no explanation outside the JSON."""
+Generate 6–8 talking points. Lead with the most recent and topical ones first."""
 
 
 def _generate_talking_points_for_kol(kol, paper_links):
-    """Call Claude to generate talking points. Returns list of {text, source_note} dicts."""
+    """Generate talking points anchored to recent library papers and Australian context."""
     import anthropic
     import json as json_module
+    from datetime import date as date_type
     from django.conf import settings
 
     api_key = getattr(settings, "ANTHROPIC_API_KEY", "") or None
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY is not configured.")
 
-    papers_summary = ""
-    for link in paper_links[:8]:
+    # Sort linked papers most recent first
+    sorted_links = sorted(
+        paper_links,
+        key=lambda l: l.paper.published_date or date_type.min,
+        reverse=True,
+    )
+    linked_paper_ids = set()
+    linked_papers_text = ""
+    for link in sorted_links[:10]:
         p = link.paper
-        year = p.published_date.year if p.published_date else "n.d."
-        authors = ", ".join(p.authors[:2]) if isinstance(p.authors, list) else str(p.authors)
-        papers_summary += f"- {authors} ({year}). {p.title}. {p.journal}.\n"
+        linked_paper_ids.add(p.pk)
+        pub_date = p.published_date.strftime("%b %Y") if p.published_date else "n.d."
+        authors = ", ".join(p.authors[:3]) if isinstance(p.authors, list) else str(p.authors)
+        linked_papers_text += f"- [{pub_date}] {authors}. \"{p.title}\". {p.journal}."
         if link.is_author:
-            papers_summary += "  (KOL is an author on this paper)\n"
+            linked_papers_text += " ★ KOL IS AN AUTHOR ON THIS PAPER"
         if link.relevance_note:
-            papers_summary += f"  Relevance: {link.relevance_note}\n"
+            linked_papers_text += f" | Note: {link.relevance_note}"
+        linked_papers_text += "\n"
+
+    # Search the library for recent unlinked papers matching the KOL's specialty
+    recent_library_text = ""
+    terms = []
+    for field in [kol.specialty or "", kol.bio or ""]:
+        for t in field.replace(',', ' ').replace('/', ' ').split():
+            t = t.strip('.,;:()"\'').lower()
+            if len(t) > 3 and t not in {
+                'with', 'that', 'this', 'from', 'have', 'been', 'were', 'their',
+                'into', 'over', 'through', 'including', 'also', 'such', 'both',
+            }:
+                terms.append(t)
+        if len(terms) >= 8:
+            break
+
+    if terms:
+        from django.db.models import Q
+        q = Q()
+        for term in terms[:6]:
+            q |= Q(title__icontains=term) | Q(journal__icontains=term)
+        recent_papers = (
+            Paper.objects
+            .exclude(pk__in=linked_paper_ids)
+            .filter(q)
+            .order_by("-published_date")[:8]
+        )
+        for p in recent_papers:
+            pub_date = p.published_date.strftime("%b %Y") if p.published_date else "n.d."
+            authors = ", ".join(p.authors[:2]) if isinstance(p.authors, list) else str(p.authors)
+            recent_library_text += f"- [{pub_date}] {authors}. \"{p.title}\". {p.journal}.\n"
 
     user_message = f"""KOL Profile:
 Name: {kol.name}
 Institution: {kol.institution or 'Not specified'}
-Specialty: {kol.specialty or 'Not specified'}
+Specialty / Research area: {kol.specialty or 'Not specified'}
 Location: {kol.location or 'Not specified'}
-Tier: {kol.tier} (1=highest influence, 5=lowest)
-Bio: {kol.bio or 'Not provided'}
+Tier: {kol.tier} (1 = highest national influence, 5 = emerging)
+Bio / Expertise: {kol.bio or 'Not provided'}
 
-Linked Publications:
-{papers_summary if papers_summary else 'No linked papers yet.'}
+## Linked publications — sorted most recent first
+{linked_papers_text or 'None linked yet.'}
 
-Generate talking points for an MSL meeting with this KOL."""
+## Additional recent library papers matching their specialty — not yet linked
+{recent_library_text or 'None found.'}
+
+## Task
+Generate 6–8 talking points for an MSL meeting with this KOL.
+Lead with the most recent and topical content — prioritise papers from the last 24 months and any recent Australian regulatory, guideline, or media developments in their area.
+Draw on both the library papers above AND your knowledge of recent Australian developments (TGA, PBAC, Australian specialist college guidelines, Australian medical media) relevant to their specialty."""
 
     client = anthropic.Anthropic(api_key=api_key)
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=_TALKING_POINTS_SYSTEM,
+        max_tokens=3000,
+        temperature=0,
+        system=[{"type": "text", "text": _TALKING_POINTS_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
     )
     raw = response.content[0].text.strip()
-    # Strip markdown code fences if present
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
@@ -489,12 +581,14 @@ def save_talking_point(request, kol_pk):
     text = request.POST.get("text", "").strip()
     source_note = request.POST.get("source_note", "").strip()
     if text:
-        KOLTalkingPoint.objects.create(
+        tp = KOLTalkingPoint.objects.create(
             kol=kol,
             text=text,
             source_note=source_note,
             created_by=request.user,
         )
+        log_action(request, kol, AuditLog.Action.CREATE,
+                   after={"talking_point_pk": tp.pk, "text_preview": text[:100]})
     return render(request, "kol/partials/talking_points_saved.html", {
         "kol": kol,
         "talking_points": kol.talking_points.all(),
@@ -506,6 +600,8 @@ def save_talking_point(request, kol_pk):
 def delete_talking_point(request, tp_pk):
     tp = get_object_or_404(KOLTalkingPoint, pk=tp_pk, kol__tenant=request.tenant)
     kol = tp.kol
+    log_action(request, kol, AuditLog.Action.DELETE,
+               before={"talking_point_pk": tp.pk, "text_preview": tp.text[:100]})
     tp.delete()
     return render(request, "kol/partials/talking_points_saved.html", {
         "kol": kol,
@@ -598,6 +694,9 @@ def reject_candidate(request, candidate_pk):
     candidate.reviewed_at = timezone.now()
     candidate.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at"])
 
+    log_action(request, candidate, AuditLog.Action.UPDATE,
+               after={"status": "REJECTED", "reason": reason[:200] if reason else ""})
+
     return _render_candidate_list(request, tab="pending")
 
 
@@ -614,4 +713,46 @@ def hold_candidate(request, candidate_pk):
     candidate.reviewed_at = timezone.now()
     candidate.save(update_fields=["status", "hold_reason", "reviewed_by", "reviewed_at"])
 
+    log_action(request, candidate, AuditLog.Action.UPDATE,
+               after={"status": "ON_HOLD", "reason": reason[:200] if reason else ""})
+
     return _render_candidate_list(request, tab="pending")
+
+
+@login_required
+@require_POST
+def re_add_candidate(request, candidate_pk):
+    candidate = get_object_or_404(KOLCandidate, pk=candidate_pk, tenant=request.tenant)
+    candidate.status = KOLCandidate.Status.PENDING
+    candidate.rejection_reason = ""
+    candidate.reviewed_by = None
+    candidate.reviewed_at = None
+    candidate.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at"])
+    log_action(request, candidate, AuditLog.Action.UPDATE,
+               after={"status": "PENDING", "re_added_by": request.user.pk})
+    return _render_candidate_list(
+        request, tab="pending",
+        toast=f"{candidate.name} moved back to pending review."
+    )
+
+
+@login_required
+@require_POST
+def restore_kol(request, kol_pk):
+    from django.http import HttpResponse
+    kol = get_object_or_404(KOL.all_objects, pk=kol_pk, tenant=request.tenant)
+    kol.restore()
+    log_action(request, kol, AuditLog.Action.UPDATE,
+               after={"name": kol.name, "restored": True})
+    return HttpResponse(f'<div id="removed-kol-{kol.pk}" style="display:none"></div>')
+
+
+@login_required
+@require_POST
+def permanently_delete_kol(request, kol_pk):
+    from django.http import HttpResponse
+    kol = get_object_or_404(KOL.all_objects, pk=kol_pk, tenant=request.tenant)
+    log_action(request, kol, AuditLog.Action.DELETE,
+               before={"name": kol.name, "permanent_delete": True})
+    kol.delete()
+    return HttpResponse(f'<div id="removed-kol-{kol_pk}" style="display:none"></div>')

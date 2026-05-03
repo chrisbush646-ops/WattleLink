@@ -21,7 +21,7 @@ def suggest_kols_by_keyword(query: str) -> list[dict]:
         model="claude-sonnet-4-6",
         max_tokens=4096,
         temperature=0,
-        system=(PROMPT_PATH / "kol_suggest.md").read_text(),
+        system=[{"type": "text", "text": (PROMPT_PATH / "kol_suggest.md").read_text(), "cache_control": {"type": "ephemeral"}}],
         messages=[{
             "role": "user",
             "content": (
@@ -40,22 +40,33 @@ def suggest_kols_by_keyword(query: str) -> list[dict]:
     if raw.startswith("```"):
         raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```"))
 
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error("KOL suggest JSON parse error: %s — raw: %s", exc, raw[:400])
+        raise ValueError(f"AI returned unparseable response: {exc}") from exc
+
     return data.get("candidates", [])
 
 
 def discover_kols(paper) -> list[dict]:
     """Call Claude to extract KOL candidates from a paper. Returns list of candidate dicts."""
-    content = paper.full_text or paper.title
-    if not content.strip():
+    from apps.literature.services.text_processing import prepare_text_for_ai
+
+    raw_content = paper.full_text or paper.title
+    if not raw_content.strip():
         raise ValueError(f"Paper {paper.pk} has no text for KOL discovery.")
+
+    content, _ = prepare_text_for_ai(raw_content)
+    if not content.strip():
+        content = raw_content
 
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=2048,
         temperature=0,
-        system=(PROMPT_PATH / "kol_discovery.md").read_text(),
+        system=[{"type": "text", "text": (PROMPT_PATH / "kol_discovery.md").read_text(), "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": content}],
     )
 
@@ -63,4 +74,8 @@ def discover_kols(paper) -> list[dict]:
     if raw.startswith("```"):
         raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```"))
 
-    return json.loads(raw).get("candidates", [])
+    try:
+        return json.loads(raw).get("candidates", [])
+    except json.JSONDecodeError as exc:
+        logger.error("KOL discovery JSON parse error for paper %s: %s — raw: %s", paper.pk, exc, raw[:400])
+        raise

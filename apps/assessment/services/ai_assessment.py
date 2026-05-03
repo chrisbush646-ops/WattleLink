@@ -4,6 +4,8 @@ from pathlib import Path
 
 import anthropic
 
+from apps.literature.services.text_processing import prepare_text_for_ai
+
 logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parents[3] / "prompts"
@@ -18,19 +20,34 @@ def run_ai_assessment(paper) -> dict:
     Call Claude to pre-fill GRADE + RoB 2 for the given paper.
     Returns the parsed dict on success, raises on unrecoverable error.
     """
-    content = paper.full_text or paper.title
-    if not content.strip():
+    raw_content = paper.full_text or paper.title
+    if not raw_content.strip():
         raise ValueError(f"Paper {paper.pk} has no text to assess.")
+
+    content, _ = prepare_text_for_ai(raw_content)
+    if not content.strip():
+        content = raw_content
 
     system_prompt = _load_prompt("grade_assessment.md")
     client = anthropic.Anthropic()
+
+    user_message = (
+        "Assess the following paper.\n\n"
+        "IMPORTANT: Only use information that appears in the text below. "
+        "Do not use any external knowledge. "
+        "If information is not present in this text, state 'not reported'.\n\n"
+        "--- BEGIN PAPER TEXT ---\n"
+        + content
+        + "\n--- END PAPER TEXT ---"
+    )
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=4096,
         temperature=0,
-        system=system_prompt,
-        messages=[{"role": "user", "content": content}],
+        system=[{"type": "text", "text": system_prompt,
+                 "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": user_message}],
         timeout=120,
     )
 

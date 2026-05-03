@@ -108,9 +108,17 @@ def fetch_pubmed_full_text(self, pubmed_id: str, tenant_id: int):
             logger.warning("fetch_pubmed_full_text Unpaywall error for %s: %s", pubmed_id, e)
             raise self.retry(exc=e)
 
+    # If both PMC and Unpaywall came up empty, flag for manual PDF upload
+    paper.refresh_from_db(fields=["full_text", "source_file"])
+    if not paper.source_file and len(paper.full_text or "") < 4_000:
+        paper.source = Paper.Source.MANUAL
+        paper.status = Paper.Status.AWAITING_UPLOAD
+        paper.save(update_fields=["source", "status", "updated_at"])
+        logger.info("Paper %s flagged for upload — no OA full text available", pubmed_id)
 
-@shared_task
-def verify_all_dois(tenant_id: int):
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=60)
+def verify_all_dois(self, tenant_id: int):
     """Verify all unverified DOIs for a tenant against CrossRef."""
     import time
     from .models import Paper
@@ -133,7 +141,13 @@ def verify_all_dois(tenant_id: int):
             failed += 1
             continue
 
-        result = verifier.verify_doi_against_paper(doi, paper.title)
+        try:
+            result = verifier.verify_doi_against_paper(doi, paper.title)
+        except Exception as exc:
+            logger.warning("DOI verification network error for paper %d: %s", paper.pk, exc)
+            failed += 1
+            continue
+
         paper.doi = doi
         paper.doi_verified = result["is_valid"]
         paper.doi_verification_details = result
@@ -154,8 +168,8 @@ def verify_all_dois(tenant_id: int):
     return {"verified": verified, "failed": failed}
 
 
-@shared_task
-def find_missing_dois(tenant_id: int):
+@shared_task(bind=True, max_retries=2, default_retry_delay=60)
+def find_missing_dois(self, tenant_id: int):
     """Search CrossRef for DOIs on papers that have none."""
     import time
     from .models import Paper
@@ -173,7 +187,12 @@ def find_missing_dois(tenant_id: int):
             ", ".join(paper.authors) if isinstance(paper.authors, list) else (paper.authors or "")
         )
         year = str(paper.published_date.year) if paper.published_date else ""
-        match = verifier.search_doi_by_metadata(paper.title, authors_str, paper.journal, year)
+
+        try:
+            match = verifier.search_doi_by_metadata(paper.title, authors_str, paper.journal, year)
+        except Exception as exc:
+            logger.warning("CrossRef search error for paper %d: %s", paper.pk, exc)
+            continue
 
         if match.get("doi") and match.get("confidence") in ("HIGH", "MEDIUM"):
             paper.doi = match["doi"]

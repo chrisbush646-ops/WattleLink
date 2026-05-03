@@ -110,7 +110,7 @@
           {{ candidate.rejection_reason }}
         </div>
         {% endif %}
-        <div style="font-size:11px;color:var(--muted)">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
           {% if candidate.paper %}
             Source: <em>{{ candidate.paper.title|truncatewords:10 }}</em>
           {% elif candidate.search_query %}
@@ -119,6 +119,13 @@
           {% if candidate.reviewed_by %} · Rejected by {{ candidate.reviewed_by.get_full_name|default:candidate.reviewed_by.username }}{% endif %}
           {% if candidate.reviewed_at %} · {{ candidate.reviewed_at|date:"j M Y" }}{% endif %}
         </div>
+        <button
+          hx-post="{% url 'kol:re_add_candidate' candidate.pk %}"
+          hx-target="#kol-candidates-container"
+          hx-swap="innerHTML"
+          style="font-size:11px;padding:4px 12px;border-radius:var(--r);border:1px solid #CFDAD0;background:#E8EFE9;color:var(--euc);cursor:pointer;font-weight:500">
+          Re-add to Pending
+        </button>
       </div>
     </div>
   </div>

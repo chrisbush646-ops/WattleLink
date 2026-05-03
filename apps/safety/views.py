@@ -21,9 +21,15 @@ logger = logging.getLogger(__name__)
 @login_required
 def signal_list(request):
     q = request.GET.get("q", "").strip()
-    qs = SafetySignal.objects.prefetch_related("mentions")
+    qs = SafetySignal.objects.select_related("created_by").prefetch_related("mentions")
+    if request.session.get("view_mode") == "personal":
+        qs = qs.filter(created_by=request.user)
     if q:
-        qs = qs.filter(event_name__icontains=q)
+        from django.db.models import Q as _Q
+        qs = qs.filter(
+            _Q(event_name__icontains=q) |
+            _Q(description__icontains=q)
+        )
     signals = _sorted_signals(qs)
     active_count = sum(1 for s in signals if s.status == SafetySignal.Status.ACTIVE)
     monitoring_count = sum(1 for s in signals if s.status == SafetySignal.Status.MONITORING)
@@ -156,6 +162,9 @@ def add_mention(request, signal_pk):
         mention.page_ref = data.get("page_ref", mention.page_ref)
         mention.save()
 
+    log_action(request, signal, AuditLog.Action.UPDATE,
+               after={"added_paper_pk": paper.pk, "paper_title": paper.title[:120]})
+
     mentions = signal.mentions.select_related("paper", "added_by")
     return render(request, "safety/partials/mentions_table.html", {
         "signal": signal,
@@ -170,6 +179,9 @@ def remove_mention(request, mention_pk):
         SignalMention, pk=mention_pk, signal__tenant=request.tenant
     )
     signal = mention.signal
+    paper_pk = mention.paper_id
+    log_action(request, signal, AuditLog.Action.UPDATE,
+               before={"removed_paper_pk": paper_pk})
     mention.delete()
     mentions = signal.mentions.select_related("paper", "added_by")
     return render(request, "safety/partials/mentions_table.html", {

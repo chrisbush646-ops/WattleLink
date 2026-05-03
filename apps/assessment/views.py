@@ -6,6 +6,9 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.accounts.decorators import role_required
+from apps.accounts.models import User
+
 from apps.audit.helpers import log_action
 from apps.audit.models import AuditLog
 from apps.literature.models import Paper
@@ -41,7 +44,12 @@ def assessment_list(request):
     )
 
     if q:
-        papers = papers.filter(title__icontains=q)
+        from django.db.models import Q as _Q
+        papers = papers.filter(
+            _Q(title__icontains=q) |
+            _Q(journal__icontains=q) |
+            _Q(study_type__icontains=q)
+        )
     if rating_filter == "unassessed":
         papers = papers.filter(grade_assessment__isnull=True)
     elif rating_filter:
@@ -124,16 +132,19 @@ def run_ai_assessment(request, paper_pk):
 @login_required
 def ai_assessment_status(request, paper_pk):
     """Poll endpoint — returns the processing partial while the task runs, then the full panel."""
-    from celery.result import AsyncResult
     from django.core.cache import cache
+    from apps.ai.services import get_task_progress
 
     paper = get_object_or_404(Paper, pk=paper_pk, tenant=request.tenant)
     task_id = cache.get(f"ai_assessment_task:{paper_pk}")
 
     if task_id:
-        state = AsyncResult(task_id).state
-        if state in ("PENDING", "STARTED", "RETRY"):
-            return render(request, "assessment/partials/ai_processing.html", {"paper": paper})
+        progress = get_task_progress(task_id)
+        if progress.get("status") not in ("complete", "failed"):
+            return render(request, "assessment/partials/ai_processing.html", {
+                "paper": paper,
+                "progress_message": progress.get("message", "Running AI assessment…"),
+            })
         cache.delete(f"ai_assessment_task:{paper_pk}")
 
     try:
@@ -156,7 +167,7 @@ def ai_assessment_status(request, paper_pk):
     })
 
 
-@login_required
+@role_required(User.Role.MEDICAL_AFFAIRS, User.Role.MEDICAL_LEAD, User.Role.ADMIN, User.Role.EDITOR)
 @require_POST
 def confirm_assessment(request, paper_pk):
     """
@@ -170,7 +181,7 @@ def confirm_assessment(request, paper_pk):
     rob_data = data.get("rob", {})
 
     # ── GRADE ────────────────────────────────────────────────────────────────
-    grade, _ = GradeAssessment.all_objects.get_or_create(
+    grade, _ = GradeAssessment.objects.get_or_create(
         paper=paper,
         defaults={"tenant": request.tenant},
     )
@@ -195,7 +206,7 @@ def confirm_assessment(request, paper_pk):
     grade.save()
 
     # ── RoB 2 ────────────────────────────────────────────────────────────────
-    rob, _ = RobAssessment.all_objects.get_or_create(
+    rob, _ = RobAssessment.objects.get_or_create(
         paper=paper,
         defaults={"tenant": request.tenant},
     )

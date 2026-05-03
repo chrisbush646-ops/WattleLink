@@ -268,7 +268,9 @@ class TestSummaryPanelView:
 class TestRunAiSummaryView:
     @patch("apps.summaries.tasks.run_ai_summary_task")
     def test_returns_processing_partial(self, mock_task, client, paper):
-        mock_task.delay.return_value = None
+        fake_task = MagicMock()
+        fake_task.id = "test-summary-task-1234"
+        mock_task.delay.return_value = fake_task
         url = reverse("summaries:run_ai", args=[paper.pk])
         resp = client.post(url)
         assert resp.status_code == 200
@@ -276,7 +278,9 @@ class TestRunAiSummaryView:
 
     @patch("apps.summaries.tasks.run_ai_summary_task")
     def test_dispatches_celery_task(self, mock_task, client, paper, tenant):
-        mock_task.delay.return_value = None
+        fake_task = MagicMock()
+        fake_task.id = "test-summary-task-5678"
+        mock_task.delay.return_value = fake_task
         url = reverse("summaries:run_ai", args=[paper.pk])
         client.post(url)
         mock_task.delay.assert_called_once_with(paper.pk, tenant.pk)

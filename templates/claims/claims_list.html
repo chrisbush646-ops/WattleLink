@@ -99,6 +99,9 @@
   </div>
 
   <script>
+  const CLAIMS_CREATE_URL_PATTERN = '/claims/{pk}/create/';
+  function claimsCreateUrl(pk) { return CLAIMS_CREATE_URL_PATTERN.replace('{pk}', pk); }
+
   let _paperSearchTimer;
   function searchPapers(q) {
     clearTimeout(_paperSearchTimer);
@@ -180,7 +183,7 @@
     body.append('endpoint_type', endpoint);
     body.append('source_passage', passage);
     body.append('source_reference', reference);
-    fetch(`/claims/${pk}/create/`, { method:'POST', headers:{'X-CSRFToken':csrf}, body })
+    fetch(claimsCreateUrl(pk), { method:'POST', headers:{'X-CSRFToken':csrf}, body })
       .then(() => {
         document.getElementById('write-claim-modal').style.display = 'none';
         window.location.reload();

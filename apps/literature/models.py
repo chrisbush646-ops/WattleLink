@@ -110,7 +110,7 @@ class Paper(SoftDeleteModel):
 
     @property
     def is_open_access(self):
-        return bool(self.pmcid) or self.source == self.Source.PUBMED_OA
+        return bool(self.source_file)
 
     @property
     def authors_display(self):

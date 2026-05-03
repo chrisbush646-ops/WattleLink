@@ -310,8 +310,10 @@ class TestAssessmentViews:
 
     def test_run_ai_returns_processing_partial(self, paper):
         url = reverse("assessment:run_ai", args=[paper.pk])
+        fake_task = MagicMock()
+        fake_task.id = "test-task-id-1234"
         with patch("apps.assessment.tasks.run_ai_assessment_task") as mock_task:
-            mock_task.delay = MagicMock()
+            mock_task.delay.return_value = fake_task
             resp = self.client.post(url)
         assert resp.status_code == 200
         assert b"Running AI assessment" in resp.content

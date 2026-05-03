@@ -6,7 +6,7 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -22,14 +22,26 @@ logger = logging.getLogger(__name__)
 
 def _fetch_full_text_sync(paper):
     """
-    Fetch full text for an open-access paper at ingest time.
-    Tries PMC first; falls back to Unpaywall OA PDF if PMC yields nothing substantial.
+    Fetch full text and PDF for an open-access paper at ingest time.
+    1. PMC XML text
+    2. PMC direct PDF download (PMCID)
+    3. Unpaywall OA PDF (DOI-based fallback)
+    If no PDF is obtained after all attempts, the paper is downgraded to
+    source=MANUAL / status=AWAITING_UPLOAD so the user knows to supply a PDF.
     """
-    from .services.pubmed import fetch_pmc_full_text, fetch_oa_pdf_via_unpaywall
+    from .services.pubmed import fetch_pmc_full_text, fetch_pmc_pdf, fetch_oa_pdf_via_unpaywall
     fetch_pmc_full_text(paper)
-    paper.refresh_from_db(fields=["full_text"])
-    if len(paper.full_text or "") < 4_000 and paper.doi:
+    paper.refresh_from_db(fields=["full_text", "source_file"])
+    if not paper.source_file:
+        fetch_pmc_pdf(paper)
+        paper.refresh_from_db(fields=["source_file"])
+    if not paper.source_file and paper.doi:
         fetch_oa_pdf_via_unpaywall(paper)
+        paper.refresh_from_db(fields=["source_file"])
+    if not paper.source_file:
+        paper.source = Paper.Source.MANUAL
+        paper.status = Paper.Status.AWAITING_UPLOAD
+        paper.save(update_fields=["source", "status", "updated_at"])
 
 
 def _apply_doi_verification(paper, raw_doi: str, doi_source: str) -> None:
@@ -99,21 +111,20 @@ def _build_filters_from_post(data) -> dict:
     }
 
 
-def _annotate_articles(articles, existing_pmids, new_pmids=None, query_rows=None):
-    """Add already_ingested, is_new, and relevance_score to article dicts."""
+def _annotate_articles(articles, existing_pmids, new_pmids=None, existing_pks=None):
+    """Add already_ingested, awaiting_upload, already_ingested_pk, and is_new flags."""
+    info_map = existing_pks or {}
     for a in articles:
         pmid = a.get("pubmed_id", "")
-        a["already_ingested"] = pmid in existing_pmids
+        info = info_map.get(pmid)
+        is_awaiting = isinstance(info, dict) and info.get("status") == Paper.Status.AWAITING_UPLOAD
+        a["already_ingested"] = pmid in existing_pmids and not is_awaiting
+        a["awaiting_upload"] = is_awaiting
+        a["already_ingested_pk"] = info["pk"] if isinstance(info, dict) else None
+        a["awaiting_upload_pk"] = info["pk"] if is_awaiting else None
         a["is_new"] = pmid in new_pmids if new_pmids else False
-        if query_rows:
-            title_abs = (a.get("title", "") + " " + a.get("abstract", "")).lower()
-            a["relevance_score"] = sum(
-                1 for r in query_rows
-                if r.get("operator", "AND") != "NOT"
-                and (r.get("term") or "").lower() in title_abs
-            )
-        else:
-            a["relevance_score"] = 0
+        if is_awaiting:
+            a["is_open_access"] = False
 
 
 @login_required
@@ -156,9 +167,15 @@ def run_search(request):
     # Legacy compat
     open_access_only = body_data.get("open_access_only") or request.POST.get("open_access_only") == "true"
 
+    page = max(1, int(body_data.get("page", 1)))
+    page_size = 20
+    retstart = (page - 1) * page_size
+
     client = PubMedClient()
     total_count, pmids = client.esearch(
         query=query,
+        max_results=page_size,
+        retstart=retstart,
         open_access_only=open_access_only,
         publication_types=publication_types,
         language=filters.get("language", "eng"),
@@ -174,25 +191,30 @@ def run_search(request):
     )
     articles = client.efetch(pmids)
 
-    existing_pmids = set(
-        Paper.objects.filter(pubmed_id__in=pmids).values_list("pubmed_id", flat=True)
-    )
-    _annotate_articles(articles, existing_pmids, query_rows=rows)
+    existing_qs = Paper.objects.filter(pubmed_id__in=pmids).values("pubmed_id", "pk", "status")
+    existing_papers = {p["pubmed_id"]: {"pk": p["pk"], "status": p["status"]} for p in existing_qs}
+    existing_pmids = set(existing_papers)
+    _annotate_articles(articles, existing_pmids, existing_pks=existing_papers)
 
-    # Stage 2 context — derive quick filter chips from sample
-    from .services.pubmed import get_mesh_terms_from_results, get_top_journals_from_results
-    mesh_chips = get_mesh_terms_from_results(pmids)
-    journal_chips = get_top_journals_from_results(pmids)
+    # Stage 2 context — derive quick filter chips from sample (page 1 only)
+    mesh_chips = journal_chips = []
+    if page == 1:
+        from .services.pubmed import get_mesh_terms_from_results, get_top_journals_from_results
+        mesh_chips = get_mesh_terms_from_results(pmids)
+        journal_chips = get_top_journals_from_results(pmids)
 
     log_action(request, None, "search_executed", after={
-        "query": query[:200], "total_count": total_count,
+        "query": query[:200], "total_count": total_count, "page": page,
     })
 
     return render(request, "literature/partials/search_results.html", {
         "articles": articles,
         "query": query,
         "total": total_count,
-        "displayed": len(articles),
+        "current_page": page,
+        "page_size": page_size,
+        "page_range_start": retstart + 1,
+        "page_range_end": retstart + len(articles),
         "mesh_chips": mesh_chips,
         "journal_chips": journal_chips,
     })
@@ -240,10 +262,10 @@ def refine_search(request):
     )
     articles = client.efetch(pmids)
 
-    existing_pmids = set(
-        Paper.objects.filter(pubmed_id__in=pmids).values_list("pubmed_id", flat=True)
-    )
-    _annotate_articles(articles, existing_pmids)
+    existing_qs = Paper.objects.filter(pubmed_id__in=pmids).values("pubmed_id", "pk", "status")
+    existing_papers = {p["pubmed_id"]: {"pk": p["pk"], "status": p["status"]} for p in existing_qs}
+    existing_pmids = set(existing_papers)
+    _annotate_articles(articles, existing_pmids, existing_pks=existing_papers)
 
     log_action(request, None, "refinements_applied", after={
         "base_query": base_query[:200],
@@ -321,7 +343,7 @@ def ingest_paper(request):
         return JsonResponse({"error": "Could not fetch article from PubMed"}, status=400)
 
     article = articles[0]
-    paper, created = Paper.all_objects.get_or_create(
+    paper, created = Paper.objects.get_or_create(
         tenant=request.tenant,
         pubmed_id=pubmed_id,
         defaults={
@@ -351,9 +373,9 @@ def ingest_paper(request):
             "doi", "doi_verified", "doi_verified_at", "doi_source", "doi_verification_details",
         ])
         log_action(request, paper, AuditLog.Action.CREATE, after={"pubmed_id": pubmed_id})
-        if article.get("is_open_access") and article.get("pmcid"):
-            _fetch_full_text_sync(paper)
+        _fetch_full_text_sync(paper)
 
+    paper.refresh_from_db(fields=["status", "source_file", "full_text"])
     return render(request, "literature/partials/ingested_row.html", {
         "paper": paper,
         "created": created,
@@ -375,7 +397,7 @@ def ingest_all_oa(request):
     for article in articles:
         if not article.get("is_open_access") or not article.get("pubmed_id"):
             continue
-        paper, created = Paper.all_objects.get_or_create(
+        paper, created = Paper.objects.get_or_create(
             tenant=request.tenant,
             pubmed_id=article["pubmed_id"],
             defaults={
@@ -404,6 +426,124 @@ def ingest_all_oa(request):
             _fetch_full_text_sync(paper)
 
     return JsonResponse({"ingested": ingested})
+
+
+@login_required
+@require_POST
+def flag_for_upload(request):
+    """Create a paywalled paper record and flag it for manual PDF upload."""
+    data = json.loads(request.body)
+    pubmed_id = data.get("pubmed_id", "")
+
+    if not pubmed_id:
+        return JsonResponse({"error": "pubmed_id required"}, status=400)
+
+    client = PubMedClient()
+    articles = client.efetch([pubmed_id])
+    if not articles:
+        return JsonResponse({"error": "Could not fetch article from PubMed"}, status=400)
+
+    article = articles[0]
+    paper, created = Paper.objects.get_or_create(
+        tenant=request.tenant,
+        pubmed_id=pubmed_id,
+        defaults={
+            "title": article.get("title", ""),
+            "authors": article.get("authors", []),
+            "journal": article.get("journal", ""),
+            "journal_short": article.get("journal_short", ""),
+            "published_date": article.get("published_date"),
+            "volume": article.get("volume", ""),
+            "issue": article.get("issue", ""),
+            "pages": article.get("pages", ""),
+            "doi": article.get("doi", ""),
+            "pmcid": article.get("pmcid", ""),
+            "study_type": article.get("study_type", ""),
+            "full_text": article.get("abstract", ""),
+            "source": Paper.Source.MANUAL,
+            "status": Paper.Status.AWAITING_UPLOAD,
+        },
+    )
+
+    if created:
+        _apply_doi_verification(paper, article.get("doi", ""), Paper.DOISource.PUBMED)
+        paper.save(update_fields=[
+            "doi", "doi_verified", "doi_verified_at", "doi_source", "doi_verification_details",
+        ])
+        log_action(request, paper, AuditLog.Action.CREATE,
+                   after={"pubmed_id": pubmed_id, "flagged_for_upload": True})
+
+    return render(request, "literature/partials/ingested_row.html", {
+        "paper": paper,
+        "created": created,
+    })
+
+
+@login_required
+@require_POST
+def upload_from_search(request):
+    """Create a paper from a PubMed search result and attach an uploaded PDF in one step."""
+    pubmed_id = request.POST.get("pubmed_id", "").strip()
+    uploaded = request.FILES.get("pdf")
+
+    if not pubmed_id or not uploaded:
+        return HttpResponse("pubmed_id and pdf required", status=400)
+
+    from .services.pdf import validate_upload
+    try:
+        validate_upload(uploaded)
+    except ValueError as e:
+        return HttpResponse(str(e), status=400)
+
+    client = PubMedClient()
+    articles = client.efetch([pubmed_id])
+    if not articles:
+        return HttpResponse("Could not fetch article from PubMed", status=400)
+
+    article = articles[0]
+    paper, created = Paper.objects.get_or_create(
+        tenant=request.tenant,
+        pubmed_id=pubmed_id,
+        defaults={
+            "title": article.get("title", ""),
+            "authors": article.get("authors", []),
+            "journal": article.get("journal", ""),
+            "journal_short": article.get("journal_short", ""),
+            "published_date": article.get("published_date"),
+            "volume": article.get("volume", ""),
+            "issue": article.get("issue", ""),
+            "pages": article.get("pages", ""),
+            "doi": article.get("doi", ""),
+            "pmcid": article.get("pmcid", ""),
+            "study_type": article.get("study_type", ""),
+            "full_text": article.get("abstract", ""),
+            "source": Paper.Source.MANUAL,
+            "status": Paper.Status.AWAITING_UPLOAD,
+        },
+    )
+
+    if created:
+        _apply_doi_verification(paper, article.get("doi", ""), Paper.DOISource.PUBMED)
+        paper.save(update_fields=["doi", "doi_verified", "doi_verified_at", "doi_source", "doi_verification_details"])
+        log_action(request, paper, AuditLog.Action.CREATE, after={"pubmed_id": pubmed_id})
+
+    paper.source_file = uploaded
+    paper.save(update_fields=["source_file"])
+    log_action(request, paper, AuditLog.Action.UPDATE, after={"pdf_attached": uploaded.name})
+
+    try:
+        from .services.pdf import extract_text
+        text = extract_text(paper.source_file.path)
+        paper.full_text = text[:500_000]
+        paper.status = Paper.Status.INGESTED
+        paper.save(update_fields=["full_text", "status"])
+    except Exception as exc:
+        logger.error("PDF extraction failed for paper %d: %s", paper.pk, exc)
+
+    return render(request, "literature/partials/ingested_row.html", {
+        "paper": paper,
+        "created": created,
+    })
 
 
 @login_required
@@ -622,8 +762,25 @@ def saved_searches(request):
 
 @login_required
 @require_POST
+def delete_saved_search(request, pk):
+    search = get_object_or_404(SavedSearch, pk=pk, tenant=request.tenant)
+    search.delete()
+    return HttpResponse("")
+
+
+@login_required
+@require_POST
 def run_saved_search(request, pk):
     search = get_object_or_404(SavedSearch, pk=pk, tenant=request.tenant)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        body = {}
+
+    page = max(1, int(body.get("page", 1)))
+    page_size = 20
+    retstart = (page - 1) * page_size
 
     f = search.filters or {}
     open_access_only = f.get("open_access_only", False)
@@ -631,6 +788,8 @@ def run_saved_search(request, pk):
     client = PubMedClient()
     total_count, pmids = client.esearch(
         query=search.query,
+        max_results=page_size,
+        retstart=retstart,
         open_access_only=open_access_only,
         publication_types=f.get("publication_types", []),
         language=f.get("language", "eng"),
@@ -642,25 +801,31 @@ def run_saved_search(request, pk):
     articles = client.efetch(pmids)
 
     current_pmids = [a["pubmed_id"] for a in articles if a.get("pubmed_id")]
+
     last_pmids = set(search.last_result_pmids or [])
     new_pmids = set(current_pmids) - last_pmids if last_pmids else set()
 
-    existing_pmids = set(
-        Paper.objects.filter(pubmed_id__in=current_pmids).values_list("pubmed_id", flat=True)
-    )
-    _annotate_articles(articles, existing_pmids, new_pmids=new_pmids)
+    existing_qs = Paper.objects.filter(pubmed_id__in=current_pmids).values("pubmed_id", "pk", "status")
+    existing_papers = {p["pubmed_id"]: {"pk": p["pk"], "status": p["status"]} for p in existing_qs}
+    existing_pmids = set(existing_papers)
+    _annotate_articles(articles, existing_pmids, new_pmids=new_pmids, existing_pks=existing_papers)
 
-    search.last_run = timezone.now()
-    search.result_count = total_count
-    search.last_result_pmids = current_pmids
-    search.save(update_fields=["last_run", "result_count", "last_result_pmids"])
+    # Only update last_result_pmids on the first page run
+    if page == 1:
+        search.last_run = timezone.now()
+        search.result_count = total_count
+        search.last_result_pmids = current_pmids
+        search.save(update_fields=["last_run", "result_count", "last_result_pmids"])
 
     return render(request, "literature/partials/search_results.html", {
         "articles": articles,
         "query": search.query,
         "total": total_count,
-        "displayed": len(articles),
-        "new_count": len(new_pmids),
+        "current_page": page,
+        "page_size": page_size,
+        "page_range_start": retstart + 1,
+        "page_range_end": retstart + len(articles),
+        "new_count": len(new_pmids) if page == 1 else 0,
         "search_name": search.name,
     })
 
@@ -688,8 +853,15 @@ def ai_suggest(request):
 def library(request):
     status_filter = request.GET.get("status", "")
     search_query = request.GET.get("q", "").strip()
+    sort_col = request.GET.get("sort", "")
+    sort_dir = request.GET.get("dir", "desc")
 
-    qs = Paper.objects.select_related("tenant")
+    if sort_col not in ("published_date", "updated_at"):
+        sort_col = ""
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    qs = Paper.objects.select_related("tenant").exclude(status=Paper.Status.AWAITING_UPLOAD)
 
     if status_filter == "APPROVED":
         from apps.claims.models import CoreClaim
@@ -703,10 +875,17 @@ def library(request):
     elif status_filter:
         qs = qs.filter(status=status_filter)
 
-    if search_query:
+    if search_query and not sort_col:
         vector = SearchVector("title", weight="A") + SearchVector("full_text", weight="B")
         query = SearchQuery(search_query)
         qs = qs.annotate(rank=SearchRank(vector, query)).filter(rank__gt=0.01).order_by("-rank")
+    else:
+        if search_query:
+            from django.db.models import Q as DQ
+            qs = qs.filter(DQ(title__icontains=search_query) | DQ(full_text__icontains=search_query))
+        col = sort_col or "updated_at"
+        prefix = "-" if sort_dir == "desc" else ""
+        qs = qs.order_by(f"{prefix}{col}")
 
     if request.htmx:
         return render(request, "literature/partials/paper_table.html", {
@@ -729,6 +908,8 @@ def library(request):
         "search_query": search_query,
         "paper_count": qs.count(),
         "filter_choices": filter_choices,
+        "sort_col": sort_col,
+        "sort_dir": sort_dir,
     })
 
 
@@ -737,8 +918,46 @@ def library(request):
 def remove_paper(request, pk):
     paper = get_object_or_404(Paper, pk=pk, tenant=request.tenant)
     log_action(request, paper, AuditLog.Action.DELETE, before={"title": paper.title, "status": paper.status})
+
+    # Soft-delete everything that supports it
+    from django.utils import timezone as tz
+    _logger = logging.getLogger(__name__)
+
+    try:
+        from apps.summaries.models import PaperSummary
+        PaperSummary.all_objects.filter(paper=paper).update(deleted_at=tz.now())
+    except Exception as e:
+        _logger.error("remove_paper: could not soft-delete summaries for paper %s: %s", paper.pk, e)
+
+    try:
+        from apps.assessment.models import GradeAssessment, RobAssessment
+        GradeAssessment.all_objects.filter(paper=paper).update(deleted_at=tz.now())
+        RobAssessment.all_objects.filter(paper=paper).update(deleted_at=tz.now())
+    except Exception as e:
+        _logger.error("remove_paper: could not soft-delete assessments for paper %s: %s", paper.pk, e)
+
+    try:
+        from apps.claims.models import CoreClaim
+        CoreClaim.all_objects.filter(paper=paper).update(deleted_at=tz.now())
+    except Exception as e:
+        _logger.error("remove_paper: could not soft-delete claims for paper %s: %s", paper.pk, e)
+
+    # Hard-delete join/through records that don't support soft delete
+    try:
+        from apps.safety.models import SignalMention
+        SignalMention.objects.filter(paper=paper).delete()
+    except Exception:
+        pass
+
+    try:
+        from apps.kol.models import KOLPaperLink, KOLCandidate
+        KOLPaperLink.objects.filter(paper=paper).delete()
+        KOLCandidate.objects.filter(paper=paper).delete()
+    except Exception:
+        pass
+
     paper.soft_delete()
-    from django.http import HttpResponse
+
     response = HttpResponse("")
     response["HX-Refresh"] = "true"
     return response
@@ -754,8 +973,8 @@ def paper_history(request, pk):
     try:
         from apps.claims.models import CoreClaim
         claim_ids = list(CoreClaim.all_objects.filter(paper=paper).values_list("pk", flat=True))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("paper_history: could not fetch claim IDs for paper %s: %s", pk, exc)
 
     assessment_ids = []
     try:
@@ -763,15 +982,8 @@ def paper_history(request, pk):
         grade_ids = list(GradeAssessment.all_objects.filter(paper=paper).values_list("pk", flat=True))
         rob_ids = list(RobAssessment.all_objects.filter(paper=paper).values_list("pk", flat=True))
         assessment_ids = grade_ids + rob_ids
-    except Exception:
-        pass
-
-    export_ids = []
-    try:
-        from apps.export.models import ExportPackage
-        export_ids = list(ExportPackage.objects.filter(paper=paper).values_list("pk", flat=True))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("paper_history: could not fetch assessment IDs for paper %s: %s", pk, exc)
 
     events = AuditLog.objects.filter(
         tenant=request.tenant,
@@ -779,8 +991,7 @@ def paper_history(request, pk):
         models.Q(entity_type="Paper", entity_id=paper.pk) |
         models.Q(entity_type="CoreClaim", entity_id__in=claim_ids) |
         models.Q(entity_type="GradeAssessment", entity_id__in=assessment_ids) |
-        models.Q(entity_type="RobAssessment", entity_id__in=assessment_ids) |
-        models.Q(entity_type="ExportPackage", entity_id__in=export_ids)
+        models.Q(entity_type="RobAssessment", entity_id__in=assessment_ids)
     ).select_related("user").order_by("-created_at")[:60]
 
     return render(request, "literature/partials/paper_history.html", {
@@ -793,7 +1004,7 @@ def paper_history(request, pk):
 def paper_search_json(request):
     """Lightweight JSON search for paper picker (used in manual claim modal)."""
     q = request.GET.get("q", "").strip()
-    qs = Paper.objects.filter(tenant=request.tenant)
+    qs = Paper.objects.filter(tenant=request.tenant).exclude(status=Paper.Status.AWAITING_UPLOAD)
     if q:
         qs = qs.filter(
             models.Q(title__icontains=q) |
@@ -813,15 +1024,30 @@ def paper_search_json(request):
 
 
 @login_required
+def serve_pdf(request, pk):
+    """Serve the stored PDF for a paper inline (opens in the browser PDF viewer)."""
+    from django.http import FileResponse, Http404
+    paper = get_object_or_404(Paper, pk=pk, tenant=request.tenant)
+    if not paper.source_file:
+        raise Http404
+    try:
+        f = paper.source_file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404
+    safe_name = (paper.doi or str(paper.pk)).replace("/", "_").replace(":", "_")
+    return FileResponse(f, content_type="application/pdf", filename=f"{safe_name}.pdf")
+
+
+@login_required
 def paper_detail(request, pk):
     paper = get_object_or_404(Paper, pk=pk, tenant=request.tenant)
 
     claims = []
     try:
         from apps.claims.models import CoreClaim
-        claims = CoreClaim.objects.filter(paper=paper).order_by("-status")
-    except Exception:
-        pass
+        claims = list(CoreClaim.objects.filter(paper=paper).order_by("-status"))
+    except Exception as exc:
+        logger.warning("paper_detail: could not fetch claims for paper %s: %s", pk, exc)
 
     return render(request, "literature/partials/paper_detail.html", {
         "paper": paper,

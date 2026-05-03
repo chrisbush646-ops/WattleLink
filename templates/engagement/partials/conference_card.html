@@ -1,49 +1,97 @@
 <div id="conference-card-{{ conf.pk }}"
+     x-data="{showEdit:false}"
      style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:8px">
-  <div style="display:flex;align-items:flex-start;gap:10px">
-    <div style="flex:1">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ conf.name }}</div>
-        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
-          {% if conf.status == 'UPCOMING' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
-          {% elif conf.status == 'ATTENDED' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
-          {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
-          {{ conf.get_status_display }}
-        </span>
-      </div>
-      <div style="font-size:11.5px;color:var(--muted)">
-        {% if conf.location %}{{ conf.location }} · {% endif %}
-        {{ conf.start_date|date:"d M Y" }}{% if conf.end_date %} – {{ conf.end_date|date:"d M Y" }}{% endif %}
-      </div>
-      {% if conf.notes %}
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.4">{{ conf.notes|truncatechars:120 }}</div>
-      {% endif %}
-      <!-- KOLs section -->
-      <div x-data="{showKolAdd:false,kolPk:''}" style="margin-top:8px">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          {% for k in conf.kols.all %}
-          <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 7px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0">
-            {{ k.name }}
-            <button type="button" onclick="removeKolFromEvent('conference',{{ conf.pk }},{{ k.pk }})"
-                    style="background:none;border:none;cursor:pointer;color:var(--euc);font-size:11px;line-height:1;padding:0;margin-left:1px">×</button>
+
+  <!-- View mode header -->
+  <div x-show="!showEdit">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+          <div style="font-family:var(--serif);font-size:14px;font-weight:600;color:var(--ink)">{{ conf.name }}</div>
+          <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;
+            {% if conf.status == 'UPCOMING' %}background:var(--sky-soft);color:var(--sky);border:1px solid #C3D2DB
+            {% elif conf.status == 'ATTENDED' %}background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0
+            {% else %}background:var(--line-soft);color:var(--muted);border:1px solid var(--line){% endif %}">
+            {{ conf.get_status_display }}
           </span>
-          {% endfor %}
-          {% if kol_choices %}
-          <button type="button" @click="showKolAdd=!showKolAdd"
-                  style="font-size:10.5px;padding:2px 8px;border-radius:10px;background:none;border:1px dashed var(--line);color:var(--muted);cursor:pointer">+ KOL</button>
-          {% endif %}
+          <button type="button" @click="showEdit=true"
+                  style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:3px">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
         </div>
-        <div x-show="showKolAdd" style="display:none;margin-top:6px">
-          <div style="display:flex;gap:6px;align-items:center">
-            <select x-model="kolPk" style="font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
-              <option value="">— Select KOL —</option>
-              {% for k in kol_choices %}<option value="{{ k.pk }}">{{ k.name }}</option>{% endfor %}
-            </select>
-            <button type="button" @click="if(kolPk){addKolToEvent('conference',{{ conf.pk }},kolPk);showKolAdd=false;kolPk=''}"
-                    class="btn btn-p btn-sm">Link</button>
-            <button type="button" @click="showKolAdd=false" class="btn btn-g btn-sm">Cancel</button>
-          </div>
+        <div style="font-size:11.5px;color:var(--muted)">
+          {% if conf.location %}{{ conf.location }} · {% endif %}
+          {{ conf.start_date|date:"d M Y" }}{% if conf.end_date %} – {{ conf.end_date|date:"d M Y" }}{% endif %}
         </div>
+        {% if view_mode == 'team' and conf.created_by %}
+        <div style="font-size:10.5px;color:var(--muted-soft);margin-top:3px;display:flex;align-items:center;gap:3px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{ conf.created_by.get_full_name|default:conf.created_by.email }}
+        </div>
+        {% endif %}
+        {% if conf.notes %}
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.4">{{ conf.notes|truncatechars:120 }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit form -->
+  <div x-show="showEdit" style="display:none">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Edit Conference</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <input id="edit-conf-name-{{ conf.pk }}" value="{{ conf.name }}"
+             placeholder="Conference name *"
+             style="grid-column:1/-1;font-size:12.5px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <input id="edit-conf-location-{{ conf.pk }}" value="{{ conf.location }}"
+             placeholder="Location"
+             style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <select id="edit-conf-status-{{ conf.pk }}"
+              style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+        <option value="UPCOMING" {% if conf.status == 'UPCOMING' %}selected{% endif %}>Upcoming</option>
+        <option value="ATTENDED" {% if conf.status == 'ATTENDED' %}selected{% endif %}>Attended</option>
+        <option value="CANCELLED" {% if conf.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+      </select>
+      <input id="edit-conf-start-{{ conf.pk }}" value="{{ conf.start_date|date:'Y-m-d' }}" type="date"
+             style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <input id="edit-conf-end-{{ conf.pk }}" value="{{ conf.end_date|date:'Y-m-d' }}" type="date"
+             placeholder="End date (optional)"
+             style="font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface)">
+      <textarea id="edit-conf-notes-{{ conf.pk }}"
+                placeholder="Notes (optional)"
+                style="grid-column:1/-1;font-size:12px;border:1px solid var(--line);border-radius:var(--r);padding:5px 9px;background:var(--surface);resize:vertical;min-height:42px">{{ conf.notes }}</textarea>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" onclick="updateConference({{ conf.pk }})" @click="showEdit=false" class="btn btn-p btn-sm">Save</button>
+      <button type="button" @click="showEdit=false" class="btn btn-g btn-sm">Cancel</button>
+    </div>
+  </div>
+
+  <!-- KOLs section -->
+  <div x-data="{showKolAdd:false,kolPk:''}" style="margin-top:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      {% for k in conf.kols.all %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 7px;border-radius:10px;background:#E8EFE9;color:var(--euc);border:1px solid #CFDAD0">
+        {{ k.name }}
+        <button type="button" onclick="removeKolFromEvent('conference',{{ conf.pk }},{{ k.pk }})"
+                style="background:none;border:none;cursor:pointer;color:var(--euc);font-size:11px;line-height:1;padding:0;margin-left:1px">×</button>
+      </span>
+      {% endfor %}
+      {% if kol_choices %}
+      <button type="button" @click="showKolAdd=!showKolAdd"
+              style="font-size:10.5px;padding:2px 8px;border-radius:10px;background:none;border:1px dashed var(--line);color:var(--muted);cursor:pointer">+ KOL</button>
+      {% endif %}
+    </div>
+    <div x-show="showKolAdd" style="display:none;margin-top:6px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select x-model="kolPk" style="font-size:11.5px;border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--surface)">
+          <option value="">— Select KOL —</option>
+          {% for k in kol_choices %}<option value="{{ k.pk }}">{{ k.name }}</option>{% endfor %}
+        </select>
+        <button type="button" @click="if(kolPk){addKolToEvent('conference',{{ conf.pk }},kolPk);showKolAdd=false;kolPk=''}"
+                class="btn btn-p btn-sm">Link</button>
+        <button type="button" @click="showKolAdd=false" class="btn btn-g btn-sm">Cancel</button>
       </div>
     </div>
   </div>

@@ -1,7 +1,27 @@
-{% for rt in round_tables %}
+{% if upcoming_round_tables or past_round_tables %}
+
+{% if upcoming_round_tables %}
+<div style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--euc);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #CFDAD0">
+  Upcoming <span style="font-family:var(--mono);font-weight:400;color:var(--muted)">{{ upcoming_round_tables|length }}</span>
+</div>
+{% for rt in upcoming_round_tables %}
   {% include "engagement/partials/round_table_card.html" with rt=rt kol_choices=kol_choices %}
-{% empty %}
+{% endfor %}
+{% endif %}
+
+{% if past_round_tables %}
+<div style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:{% if upcoming_round_tables %}20px{% else %}0{% endif %};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line)">
+  Past <span style="font-family:var(--mono);font-weight:400">{{ past_round_tables|length }}</span>
+</div>
+<div style="opacity:.7">
+{% for rt in past_round_tables %}
+  {% include "engagement/partials/round_table_card.html" with rt=rt kol_choices=kol_choices %}
+{% endfor %}
+</div>
+{% endif %}
+
+{% else %}
 <div style="padding:24px;text-align:center;background:var(--paper-warm);border-radius:var(--r);border:1px dashed var(--line)">
   <div style="font-size:13px;color:var(--muted)">No round tables yet.</div>
 </div>
-{% endfor %}
+{% endif %}

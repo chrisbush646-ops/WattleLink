@@ -24,4 +24,7 @@ urlpatterns = [
     path("candidates/<int:candidate_pk>/reject/", views.reject_candidate, name="reject_candidate"),
     path("candidates/<int:candidate_pk>/hold/", views.hold_candidate, name="hold_candidate"),
     path("candidates/<int:candidate_pk>/verify-status/", views.candidate_verify_status, name="candidate_verify_status"),
+    path("candidates/<int:candidate_pk>/re-add/", views.re_add_candidate, name="re_add_candidate"),
+    path("<int:kol_pk>/restore/", views.restore_kol, name="restore_kol"),
+    path("<int:kol_pk>/permanently-delete/", views.permanently_delete_kol, name="permanently_delete_kol"),
 ]

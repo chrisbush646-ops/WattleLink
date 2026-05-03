@@ -20,9 +20,15 @@ def extract_safety_signals(paper) -> list[dict]:
     Call Claude to identify adverse events in a paper's full text.
     Returns a list of AE dicts ready for SignalMention creation.
     """
-    content = (paper.full_text or "").strip()
-    if not content:
+    from apps.literature.services.text_processing import prepare_text_for_ai
+
+    raw_content = (paper.full_text or "").strip()
+    if not raw_content:
         return []
+
+    content, _ = prepare_text_for_ai(raw_content)
+    if not content.strip():
+        content = raw_content
 
     client = anthropic.Anthropic()
     system_prompt = _load_prompt("extract_safety_signals.md")
@@ -31,12 +37,16 @@ def extract_safety_signals(paper) -> list[dict]:
         model="claude-sonnet-4-6",
         max_tokens=_MAX_TOKENS,
         temperature=0,
-        system=system_prompt,
+        system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{
             "role": "user",
             "content": (
                 f"Paper title: {paper.title}\n\n"
-                f"Full text:\n{content[:_TEXT_LIMIT]}"
+                "IMPORTANT: Only use information that appears in the text below. "
+                "Do not use any external knowledge. If information is not present in this text, state 'not reported'.\n\n"
+                "--- BEGIN PAPER TEXT ---\n"
+                f"{content[:_TEXT_LIMIT]}\n"
+                "--- END PAPER TEXT ---"
             ),
         }],
         timeout=120,

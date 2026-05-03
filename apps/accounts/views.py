@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_POST
+def set_view_mode(request):
+    mode = request.POST.get("mode", "team")
+    if mode not in ("team", "personal"):
+        mode = "team"
+    request.session["view_mode"] = mode
+    return HttpResponseRedirect(request.POST.get("next", "/"))
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def profile(request):
     user = request.user

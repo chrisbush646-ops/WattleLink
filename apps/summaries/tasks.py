@@ -49,20 +49,28 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
     """Async AI summarisation — creates/updates PaperSummary and FindingsRows."""
     from apps.accounts.models import Tenant
     from apps.accounts.managers import set_current_tenant
+    from apps.ai.services import set_task_progress
     from apps.literature.models import Paper
     from apps.summaries.models import PaperSummary, FindingsRow
     from apps.summaries.services.ai_summary import run_ai_summary, apply_summary_result
     from apps.summaries.services.validation import validate_summary
+
+    task_id = self.request.id
 
     try:
         tenant = Tenant.objects.get(pk=tenant_id)
         set_current_tenant(tenant)
         paper = Paper.all_objects.get(pk=paper_id, tenant=tenant)
 
+        set_task_progress(task_id, "fetching", "Fetching full text…")
         _ensure_full_text(paper)
+
+        set_task_progress(task_id, "calling_api", "Calling Claude API…")
         result = run_ai_summary(paper)
 
-        summary, created = PaperSummary.all_objects.get_or_create(
+        set_task_progress(task_id, "saving", "Saving results…")
+
+        summary, _ = PaperSummary.all_objects.get_or_create(
             paper=paper,
             defaults={"tenant": tenant},
         )
@@ -72,6 +80,7 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
 
         warnings = validate_summary(result, paper.full_text or "")
         summary.validation_warnings = warnings
+        summary.preprocessing_stats = result.get("preprocessing_stats", {})
 
         summary.save()
 
@@ -86,9 +95,11 @@ def run_ai_summary_task(self, paper_id: int, tenant_id: int):
         log_task_action(tenant, paper, AuditLog.Action.AI_DRAFT,
                         after={"summary": "AI summary generated", "findings_rows": len(findings_data)})
 
+        set_task_progress(task_id, "complete", "Done")
         logger.info("AI summary complete for paper %s", paper_id)
 
     except Exception as exc:
+        set_task_progress(task_id, "failed", f"Failed: {exc}")
         logger.error("AI summary failed for paper %s: %s", paper_id, exc)
         raise self.retry(exc=exc)
 

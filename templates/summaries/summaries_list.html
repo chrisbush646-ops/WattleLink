@@ -82,7 +82,7 @@
   <div class="filter-bar">
     <div class="search-field">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      <input type="text" name="q" value="{{ search }}" placeholder="Search by paper title…" autocomplete="off">
+      <input type="text" name="q" value="{{ search }}" placeholder="Search by title, journal, study type…" autocomplete="off">
     </div>
     <div class="filter-chips">
       <a href="{% url 'summaries:list' %}{% if search %}?q={{ search }}{% endif %}" class="chip {% if not status_filter %}active{% endif %}">All</a>
@@ -193,11 +193,13 @@
 </div>
 
 <style>
-#results-table table{width:100%;border-collapse:collapse;font-size:12.5px}
-#results-table th{background:var(--euc);color:#fff;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
-#results-table td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.5}
-#results-table tr:last-child td{border-bottom:none}
-#results-table tr:nth-child(even) td{background:var(--paper-warm)}
+#results-table table,#results-discussion table{width:100%;border-collapse:collapse;font-size:12.5px}
+#results-table th,#results-discussion th{background:var(--euc);color:#fff;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+#results-table td,#results-discussion td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.5;font-family:var(--sans);font-size:13px}
+#results-table tr:last-child td,#results-discussion tr:last-child td{border-bottom:none}
+#results-table tr:nth-child(even) td,#results-discussion tr:nth-child(even) td{background:rgba(0,0,0,.03)}
+#results-discussion .inline-table{overflow-x:auto;margin:12px 0;border-radius:var(--r);border:1px solid var(--line)}
+#results-discussion hr{border:none;border-top:1px solid var(--line);margin:16px 0}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
@@ -230,7 +232,7 @@ async function generateResults() {
     document.getElementById('results-meta').textContent =
       `${data.paper_count} paper${data.paper_count !== 1 ? 's' : ''} matched · Generated from your literature library`;
     document.getElementById('results-table').innerHTML = markdownTableToHtml(data.table_markdown);
-    document.getElementById('results-discussion').textContent = data.discussion;
+    document.getElementById('results-discussion').innerHTML = formatDiscussion(data.discussion);
     content.style.display = 'block';
   } catch(e) {
     loading.style.display = 'none';
@@ -239,19 +241,89 @@ async function generateResults() {
   }
 }
 
+function _escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _inlineMd(s) {
+  return _escHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>');
+}
+
+function _isSepRow(line) {
+  const t = line.trim();
+  return t.includes('|') && t.includes('-') && /^\|?[\s:|-]+\|?$/.test(t);
+}
+
+function _parseTableRow(line) {
+  const parts = line.trim().split('|');
+  const start = parts[0].trim() === '' ? 1 : 0;
+  const end = parts[parts.length - 1].trim() === '' ? parts.length - 1 : parts.length;
+  return parts.slice(start, end).map(c => c.trim());
+}
+
 function markdownTableToHtml(md) {
-  const lines = md.trim().split('\n').filter(l => l.trim() && !l.match(/^\|[\s\-|]+\|$/));
-  if (!lines.length) return '<p style="color:var(--muted)">No table data returned.</p>';
-  const rows = lines.map(l => l.split('|').map(c => c.trim()).filter((c, i, a) => i > 0 && i < a.length - 1));
+  if (!md || !md.trim()) return '<p style="color:var(--muted);font-size:13px">No table data returned.</p>';
+  const lines = md.trim().split('\n').filter(l => l.trim() && !_isSepRow(l));
+  if (!lines.length) return '<p style="color:var(--muted);font-size:13px">No table data returned.</p>';
+  const rows = lines.map(_parseTableRow);
   const [header, ...body] = rows;
-  const ths = header.map(h => `<th>${h}</th>`).join('');
-  const trs = body.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  if (!header || !header.length) return '<p style="color:var(--muted);font-size:13px">Could not parse table.</p>';
+  const ths = header.map(h => `<th>${_inlineMd(h)}</th>`).join('');
+  const trs = body.map(r => `<tr>${r.map(c => `<td>${_inlineMd(c)}</td>`).join('')}</tr>`).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function formatDiscussion(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const segments = [];
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    // Standalone HR
+    if (trimmed === '---') {
+      segments.push({ type: 'hr' });
+      i++;
+    // Table: line starts with | OR next line is a separator row (header without leading pipe)
+    } else if (trimmed.startsWith('|') || (i + 1 < lines.length && _isSepRow(lines[i + 1]))) {
+      const tableLines = [lines[i]];
+      i++;
+      while (i < lines.length && (lines[i].trim().startsWith('|') || _isSepRow(lines[i]))) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      segments.push({ type: 'table', content: tableLines.join('\n') });
+    } else {
+      const textLines = [];
+      while (i < lines.length) {
+        const t = lines[i].trim();
+        if (t === '---' || t.startsWith('|')) break;
+        if (i + 1 < lines.length && _isSepRow(lines[i + 1])) break;
+        textLines.push(lines[i]);
+        i++;
+      }
+      if (textLines.some(l => l.trim())) segments.push({ type: 'text', content: textLines.join('\n') });
+    }
+  }
+  return segments.map(seg => {
+    if (seg.type === 'hr') return '<hr>';
+    if (seg.type === 'table') return `<div class="inline-table">${markdownTableToHtml(seg.content)}</div>`;
+    const escaped = _escHtml(seg.content)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    return escaped.split(/\n{2,}/).map(p => {
+      const t = p.trim();
+      return t ? `<p style="margin:0 0 10px">${t.replace(/\n/g, '<br>')}</p>` : '';
+    }).filter(Boolean).join('');
+  }).join('');
 }
 
 function copyResults() {
   const table = document.getElementById('results-table').innerText;
-  const disc = document.getElementById('results-discussion').textContent;
+  const disc = document.getElementById('results-discussion').innerText;
   navigator.clipboard.writeText('RESULTS\n\n' + table + '\n\nDISCUSSION\n\n' + disc);
 }
 </script>
