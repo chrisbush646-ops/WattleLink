@@ -45,7 +45,7 @@
       <em>{{ user.get_short_name|default:user.email }}.</em>
     </h1>
     <p class="ps">
-      {% if counts.ingested %}{{ counts.ingested }} paper{{ counts.ingested|pluralize }} in pipeline · {{ counts.claims_approved }} claim{{ counts.claims_approved|pluralize }} approved.{% else %}Set up your first search to get started.{% endif %}
+      {% if counts.ingested %}{{ counts.ingested }} paper{{ counts.ingested|pluralize }} in knowledge · {{ counts.claims_approved }} claim{{ counts.claims_approved|pluralize }} approved.{% else %}Set up your first search to get started.{% endif %}
     </p>
   </div>
   <div class="pa">
