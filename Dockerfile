@@ -16,8 +16,6 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 
 COPY . .
 
-RUN chmod +x worker_entrypoint.sh
-
 RUN SECRET_KEY=build-time-placeholder \
     python manage.py collectstatic --noinput \
     --settings=config.settings.production

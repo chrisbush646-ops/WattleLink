@@ -85,6 +85,10 @@ pytest
 
 See `CLAUDE.md` in the repository root for the full architecture reference.
 
+## Deployment
+
+_To be documented._
+
 ## Key conventions
 
 - Every model has a `tenant` FK — never query without tenant scoping.
